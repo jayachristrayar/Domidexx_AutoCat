@@ -1,13 +1,19 @@
 import pool from '../db/index.js';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
+import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
 const FETCH_TIMEOUT_MS = 8000;
 
-// Priority order used when sources disagree on a field. LibraryThing is
-// listed first per the intended long-term priority even though it isn't
-// queried yet -- see fetchLibraryThing below.
-const SOURCE_PRIORITY = ['libraryThing', 'openLibrary', 'googleBooks'];
+// Priority order used when sources disagree on a field. z3950 (Library of
+// Congress, via Z39.50) goes first: a LOC MARC record is the gold-standard
+// cataloguing authority for the fields it actually populates. LibraryThing
+// is listed next per the intended long-term priority even though it isn't
+// queried yet -- see fetchLibraryThing below. LOC records commonly omit
+// things like description/summary text, so lower-priority sources still
+// supplement whatever z3950 didn't populate -- mergeField already does this
+// generically for every field, no special-casing needed here.
+const SOURCE_PRIORITY = ['z3950', 'libraryThing', 'openLibrary', 'googleBooks'];
 
 function normalizeIsbn(isbn) {
   return isbn.replace(/[-\s]/g, '');
@@ -124,6 +130,7 @@ function extractLibraryThingFields(_raw) {
 }
 
 const EXTRACTORS = {
+  z3950: extractZ3950Fields,
   libraryThing: extractLibraryThingFields,
   openLibrary: extractOpenLibraryFields,
   googleBooks: extractGoogleBooksFields,
@@ -203,9 +210,14 @@ export function mergeSources(isbn, rawBySource) {
   merged.physical_description = physicalDescription;
 
   merged.sources = {
+    z3950: rawBySource.z3950 ?? null,
     libraryThing: rawBySource.libraryThing ?? null,
     openLibrary: rawBySource.openLibrary ?? null,
     googleBooks: rawBySource.googleBooks ?? null,
+    // Internal-only quality signal (never sent to the client -- see
+    // records.js's toClientResponse): true when the LOC Z39.50 lookup
+    // actually supplied data for this record.
+    loc_marc: Boolean(rawBySource.z3950),
   };
   merged.conflicts = conflicts;
 
@@ -371,6 +383,7 @@ export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
   }
 
   const sourceCalls = [
+    ['z3950', lookupZ3950],
     ['libraryThing', fetchLibraryThing],
     ['openLibrary', fetchOpenLibrary],
     ['googleBooks', fetchGoogleBooks],
