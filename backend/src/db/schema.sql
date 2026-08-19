@@ -65,3 +65,12 @@ CREATE TABLE draft_state (
   ui_state_json JSONB,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE ddc_relative_index (
+  id SERIAL PRIMARY KEY,
+  term TEXT NOT NULL,
+  ddc_number TEXT NOT NULL,
+  qualifier TEXT,
+  search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', term)) STORED
+);
+CREATE INDEX ddc_relative_index_search_idx ON ddc_relative_index USING GIN(search_vector);
