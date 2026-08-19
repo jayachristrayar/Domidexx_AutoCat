@@ -57,3 +57,11 @@ CREATE TABLE api_usage (
   tokens_used INTEGER,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE TABLE draft_state (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) UNIQUE,
+  marc_record_id INTEGER REFERENCES marc_records(id),
+  ui_state_json JSONB,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
