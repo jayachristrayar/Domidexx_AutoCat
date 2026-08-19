@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
+import recordsRouter from './routes/records.js';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/auth', authRouter);
 app.use('/me', meRouter);
+app.use('/records', recordsRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
