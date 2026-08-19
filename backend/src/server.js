@@ -4,6 +4,7 @@ import express from 'express';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
 import recordsRouter from './routes/records.js';
+import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
 
 dotenv.config();
 
@@ -30,6 +31,8 @@ app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });
+
+startModelRefreshSchedule();
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`AutoCat backend listening on port ${port}`);
