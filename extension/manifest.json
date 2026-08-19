@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "AutoCat",
+  "version": "0.1.0",
+  "description": "MARC 21 cataloguing assistant for librarians using Koha.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["http://localhost:10000/*"],
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_title": "AutoCat"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/*"],
+      "js": ["src/content-scripts/koha-fill.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
