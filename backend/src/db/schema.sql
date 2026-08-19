@@ -1,8 +1,8 @@
+-- Groups users by library; the rule engine uses the single shared rules/ set, not per-institution profiles.
 CREATE TABLE institutions (
   id SERIAL PRIMARY KEY,
   slug TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  active_rule_profile TEXT NOT NULL DEFAULT 'default',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

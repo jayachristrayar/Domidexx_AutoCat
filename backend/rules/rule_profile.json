@@ -1,0 +1,10 @@
+{
+  "cataloguing_standard": "AACR2 (2nd ed.) + ISBD Consolidated Edition (2011, with 2021 Update) + MARC 21 Bibliographic",
+  "ddc_edition_default": null,
+  "ils": "Koha",
+  "knowledge_base_files": [
+    "marc_field_rules.json",
+    "shared/isbd_and_entry_rules.json"
+  ],
+  "notes": "Manual mentions multiple DDC editions (22nd, 23rd); confirm which edition is current before setting ddc_edition_default."
+}

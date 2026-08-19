@@ -181,30 +181,21 @@ async function main() {
   const marcFieldSections = extractMarcFieldSections(markdown);
   const metadata = inferRuleProfileMetadata(markdown);
 
-  const defaultDir = join(rulesDir, 'institutions', 'default');
   const sharedDir = join(rulesDir, 'shared');
-  mkdirSync(defaultDir, { recursive: true });
   mkdirSync(sharedDir, { recursive: true });
 
-  const marcFieldRulesPath = join(defaultDir, 'marc_field_rules.json');
+  const marcFieldRulesPath = join(rulesDir, 'marc_field_rules.json');
   const sharedRulesPath = join(sharedDir, 'isbd_and_entry_rules.json');
-  const ruleProfilePath = join(defaultDir, 'rule_profile.json');
+  const ruleProfilePath = join(rulesDir, 'rule_profile.json');
 
   writeFileSync(marcFieldRulesPath, `${JSON.stringify(marcFieldSections, null, 2)}\n`);
   writeFileSync(sharedRulesPath, `${JSON.stringify(sharedSections, null, 2)}\n`);
 
   const ruleProfile = {
-    _note:
-      'Template profile. To onboard a new institution, copy this entire institutions/default/ folder to institutions/<their_own_slug>/ and edit institution_id and institution_name only in rule_profile.json. Never hardcode real institution names in application code — only in per-institution data files like this one.',
-    institution_id: 'default',
-    institution_name: 'Default library (rename this)',
     cataloguing_standard: metadata.cataloguing_standard,
     ddc_edition_default: metadata.ddc_edition_default,
     ils: metadata.ils,
-    knowledge_base_files: [
-      'institutions/default/marc_field_rules.json',
-      'shared/isbd_and_entry_rules.json',
-    ],
+    knowledge_base_files: ['marc_field_rules.json', 'shared/isbd_and_entry_rules.json'],
   };
 
   if (metadata.notes) {
