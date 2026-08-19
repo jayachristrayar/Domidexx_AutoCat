@@ -15,6 +15,38 @@ const isbnParamSchema = z.object({
     }),
 });
 
+// Allowlists the fields sent to the extension. lookupIsbn's internal result
+// can carry provider/model names and raw source payloads (for our own
+// audit/debugging) -- none of that is provider-identifying info the client
+// is allowed to see, so this only copies known-safe fields across and
+// reduces "where did this come from" to the single provenance signal.
+function toClientResponse(result) {
+  const response = {
+    isbn: result.isbn,
+    title: result.title,
+    subtitle: result.subtitle,
+    authors: result.authors,
+    editors: result.editors,
+    illustrators: result.illustrators,
+    translators: result.translators,
+    publisher: result.publisher,
+    publish_date: result.publish_date,
+    edition: result.edition,
+    physical_description: result.physical_description,
+    description: result.description,
+    subjects: result.subjects,
+    series: result.series,
+  };
+
+  if (result.not_found) {
+    response.not_found = true;
+  } else {
+    response.provenance = result.sources?.method === 'web_search' ? 'unverified' : 'catalog_match';
+  }
+
+  return response;
+}
+
 router.get(
   '/lookup/:isbn',
   requireSession,
@@ -24,8 +56,10 @@ router.get(
       return res.status(400).json({ error: parsed.error.flatten() });
     }
 
-    const result = await lookupIsbn(parsed.data.isbn);
-    res.json(result);
+    const result = await lookupIsbn(parsed.data.isbn, req.user.subscriptionTier, {
+      userId: req.user.userId,
+    });
+    res.json(toClientResponse(result));
   })
 );
 

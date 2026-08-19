@@ -1,4 +1,5 @@
 import pool from '../db/index.js';
+import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
 const FETCH_TIMEOUT_MS = 8000;
@@ -211,7 +212,154 @@ export function mergeSources(isbn, rawBySource) {
   return merged;
 }
 
-export async function lookupIsbn(rawIsbn) {
+function emptyNormalizedRecord(isbn) {
+  return {
+    isbn,
+    title: null,
+    subtitle: null,
+    authors: [],
+    editors: [],
+    illustrators: [],
+    translators: [],
+    publisher: null,
+    publish_date: null,
+    edition: null,
+    physical_description: { pages: null, dimensions: null },
+    description: null,
+    subjects: [],
+    series: null,
+    conflicts: [],
+  };
+}
+
+async function logApiUsage(userId, model, tokensUsed) {
+  try {
+    await pool.query('INSERT INTO api_usage (user_id, provider, tokens_used) VALUES ($1, $2, $3)', [
+      userId ?? null,
+      model,
+      tokensUsed ?? null,
+    ]);
+  } catch (error) {
+    console.error(`ISBN web-search fallback: failed to log api_usage: ${error.message}`);
+  }
+}
+
+function extractCitations(response) {
+  const citations = [];
+  for (const item of response.output ?? []) {
+    for (const content of item.content ?? []) {
+      for (const annotation of content.annotations ?? []) {
+        if (annotation.type === 'url_citation') {
+          citations.push({ url: annotation.url, title: annotation.title ?? null });
+        }
+      }
+    }
+  }
+  return citations;
+}
+
+function extractJson(text) {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return (fenced ? fenced[1] : text).trim();
+}
+
+const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null}`;
+
+// Only called for paid-tier users, and only when LibraryThing + Open
+// Library + Google Books all came back with no usable title. Uses OpenAI's
+// Responses API with the built-in web_search tool via the auto-selected
+// model from openaiModelSelector.js -- never a hardcoded model name.
+export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
+  const model = await getAvailableOpenAiModel();
+  if (!model) {
+    console.error(`ISBN web-search fallback skipped for ${isbn}: no usable OpenAI model available.`);
+    return null;
+  }
+
+  const client = getOpenAiClientForFallback();
+  if (!client) {
+    console.error(`ISBN web-search fallback skipped for ${isbn}: OPENAI_API_KEY is not configured.`);
+    return null;
+  }
+
+  let searchResponse;
+  try {
+    searchResponse = await client.responses.create({
+      model,
+      tools: [{ type: 'web_search' }],
+      input: `Find bibliographic data for the book with ISBN ${isbn}. Return title, subtitle, authors, publisher, publish date, edition, page count, and a short description. Cite the source(s) you found this from.`,
+    });
+  } catch (error) {
+    console.error(`ISBN web-search fallback: web_search call failed for ${isbn}: ${error.message}`);
+    return null;
+  }
+  await logApiUsage(userId, model, searchResponse.usage?.total_tokens);
+
+  const searchText = searchResponse.output_text ?? '';
+  const citations = extractCitations(searchResponse);
+
+  let structuredResponse;
+  try {
+    structuredResponse = await client.responses.create({
+      model,
+      input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences):
+${STRUCTURED_JSON_SHAPE}
+
+ISBN: ${isbn}
+
+Research:
+${searchText}`,
+    });
+  } catch (error) {
+    console.error(`ISBN web-search fallback: JSON formatting call failed for ${isbn}: ${error.message}`);
+    return null;
+  }
+  await logApiUsage(userId, model, structuredResponse.usage?.total_tokens);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(extractJson(structuredResponse.output_text ?? ''));
+  } catch (error) {
+    console.error(`ISBN web-search fallback: could not parse structured JSON for ${isbn}: ${error.message}`);
+    return null;
+  }
+
+  if (!parsed.title) {
+    return null;
+  }
+
+  return {
+    isbn,
+    title: parsed.title ?? null,
+    subtitle: parsed.subtitle ?? null,
+    authors: parsed.authors ?? [],
+    editors: parsed.editors ?? [],
+    illustrators: parsed.illustrators ?? [],
+    translators: parsed.translators ?? [],
+    publisher: parsed.publisher ?? null,
+    publish_date: parsed.publish_date ?? null,
+    edition: parsed.edition ?? null,
+    physical_description: {
+      pages: parsed.physical_description?.pages ?? null,
+      dimensions: parsed.physical_description?.dimensions ?? null,
+    },
+    description: parsed.description ?? null,
+    subjects: parsed.subjects ?? [],
+    series: parsed.series ?? null,
+    conflicts: [],
+    // Internal audit tag only -- the /records/lookup/:isbn route strips this
+    // down to a bare "provenance": "unverified" before it ever reaches the
+    // client. citations/model never leave the server.
+    sources: {
+      method: 'web_search',
+      model,
+      citations,
+      note: 'verify carefully, not confirmed against a structured bibliographic database',
+    },
+  };
+}
+
+export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
 
   const cached = await pool.query(
@@ -242,13 +390,34 @@ export async function lookupIsbn(rawIsbn) {
   });
 
   const merged = mergeSources(isbn, rawBySource);
+  const hasStructuredTitle = Boolean(merged.title);
+
+  let result;
+  let cacheSource;
+
+  if (hasStructuredTitle) {
+    result = { ...merged, sources: { ...merged.sources, method: 'structured' } };
+    cacheSource = 'merged';
+  } else if (subscriptionTier === 'paid') {
+    const webResult = await lookupIsbnWebFallback(isbn, { userId });
+    if (webResult) {
+      result = webResult;
+      cacheSource = 'web_search';
+    } else {
+      result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
+      cacheSource = 'not_found';
+    }
+  } else {
+    result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
+    cacheSource = 'not_found';
+  }
 
   await pool.query(
     `INSERT INTO isbn_cache (isbn, raw_json, source)
-     VALUES ($1, $2, 'merged')
+     VALUES ($1, $2, $3)
      ON CONFLICT (isbn) DO UPDATE SET raw_json = EXCLUDED.raw_json, source = EXCLUDED.source, fetched_at = now()`,
-    [isbn, JSON.stringify(merged)]
+    [isbn, JSON.stringify(result), cacheSource]
   );
 
-  return merged;
+  return result;
 }
