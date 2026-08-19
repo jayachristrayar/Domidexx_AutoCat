@@ -1,0 +1,194 @@
+// backend/src/llm/router.js did not exist before this change -- it's built
+// here from scratch (there was no prior "invent a DDC number" version to
+// preserve). Architecture and every non-obvious choice is documented
+// inline; see the PR that introduced this file for the full rationale.
+import OpenAI from 'openai';
+import { getAvailableOpenAiModel, getOpenAiClientForFallback } from '../services/openaiModelSelector.js';
+import { findCandidateDdcNumbers } from '../services/ddcLookup.js';
+
+// NVIDIA's hosted NIM endpoint (integrate.api.nvidia.com/v1, matching
+// NVIDIA_BASE_URL from .env.example) is OpenAI-compatible via the standard
+// Chat Completions surface, NOT the newer Responses API -- that's
+// OpenAI-only. So both providers reuse the same `openai` npm client; OpenAI
+// calls responses.create(), NVIDIA calls chat.completions.create().
+//
+// Unlike OpenAI (openaiModelSelector.js), NVIDIA's /v1/models response
+// doesn't need to be probed here: building a whole auto-selection subsystem
+// for a provider this task doesn't otherwise touch would be scope well
+// beyond "ground the 082 instruction in real candidates." NVIDIA_MODEL is a
+// plain env var instead, with a documented default.
+const DEFAULT_NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
+
+let nvidiaClient = null;
+function getNvidiaClient() {
+  if (!process.env.NVIDIA_API_KEY || !process.env.NVIDIA_BASE_URL) return null;
+  if (!nvidiaClient) {
+    nvidiaClient = new OpenAI({ apiKey: process.env.NVIDIA_API_KEY, baseURL: process.env.NVIDIA_BASE_URL });
+  }
+  return nvidiaClient;
+}
+
+const STOPWORDS = new Set([
+  'the', 'a', 'an', 'of', 'and', 'or', 'in', 'on', 'for', 'to', 'with', 'by',
+  'is', 'are', 'was', 'were', 'this', 'that', 'from', 'as', 'at', 'it', 'its',
+  'his', 'her', 'their', 'about', 'into', 'over', 'also', 'been', 'has', 'have',
+]);
+
+function extractSignificantWords(text, max = 8) {
+  if (!text) return [];
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 3 && !STOPWORDS.has(word));
+  return [...new Set(words)].slice(0, max);
+}
+
+// Keywords for findCandidateDdcNumbers: the book's title and subjects as
+// whole phrases (already concise, meaningful search units), plus a small
+// set of significant individual words pulled from the description (a full
+// paragraph would internally AND all its words via plainto_tsquery and
+// essentially never match -- see ddcLookup.js).
+export function deriveDdcKeywords(normalizedBiblioData) {
+  const keywords = [];
+  if (normalizedBiblioData.title) keywords.push(normalizedBiblioData.title);
+  for (const subject of normalizedBiblioData.subjects ?? []) {
+    if (subject) keywords.push(subject);
+  }
+  keywords.push(...extractSignificantWords(normalizedBiblioData.description));
+  return keywords;
+}
+
+function buildDdcCandidateInstruction(candidates) {
+  const list = candidates
+    .map((c) => `- ${c.term}${c.qualifier ? ` (${c.qualifier})` : ''} -> ${c.ddc_number}`)
+    .join('\n');
+  return (
+    `Here are candidate DDC numbers found in the official DDC 23 relative index for this book's subject matter:\n${list}\n\n` +
+    `Choose the most appropriate number from these candidates if one fits well. Only propose a number NOT in this list if none of the candidates are a reasonable match, and if you do, mark confidence as "low" and explain why in a notes field.`
+  );
+}
+
+const NO_CANDIDATES_INSTRUCTION =
+  'No candidate DDC numbers were found in the official DDC 23 relative index for this book\'s subject matter. ' +
+  'Draft the 082 field from your own knowledge, but you MUST mark confidence as "low" in that case, since it is unverified against our DDC data.';
+
+const FIELD_TAG_NOTES = {
+  '082': 'Dewey Decimal Classification number ($a class number, $b Cutter mark from the main entry or title, $2 DDC edition "23").',
+  '1xx': 'Main entry (100 personal name / 110 corporate name / 111 meeting name) -- choose per AACR2 ch.21 (rules/shared/isbd_and_entry_rules.json, "AACR2 main/added entry choice rules").',
+  '6xx': 'Subject added entries (600/610/650) -- topical/personal/corporate subject headings for this work.',
+  '520': 'Summary/abstract note -- concise, neutral description of scope and content, not promotional copy.',
+  '7xx': 'Added entries (700/710/711) for contributors named in 245$c who are not the 1xx main entry.',
+};
+
+function buildBibliographicSummary(normalizedBiblioData) {
+  const { title, subtitle, authors, editors, illustrators, translators, publisher, publish_date, subjects, description, series } = normalizedBiblioData;
+  return JSON.stringify(
+    { title, subtitle, authors, editors, illustrators, translators, publisher, publish_date, subjects, description, series },
+    null,
+    2
+  );
+}
+
+const RESPONSE_SHAPE =
+  '{"fields": [{"tag": string, "indicators": [string, string], "subfields": [{"code": string, "value": string}], "confidence": "high"|"medium"|"low", "notes": string|null}]}';
+
+async function buildSystemPrompt({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile, ddcCandidates }) {
+  const parts = [];
+  parts.push(
+    `You are a MARC 21 cataloguing assistant following ${ruleProfile.cataloguing_standard}. ` +
+      'Draft ONLY the MARC fields listed below, as a book cataloguer would, following AACR2/ISBD punctuation conventions. ' +
+      `Respond with strict JSON matching exactly this shape, no markdown fences, no commentary: ${RESPONSE_SHAPE}`
+  );
+
+  parts.push(
+    `Fields needed: ${fieldsNeeded.map((tag) => `${tag} (${FIELD_TAG_NOTES[tag] ?? tag})`).join('; ')}.`
+  );
+
+  parts.push(`Book bibliographic data:\n${buildBibliographicSummary(normalizedBiblioData)}`);
+
+  if (skeleton && skeleton.length > 0) {
+    parts.push(
+      `MARC fields already mechanically determined for this record (for context/consistency -- do not redraft these):\n${JSON.stringify(skeleton, null, 2)}`
+    );
+  }
+
+  if (fieldsNeeded.includes('082')) {
+    parts.push(
+      ddcCandidates.length > 0 ? buildDdcCandidateInstruction(ddcCandidates) : NO_CANDIDATES_INSTRUCTION
+    );
+  }
+
+  return parts.join('\n\n');
+}
+
+function extractJson(text) {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return (fenced ? fenced[1] : text).trim();
+}
+
+async function callOpenAi(systemPrompt) {
+  const model = await getAvailableOpenAiModel();
+  if (!model) throw new Error('no usable OpenAI model available');
+  const client = getOpenAiClientForFallback();
+  if (!client) throw new Error('OPENAI_API_KEY is not configured');
+
+  const response = await client.responses.create({ model, input: systemPrompt });
+  return { model, text: response.output_text ?? '' };
+}
+
+async function callNvidia(systemPrompt) {
+  const client = getNvidiaClient();
+  if (!client) throw new Error('NVIDIA_API_KEY/NVIDIA_BASE_URL are not configured');
+  const model = process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
+
+  const response = await client.chat.completions.create({
+    model,
+    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: 'Return the JSON now.' }],
+  });
+  return { model, text: response.choices?.[0]?.message?.content ?? '' };
+}
+
+// draftFields({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile,
+// provider }) -- drafts the MARC fields marcBuilder.js's buildSkeleton()
+// left in fields_needing_llm (082, 1xx, 6xx, 520, 7xx). provider is
+// 'openai' (default) or 'nvidia'.
+//
+// Before drafting 082, queries ddcLookup.findCandidateDdcNumbers() with
+// keywords derived from the book's title/subjects/description and injects
+// the results into the system prompt for whichever provider is used, so
+// the model picks from real DDC 23 index entries instead of inventing a
+// number from memory. Falls back to letting the model draft from its own
+// knowledge only when the lookup returns zero candidates, always forcing
+// confidence: "low" in that case.
+export async function draftFields({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile, provider = 'openai' }) {
+  if (!fieldsNeeded || fieldsNeeded.length === 0) {
+    return { fields: [], systemPrompt: null, ddcCandidates: [], provider, model: null };
+  }
+
+  let ddcCandidates = [];
+  if (fieldsNeeded.includes('082')) {
+    const keywords = deriveDdcKeywords(normalizedBiblioData);
+    ddcCandidates = await findCandidateDdcNumbers(keywords);
+  }
+
+  const systemPrompt = await buildSystemPrompt({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile, ddcCandidates });
+
+  const call = provider === 'nvidia' ? callNvidia : callOpenAi;
+  const { model, text } = await call(systemPrompt);
+
+  let parsed;
+  try {
+    parsed = JSON.parse(extractJson(text));
+  } catch (error) {
+    throw new Error(`draftFields: could not parse ${provider} response as JSON: ${error.message}`);
+  }
+
+  return {
+    fields: parsed.fields ?? [],
+    systemPrompt,
+    ddcCandidates,
+    provider,
+    model,
+  };
+}
