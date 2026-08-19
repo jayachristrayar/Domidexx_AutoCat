@@ -2,7 +2,7 @@ CREATE TABLE institutions (
   id SERIAL PRIMARY KEY,
   slug TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
-  active_rule_profile TEXT NOT NULL DEFAULT 'default',
+  active_rule_profile TEXT NOT NULL DEFAULT 'christ_university',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
