@@ -1,0 +1,36 @@
+# Render Blueprint for the AutoCat backend. This file lives at
+# backend/render.yaml, not the repo root -- when creating the Blueprint in
+# the Render dashboard, set its "Blueprint Path" field to
+# "backend/render.yaml" (Render defaults to a root-level render.yaml
+# otherwise; custom Blueprint paths are supported as of Feb 2026).
+#
+# Standard Node buildpack, not Docker: this repo also has backend/Dockerfile
+# (for the Z39.50/YAZ system dependency), but that's a separate, opt-in
+# deployment path -- this Blueprint intentionally stays on the plain Node
+# runtime. Z39.50 lookups already no-op gracefully with a clear log message
+# when yaz-client isn't present (see src/services/z3950Lookup.js), so this
+# is a safe default, not a silent break.
+services:
+  - type: web
+    name: autocat-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_BASE_URL
+        sync: false
+      - key: NVIDIA_MODEL
+        sync: false
+      - key: GOOGLE_BOOKS_API_KEY
+        sync: false
+      - key: LIBRARYTHING_API_KEY
+        sync: false
