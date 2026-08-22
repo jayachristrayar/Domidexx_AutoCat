@@ -18,7 +18,21 @@ function sign(payload) {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex');
 }
 
+export function assertAdminSecretsConfigured() {
+  if (!process.env.ADMIN_PASSWORD) {
+    const error = new Error('ADMIN_PASSWORD is not configured');
+    error.code = 'ADMIN_PASSWORD_MISSING';
+    throw error;
+  }
+  if (!process.env.ADMIN_SESSION_SECRET) {
+    const error = new Error('ADMIN_SESSION_SECRET is not configured');
+    error.code = 'ADMIN_SESSION_SECRET_MISSING';
+    throw error;
+  }
+}
+
 export function createAdminSessionCookie() {
+  assertAdminSecretsConfigured();
   const expiresAt = Date.now() + SESSION_TTL_MS;
   const payload = String(expiresAt);
   const value = `${payload}.${sign(payload)}`;
@@ -27,8 +41,11 @@ export function createAdminSessionCookie() {
     name: ADMIN_COOKIE_NAME,
     value,
     httpOnly: true,
+    // Render terminates TLS at the edge (Cloudflare), so the browser sees
+    // HTTPS even though the Node process itself is plain HTTP. Secure cookies
+    // are required in production or browsers will silently drop the session.
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/admin',
     maxAge: SESSION_TTL_MS / 1000,
   });
@@ -40,7 +57,7 @@ export function clearAdminSessionCookie() {
     value: '',
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     path: '/admin',
     maxAge: 0,
   });

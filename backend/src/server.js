@@ -10,6 +10,7 @@
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
+import { ensureSchema, checkDatabase } from './db/index.js';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
@@ -45,8 +46,14 @@ const extensionCors = cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
+app.get('/health', async (_req, res) => {
+  try {
+    await checkDatabase();
+    res.json({ status: 'ok', database: 'up' });
+  } catch (error) {
+    console.error('Health check database failure:', error.message);
+    res.status(503).json({ status: 'degraded', database: 'down', error: error.message });
+  }
 });
 
 app.use('/admin', adminRouter);
@@ -54,17 +61,44 @@ app.use('/auth', extensionCors, authRouter);
 app.use('/me', extensionCors, meRouter);
 app.use('/records', extensionCors, recordsRouter);
 
-app.use((err, _req, res, _next) => {
+app.use((err, req, res, _next) => {
   if (err instanceof CorsOriginError) {
     res.status(403).json({ error: 'Origin not allowed' });
     return;
   }
   console.error(err);
+
+  const wantsHtml = req.path.startsWith('/admin') || (req.accepts('html', 'json') === 'html');
+  if (wantsHtml) {
+    res.status(500).send(`<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Error — AutoCat Admin</title>
+<style>body{font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px;color:#1a1a1a}
+.err{background:#fde8e8;border:1px solid #f3b8b8;color:#a11;padding:12px 14px;border-radius:6px}</style>
+</head><body>
+<h1>Something went wrong</h1>
+<div class="err">The admin dashboard hit a server error. Check that DATABASE_URL, ADMIN_PASSWORD, and ADMIN_SESSION_SECRET are set, and that the database schema has been applied.</div>
+<p><a href="/admin/login">Back to login</a></p>
+</body></html>`);
+    return;
+  }
+
   res.status(500).json({ error: 'Internal server error' });
 });
 
-startModelRefreshSchedule();
+async function start() {
+  try {
+    await ensureSchema();
+  } catch (error) {
+    console.error('Failed to ensure database schema on startup:', error);
+    // Still listen so /health can report the failure; request handlers that
+    // touch the DB will keep returning 500 until connectivity is fixed.
+  }
 
-app.listen(port, '0.0.0.0', () => {
-  console.log(`AutoCat backend listening on port ${port}`);
-});
+  startModelRefreshSchedule();
+
+  app.listen(port, '0.0.0.0', () => {
+    console.log(`AutoCat backend listening on port ${port}`);
+  });
+}
+
+start();

@@ -4,36 +4,21 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AutoCat</title>
-    <style>
-      body {
-        margin: 0;
-        min-width: 280px;
-        font-family: system-ui, sans-serif;
-      }
-      header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 14px;
-        border-bottom: 1px solid #e5e7eb;
-      }
-      header img {
-        width: 48px;
-        height: 48px;
-      }
-      header h1 {
-        margin: 0;
-        font-size: 1.125rem;
-        font-weight: 600;
-      }
-    </style>
+    <link rel="stylesheet" href="./popup.css" />
   </head>
   <body>
     <header>
-      <img src="../../assets/logo/icon48.png" alt="AutoCat logo" width="48" height="48" />
-      <h1>AutoCat</h1>
+      <img src="../../assets/logo/icon48.png" alt="AutoCat logo" width="40" height="40" />
+      <div>
+        <h1>AutoCat</h1>
+        <p class="tagline">MARC cataloguing assistant</p>
+      </div>
     </header>
-    <div id="app"></div>
+
+    <main id="app">
+      <p class="muted">Loading…</p>
+    </main>
+
     <script type="module" src="./popup.js"></script>
   </body>
 </html>

@@ -10,6 +10,7 @@ import {
   requireAdminSession,
   createAdminSessionCookie,
   clearAdminSessionCookie,
+  assertAdminSecretsConfigured,
 } from '../middleware/requireAdminSession.js';
 import { createUser, UserAlreadyExistsError } from '../services/userService.js';
 
@@ -19,6 +20,47 @@ const RULES_DIR = path.join(__dirname, '..', '..', 'rules');
 const router = Router();
 
 const RECORDS_PAGE_SIZE = 50;
+
+function adminConfigErrorMessage() {
+  if (!process.env.ADMIN_PASSWORD) {
+    return 'ADMIN_PASSWORD is not set on the server. Add it in the Render environment variables, then redeploy.';
+  }
+  if (!process.env.ADMIN_SESSION_SECRET) {
+    return 'ADMIN_SESSION_SECRET is not set on the server. Add a long random value in the Render environment variables, then redeploy.';
+  }
+  return null;
+}
+
+function renderLoginPage({ errorHtml = '' } = {}) {
+  const configError = adminConfigErrorMessage();
+  const configBanner = configError
+    ? `<div class="error">${escapeHtml(configError)}</div>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Admin Login — AutoCat</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f7f7f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+  form { background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); width: 320px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  input { width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 12px; }
+  button { width: 100%; padding: 8px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .error { background: #fde8e8; color: #a11; border: 1px solid #f3b8b8; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
+</style>
+</head>
+<body>
+<form method="POST" action="/admin/login">
+  <h1>AutoCat Admin</h1>
+  ${configBanner}
+  ${errorHtml}
+  <input type="password" name="password" placeholder="Password" required autofocus ${configError ? 'disabled' : ''} />
+  <button type="submit" ${configError ? 'disabled' : ''}>Log in</button>
+</form>
+</body>
+</html>`;
+}
 
 // ---------------------------------------------------------------------
 // Tiny HTML helpers -- plain server-rendered pages, no build step. This is
@@ -110,38 +152,35 @@ function verifyAdminPassword(password) {
 }
 
 router.get('/login', (req, res) => {
-  const error = req.query.error ? '<div class="error">Incorrect password.</div>' : '';
-  res.send(`<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8" /><title>Admin Login — AutoCat</title>
-<style>
-  body { font-family: system-ui, sans-serif; background: #f7f7f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-  form { background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); width: 280px; }
-  h1 { font-size: 18px; margin: 0 0 16px; }
-  input { width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 12px; }
-  button { width: 100%; padding: 8px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
-  .error { background: #fde8e8; color: #a11; border: 1px solid #f3b8b8; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
-</style>
-</head>
-<body>
-<form method="POST" action="/admin/login">
-  <h1>AutoCat Admin</h1>
-  ${error}
-  <input type="password" name="password" placeholder="Password" required autofocus />
-  <button type="submit">Log in</button>
-</form>
-</body>
-</html>`);
+  const errorHtml = req.query.error ? '<div class="error">Incorrect password.</div>' : '';
+  res.send(renderLoginPage({ errorHtml }));
 });
 
 const loginSchema = z.object({ password: z.string().min(1) });
 
 router.post('/login', (req, res) => {
+  const configError = adminConfigErrorMessage();
+  if (configError) {
+    return res.status(503).send(renderLoginPage());
+  }
+
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success || !verifyAdminPassword(parsed.data.password)) {
     return res.redirect('/admin/login?error=1');
   }
-  res.setHeader('Set-Cookie', createAdminSessionCookie());
+
+  try {
+    assertAdminSecretsConfigured();
+    res.setHeader('Set-Cookie', createAdminSessionCookie());
+  } catch (error) {
+    console.error('Admin login cookie failed:', error.message);
+    return res.status(503).send(
+      renderLoginPage({
+        errorHtml: `<div class="error">${escapeHtml(error.message)}</div>`,
+      })
+    );
+  }
+
   res.redirect('/admin');
 });
 
