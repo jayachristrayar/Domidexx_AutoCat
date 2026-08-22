@@ -1,58 +1,47 @@
-// Side-panel-facing client for talking to the Koha content script
-// (kohaFillEngine.js / koha-fill.js) on the active tab. This is a
-// separate concern from src/services/api.js (which talks to the AutoCat
-// backend through the background worker) -- Koha DOM operations go
-// directly from the side panel to the content script via
-// chrome.tabs.sendMessage, matching the existing, tested P4 architecture.
-// Every failure here is translated to a friendly message; nothing raw
-// (error stacks, chrome.runtime.lastError text) is ever returned as-is.
+// Side-panel-facing client for Koha DOM operations. The Side Panel has
+// its own DOM and cannot see the Koha page directly, so every call here
+// is a chrome.runtime.sendMessage to the background service worker
+// (AUTOCAT_KOHA_ACTION) -- the background worker is the one that finds
+// the active tab, confirms it's a Koha "Add MARC record" page, and
+// relays to the content script via chrome.tabs.sendMessage. This mirrors
+// src/services/api.js's pattern for backend calls: this file never calls
+// chrome.tabs.* itself, and every failure is already a friendly,
+// user-safe message by the time it reaches sidepanel.js.
+import { debugLog } from './config.js';
 
 class KohaConnectionError extends Error {
-  constructor(message) {
+  constructor(message, code) {
     super(message);
     this.name = 'KohaConnectionError';
+    this.code = code;
   }
 }
 
-async function activeTab() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab?.id) {
-    throw new KohaConnectionError('No active browser tab found.');
-  }
-  return tab;
-}
-
-async function sendToKoha(message) {
-  const tab = await activeTab();
+async function call(action, payload) {
+  debugLog('koha action', action);
+  let result;
   try {
-    const result = await chrome.tabs.sendMessage(tab.id, message);
-    if (!result) {
-      throw new KohaConnectionError('Open the Koha "Add MARC record" page and try again.');
-    }
-    return result;
+    result = await chrome.runtime.sendMessage({ type: 'AUTOCAT_KOHA_ACTION', action, payload });
   } catch (error) {
-    if (error instanceof KohaConnectionError) throw error;
-    // chrome.tabs.sendMessage rejects with "Receiving end does not exist"
-    // when the active tab isn't a Koha cataloguing page -- the expected,
-    // common case, not a bug.
-    throw new KohaConnectionError('This isn’t a Koha "Add MARC record" page. Open it and try again.');
+    debugLog('koha sendMessage failed', error);
+    throw new KohaConnectionError('Unable to connect to AutoCat. Please try again.', 'EXTENSION_ERROR');
   }
+  if (!result) {
+    throw new KohaConnectionError('Something went wrong. Please try again.', 'EMPTY_RESPONSE');
+  }
+  if (!result.ok) {
+    throw new KohaConnectionError(result.message || 'Something went wrong. Please try again.', result.code);
+  }
+  return result.data;
 }
 
 export { KohaConnectionError };
 
 export async function detectFields() {
-  const result = await sendToKoha({ type: 'AUTOCAT_DETECT_FIELDS' });
-  if (result.status !== 'ok') {
-    throw new KohaConnectionError('Could not read MARC fields from this Koha page.');
-  }
-  return result.tags;
+  const data = await call('detectFields', {});
+  return data.tags;
 }
 
 export async function fillKoha(plan, ddcApproved) {
-  const result = await sendToKoha({ type: 'AUTOCAT_KOHA_FILL', plan, ddcApproved });
-  if (result.status === 'failed' && !Array.isArray(result.filled)) {
-    throw new KohaConnectionError('Could not fill the Koha MARC form. Open the "Add MARC record" page and try again.');
-  }
-  return result;
+  return call('fillKoha', { plan, ddcApproved });
 }

@@ -26,8 +26,14 @@ if (!engine) {
 // settled, wait briefly for at least one MARC field row to exist, using a
 // MutationObserver rather than a fixed sleep so a fast-rendering page
 // isn't delayed and a slow one gets a real chance to finish.
+// Verified against Koha's actual addbiblio.tt template: the cataloguing
+// form's id is "f" (`<form id="f" name="f" action=".../addbiblio.pl">`),
+// and each field row is `<li class="tag clearfix" id="tag_245_...">` --
+// an earlier version of this file checked "#addbiblioform" and
+// ".field[id^=\"tag_\"]", neither of which exists on a real Koha page,
+// which is why field detection/filling silently found nothing there.
 function isEditorReady() {
-  return Boolean(document.querySelector('#addbiblioform, .field[id^="tag_"]'));
+  return Boolean(document.querySelector('form#f, .tag[id^="tag_"]'));
 }
 
 function waitForEditorReady(timeoutMs = 8000) {

@@ -1,16 +1,23 @@
 // MV3 background service worker.
 //
-// Two responsibilities:
+// Three responsibilities:
 //  1. Open the Chrome Side Panel when the toolbar icon is clicked (instead
 //     of a popup -- there is no action.default_popup in manifest.json).
-//  2. Own all backend HTTP communication. The Side Panel never calls
-//     fetch() itself; it sends { type: 'AUTOCAT_API', action, payload }
-//     messages here via chrome.runtime.sendMessage and gets back
-//     { ok, data } or { ok: false, code, message } with an
+//  2. Own all backend HTTP communication (AUTOCAT_API messages). The Side
+//     Panel never calls fetch() itself; it sends
+//     { type: 'AUTOCAT_API', action, payload } via chrome.runtime.sendMessage
+//     and gets back { ok, data } or { ok: false, code, message } with an
 //     already-human-friendly message -- raw statuses, stack traces, and
 //     response bodies never leave this file.
+//  3. Own active-tab lookup and Koha-content-script messaging
+//     (AUTOCAT_KOHA_ACTION messages). The Side Panel has its own DOM and
+//     cannot see the Koha page directly, so it never calls chrome.tabs.*
+//     itself either -- this file finds the active tab, confirms it's a
+//     Koha "Add MARC record" page, and relays to the content script.
 import { apiFetch, readJson, getSessionToken, setSessionToken, getDeviceId } from '../lib/api.js';
 import { debugLog } from '../services/config.js';
+
+const KOHA_ADDBIBLIO_PATH = '/cgi-bin/koha/cataloguing/addbiblio.pl';
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[AutoCat] Extension installed');
@@ -25,7 +32,8 @@ chrome.sidePanel
 // ---------------------------------------------------------------------
 // Friendly error mapping -- the one place technical failure detail is
 // ever looked at. Everything downstream (services/api.js, sidepanel.js)
-// only ever sees the resulting `message`.
+// only ever sees the resulting `message`. Codes match the vocabulary the
+// side panel actually branches on (e.g. AUTH_EXPIRED -> back to login).
 // ---------------------------------------------------------------------
 
 function fieldErrorSummary(payload) {
@@ -40,7 +48,7 @@ function fieldErrorSummary(payload) {
 function friendlyResultFor(response, payload, { onUnauthorized } = {}) {
   if (response.status === 401 || response.status === 403) {
     onUnauthorized?.();
-    return { ok: false, code: 'SESSION_EXPIRED', message: 'Your session has expired. Please log in again.' };
+    return { ok: false, code: 'AUTH_EXPIRED', message: 'Your session has expired. Please log in again.' };
   }
   if (response.status === 404) {
     return { ok: false, code: 'NOT_FOUND', message: 'That information could not be found.' };
@@ -50,14 +58,16 @@ function friendlyResultFor(response, payload, { onUnauthorized } = {}) {
     return { ok: false, code: 'VALIDATION_ERROR', message: detail || 'Please check the information you entered and try again.' };
   }
   if (response.status >= 500) {
-    return { ok: false, code: 'SERVER_ERROR', message: 'Something went wrong. Please try again.' };
+    console.error('[AutoCat] Backend error response:', response.status, payload?.error ?? payload);
+    return { ok: false, code: 'BACKEND_UNAVAILABLE', message: 'AutoCat is temporarily unavailable. Please try again.' };
   }
+  console.error('[AutoCat] Unexpected backend response:', response.status, payload);
   return { ok: false, code: 'UNKNOWN_ERROR', message: 'Something went wrong. Please try again.' };
 }
 
 function networkErrorResult(error) {
-  console.error('[AutoCat] Network error:', error);
-  return { ok: false, code: 'NETWORK_ERROR', message: 'Unable to connect to AutoCat. Please check your connection and try again.' };
+  console.error('[AutoCat] Network error reaching AutoCat:', error);
+  return { ok: false, code: 'BACKEND_UNAVAILABLE', message: 'Unable to connect to AutoCat. Please check your connection and try again.' };
 }
 
 // ---------------------------------------------------------------------
@@ -151,16 +161,33 @@ async function actionRecommendDdc({ metadata }) {
 }
 
 async function actionApproveDdc({ id }) {
+  if (id == null) {
+    console.error('[AutoCat] approveDdc called without a decision id.');
+    return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
+  }
   try {
     const response = await apiFetch(`/api/ddc/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
       body: JSON.stringify({ action: 'APPROVE' }),
     });
     const body = await readJson(response);
-    if (!response.ok) return friendlyResultFor(response, body);
+    if (!response.ok) {
+      // Give DDC-approval failures their own code/message rather than the
+      // generic bucket -- the two realistic causes here are the session
+      // having expired (handled by friendlyResultFor's 401/403 branch,
+      // which still applies) or the recommended number failing the
+      // backend's own DDC-reference validation (a real 4xx/5xx from
+      // ddcApprovalService.js) -- either way "approving the DDC" is what
+      // visibly failed, so say that specifically.
+      const generic = friendlyResultFor(response, body);
+      if (generic.code === 'AUTH_EXPIRED') return generic;
+      console.error('[AutoCat] DDC approval failed:', response.status, body?.error ?? body);
+      return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
+    }
     return { ok: true, data: body };
   } catch (error) {
-    return networkErrorResult(error);
+    console.error('[AutoCat] DDC approval request failed:', error);
+    return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
   }
 }
 
@@ -171,14 +198,17 @@ async function actionGenerateMarc({ metadata, ddcApproval }) {
       body: JSON.stringify({ metadata, ddc_approval: ddcApproval }),
     });
     const body = await readJson(response);
-    if (!response.ok) return friendlyResultFor(response, body);
+    // generate-marc responds 422 (a normal "not ready yet" outcome, e.g.
+    // DDC not approved) with a real body the caller still needs -- only
+    // treat it as a hard failure if there's no usable body at all.
+    if (!response.ok && !body?.validation) return friendlyResultFor(response, body);
     return { ok: true, data: body };
   } catch (error) {
     return networkErrorResult(error);
   }
 }
 
-const ACTIONS = {
+const API_ACTIONS = {
   login: actionLogin,
   signup: actionSignup,
   logout: actionLogout,
@@ -192,14 +222,117 @@ const ACTIONS = {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type !== 'AUTOCAT_API') return false;
 
-  const handler = ACTIONS[message.action];
+  const handler = API_ACTIONS[message.action];
   if (!handler) {
+    console.error('[AutoCat] Unknown API action requested:', message.action);
     sendResponse({ ok: false, code: 'UNKNOWN_ACTION', message: 'Something went wrong. Please try again.' });
     return false;
   }
 
-  handler(message.payload ?? {})
+  Promise.resolve()
+    .then(() => handler(message.payload ?? {}))
     .then(sendResponse)
     .catch((error) => sendResponse(networkErrorResult(error)));
+  return true; // keep the message channel open for the async response
+});
+
+// ---------------------------------------------------------------------
+// Koha tab/content-script relay (AUTOCAT_KOHA_ACTION messages). The Side
+// Panel asks for a named Koha action; this file finds the active tab,
+// confirms it's actually a Koha "Add MARC record" page (matching the
+// same path the content script's manifest match pattern targets), and
+// relays the underlying message to it via chrome.tabs.sendMessage.
+// ---------------------------------------------------------------------
+
+async function findActiveKohaTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) {
+    return { tab: null, error: { ok: false, code: 'KOHA_PAGE_NOT_FOUND', message: 'Please open a Koha Add MARC Record page.' } };
+  }
+  if (!tab.url || !tab.url.includes(KOHA_ADDBIBLIO_PATH)) {
+    return { tab: null, error: { ok: false, code: 'KOHA_PAGE_NOT_FOUND', message: 'Please open a Koha Add MARC Record page.' } };
+  }
+  return { tab, error: null };
+}
+
+async function relayToKohaTab(tab, message) {
+  try {
+    const result = await chrome.tabs.sendMessage(tab.id, message);
+    if (!result) {
+      console.error('[AutoCat] Koha content script returned no response for', message.type);
+      return { ok: false, code: 'CONTENT_SCRIPT_UNAVAILABLE', message: 'AutoCat could not connect to this Koha page. Please reload the Koha page and try again.' };
+    }
+    return { ok: true, result };
+  } catch (error) {
+    // chrome.tabs.sendMessage rejects with "Could not establish
+    // connection. Receiving end does not exist." when the content script
+    // hasn't loaded on this tab (e.g. the tab was open before the
+    // extension was installed/reloaded) -- the expected, common case.
+    console.error('[AutoCat] Could not reach the Koha content script:', error);
+    return { ok: false, code: 'CONTENT_SCRIPT_UNAVAILABLE', message: 'AutoCat could not connect to this Koha page. Please reload the Koha page and try again.' };
+  }
+}
+
+async function kohaActionDetectFields() {
+  const { tab, error } = await findActiveKohaTab();
+  if (error) return error;
+
+  const relayed = await relayToKohaTab(tab, { type: 'AUTOCAT_DETECT_FIELDS' });
+  if (!relayed.ok) return relayed;
+
+  const { result } = relayed;
+  if (result.status !== 'ok') {
+    console.error('[AutoCat] Detect MARC fields failed on the content script side:', result.error);
+    if (result.error === 'marc_editor_not_found') {
+      return { ok: false, code: 'MARC_FIELDS_NOT_FOUND', message: 'No MARC fields were detected on the current Koha cataloguing page.' };
+    }
+    return { ok: false, code: 'CONTENT_SCRIPT_UNAVAILABLE', message: 'AutoCat could not connect to this Koha page. Please reload the Koha page and try again.' };
+  }
+  if (!Array.isArray(result.tags) || result.tags.length === 0) {
+    return { ok: false, code: 'MARC_FIELDS_NOT_FOUND', message: 'No MARC fields were detected on the current Koha cataloguing page.' };
+  }
+  return { ok: true, data: { tags: result.tags } };
+}
+
+async function kohaActionFill({ plan, ddcApproved }) {
+  const { tab, error } = await findActiveKohaTab();
+  if (error) return error;
+
+  const relayed = await relayToKohaTab(tab, { type: 'AUTOCAT_KOHA_FILL', plan, ddcApproved });
+  if (!relayed.ok) return relayed;
+
+  const { result } = relayed;
+  if (result.status === 'failed' && !Array.isArray(result.filled)) {
+    console.error('[AutoCat] MARC fill failed on the content script side:', result.error);
+    if (result.error === 'marc_editor_not_found') {
+      return { ok: false, code: 'MARC_FIELDS_NOT_FOUND', message: 'No MARC fields were detected on the current Koha cataloguing page.' };
+    }
+    return { ok: false, code: 'MARC_FILL_FAILED', message: 'AutoCat could not safely fill the requested MARC fields.' };
+  }
+  return { ok: true, data: result };
+}
+
+const KOHA_ACTIONS = {
+  detectFields: kohaActionDetectFields,
+  fillKoha: kohaActionFill,
+};
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== 'AUTOCAT_KOHA_ACTION') return false;
+
+  const handler = KOHA_ACTIONS[message.action];
+  if (!handler) {
+    console.error('[AutoCat] Unknown Koha action requested:', message.action);
+    sendResponse({ ok: false, code: 'UNKNOWN_ACTION', message: 'Something went wrong. Please try again.' });
+    return false;
+  }
+
+  Promise.resolve()
+    .then(() => handler(message.payload ?? {}))
+    .then(sendResponse)
+    .catch((error) => {
+      console.error('[AutoCat] Koha action threw unexpectedly:', error);
+      sendResponse({ ok: false, code: 'CONTENT_SCRIPT_UNAVAILABLE', message: 'AutoCat could not connect to this Koha page. Please reload the Koha page and try again.' });
+    });
   return true; // keep the message channel open for the async response
 });

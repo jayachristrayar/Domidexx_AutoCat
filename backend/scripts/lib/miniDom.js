@@ -123,10 +123,9 @@ function collectDescendants(root) {
 // tag / .class / [attr] / [attr="v"] / [attr^="v"] / [attr*="v" i] ---
 
 function parseCompound(compound) {
-  const parts = [];
-  const re = /^([a-zA-Z0-9-]+)?|(\.[a-zA-Z0-9_-]+)|(\[[^\]]+\])/g;
   let rest = compound.trim();
   let tag = null;
+  let id = null;
   const classes = [];
   const attrs = [];
 
@@ -135,17 +134,19 @@ function parseCompound(compound) {
     tag = tagMatch[0].toUpperCase();
     rest = rest.slice(tagMatch[0].length);
   }
-  const tokenRe = /\.[a-zA-Z0-9_-]+|\[[^\]]+\]/g;
+  const tokenRe = /#[a-zA-Z0-9_-]+|\.[a-zA-Z0-9_-]+|\[[^\]]+\]/g;
   let m;
   while ((m = tokenRe.exec(rest))) {
     const token = m[0];
-    if (token.startsWith('.')) {
+    if (token.startsWith('#')) {
+      id = token.slice(1);
+    } else if (token.startsWith('.')) {
       classes.push(token.slice(1));
     } else {
       attrs.push(parseAttr(token.slice(1, -1)));
     }
   }
-  return { tag, classes, attrs };
+  return { tag, id, classes, attrs };
 }
 
 function parseAttr(inner) {
@@ -171,8 +172,9 @@ function attrMatches(el, attr) {
 }
 
 function matchesCompound(el, compound) {
-  const { tag, classes, attrs } = parseCompound(compound);
+  const { tag, id, classes, attrs } = parseCompound(compound);
   if (tag && el.tagName !== tag) return false;
+  if (id && el.id !== id) return false;
   for (const c of classes) {
     if (!el.classListTokens.includes(c)) return false;
   }

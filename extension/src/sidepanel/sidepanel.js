@@ -221,8 +221,8 @@ function renderWorkspace(me) {
         </div>
       `;
     } catch (error) {
-      if (error.code === 'NETWORK_ERROR') setConnected(false);
-      if (error.code === 'SESSION_EXPIRED') { renderAuth(error.message); return; }
+      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
+      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
       lookupStatus.innerHTML = stateHtml('error', error.message);
     }
   });
@@ -278,13 +278,13 @@ function renderWorkspace(me) {
           ddcStatus.insertAdjacentHTML('beforeend', stateHtml('success', 'DDC approved. You can now generate MARC.'));
         } catch (error) {
           approveButton.disabled = false;
-          if (error.code === 'SESSION_EXPIRED') { renderAuth(error.message); return; }
+          if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
           ddcStatus.insertAdjacentHTML('beforeend', stateHtml('error', error.message));
         }
       });
     } catch (error) {
-      if (error.code === 'NETWORK_ERROR') setConnected(false);
-      if (error.code === 'SESSION_EXPIRED') { renderAuth(error.message); return; }
+      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
+      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
       ddcStatus.innerHTML = stateHtml('error', error.message);
     }
   });
@@ -331,8 +331,8 @@ function renderWorkspace(me) {
         </div>
       `;
     } catch (error) {
-      if (error.code === 'NETWORK_ERROR') setConnected(false);
-      if (error.code === 'SESSION_EXPIRED') { renderAuth(error.message); return; }
+      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
+      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
       marcStatus.innerHTML = stateHtml('error', error.message);
     }
   });

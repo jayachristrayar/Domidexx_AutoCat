@@ -19,6 +19,38 @@ import { buildKohaEditorFixture } from './lib/kohaEditorFixture.js';
 
 const engine = globalThis.AutoCatKohaFillEngine;
 
+// Test-only DOM read-back helpers, matching the fixture's real Koha
+// markup (see kohaEditorFixture.js): field containers are `.tag[id^=...]`
+// with the tag in a `.tagnum` span, subfield rows are `.subfield_line`
+// with a code input matching `[name*="_code_"]`, and value inputs carry
+// class `input_marceditor`.
+function readSubfieldValue(doc, tag, code) {
+  const container = doc.querySelector(`.tag[id^="tag_${tag}_"]`);
+  if (!container) return null;
+  for (const row of container.querySelectorAll('.subfield_line')) {
+    const codeInput = row.querySelector('input[name*="_code_"]');
+    if (codeInput && codeInput.value === code) {
+      const valueInput = row.querySelector('input.input_marceditor, textarea.input_marceditor');
+      return valueInput ? valueInput.value : null;
+    }
+  }
+  return null;
+}
+
+function readAllSubfieldValues(doc, tag, code) {
+  const values = [];
+  for (const container of doc.querySelectorAll(`.tag[id^="tag_${tag}_"]`)) {
+    for (const row of container.querySelectorAll('.subfield_line')) {
+      const codeInput = row.querySelector('input[name*="_code_"]');
+      if (codeInput && codeInput.value === code) {
+        const valueInput = row.querySelector('input.input_marceditor, textarea.input_marceditor');
+        if (valueInput) values.push(valueInput.value);
+      }
+    }
+  }
+  return values;
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const baseMetadata = {
@@ -118,8 +150,7 @@ console.log('\n== extension engine: fill ==');
   assert.ok(result.filled.some((f) => f.tag === '082' && f.subfield === 'a'));
   assert.ok(result.filled.some((f) => f.tag === '650' && f.subfield === 'a'));
 
-  const titleInput = doc.querySelector('.field[id^="tag_245_"]').querySelector('.subfield_line[class*="subfield_a"]').querySelector('input[name="field_value"]');
-  assert.strictEqual(titleInput.value, 'Introduction to Library and Information Science /');
+  assert.strictEqual(readSubfieldValue(doc, '245', 'a'), 'Introduction to Library and Information Science /');
   assert.strictEqual(saveClicked.value, false, 'fill must never trigger the Save button');
   console.log('  first fill: all mappable fields filled, DOM read-back matches, Save never clicked');
 
@@ -138,7 +169,11 @@ console.log('\n== extension engine: conflicts are never auto-overwritten ==');
 {
   const marcResult = generateMarcRecord({ metadata: baseMetadata, ddc_approval: approvedDdc() }, { now: new Date('2026-08-22T12:34:56Z') });
   const doc = buildKohaEditorFixture();
-  const titleInput = doc.querySelector('.field[id^="tag_245_"]').querySelector('.subfield_line[class*="subfield_a"]').querySelector('input[name="field_value"]');
+  const container245 = doc.querySelector('.tag[id^="tag_245_"]');
+  const row245a = Array.from(container245.querySelectorAll('.subfield_line')).find(
+    (row) => row.querySelector('input[name*="_code_"]')?.value === 'a'
+  );
+  const titleInput = row245a.querySelector('input.input_marceditor, textarea.input_marceditor');
   titleInput.value = 'A completely different, cataloguer-entered title';
 
   const result = engine.runKohaFill(doc, marcResult.koha_fill, { ddcApproved: true });
@@ -162,10 +197,7 @@ console.log('\n== extension engine: repeatable fields ==');
   const filled650 = result.filled.find((f) => f.tag === '650' && f.subfield === 'a');
   assert.ok(filled650, `expected a new 650 occurrence to be filled: ${JSON.stringify(result, null, 2)}`);
 
-  const values650 = doc
-    .querySelectorAll('.subfield_line[class*="subfield_a"]')
-    .filter((row) => row.closest('.field').querySelector('input[name="tag"]').value === '650')
-    .map((row) => row.querySelector('input[name="field_value"]').value);
+  const values650 = readAllSubfieldValues(doc, '650', 'a');
   assert.deepStrictEqual(new Set(values650), new Set(['Library science', 'Cataloging', 'Information science']));
   console.log('  new 650 occurrence added via clone control; existing occurrences untouched:', values650);
 
@@ -203,8 +235,7 @@ console.log('\n== extension engine: 082 gate re-checked independently of the bac
   };
   const result = engine.runKohaFill(doc, tamperedPlan, { ddcApproved: false });
   assert.ok(result.skipped.some((s) => s.tag === '082' && s.reason === 'ddc_not_approved'));
-  const ddcInput = doc.querySelector('.field[id^="tag_082_"]').querySelector('.subfield_line[class*="subfield_a"]').querySelector('input[name="field_value"]');
-  assert.strictEqual(ddcInput.value, '', '082 must remain empty when DDC approval is not confirmed');
+  assert.strictEqual(readSubfieldValue(doc, '082', 'a'), '', '082 must remain empty when DDC approval is not confirmed');
   console.log('  082 write refused when ddcApproved is false, even if a tampered plan includes it');
 }
 
@@ -238,9 +269,9 @@ console.log('\n== extension engine: plan validation rejects malformed instructio
 console.log('\n== extension engine: save guard ==');
 {
   const doc = buildKohaEditorFixture();
-  const saveButton = doc.querySelector('button[type="submit"]');
+  const saveButton = doc.querySelector('#saverecord');
   assert.ok(engine.isSaveElement(saveButton), 'the fixture Save button must be recognized as a save element');
-  const ordinaryInput = doc.querySelector('.field[id^="tag_245_"] input[name="field_value"]');
+  const ordinaryInput = doc.querySelector('.tag[id^="tag_245_"] input.input_marceditor, .tag[id^="tag_245_"] textarea.input_marceditor');
   assert.strictEqual(engine.isSaveElement(ordinaryInput), false);
   console.log('  isSaveElement distinguishes the Save button from ordinary MARC value inputs');
 }

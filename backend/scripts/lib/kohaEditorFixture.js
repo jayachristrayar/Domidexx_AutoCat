@@ -1,51 +1,60 @@
-// Fixture representing the Koha "advanced" MARC editor (addbiblio.pl) DOM
-// shape that extension/src/content-scripts/kohaFillEngine.js targets:
-// each field is a `.field` div carrying a hidden `tag` input and two
-// `indicator` inputs, with one `.subfield_line` per subfield carrying a
-// `subfield_code` input and a `field_value` input/textarea. A `buttonPlus`
-// clone control sits next to a repeatable subfield's last occurrence.
+// Fixture representing the Koha "basic" advanced MARC editor
+// (cataloguing/addbiblio.pl) DOM shape that
+// extension/src/content-scripts/kohaFillEngine.js targets.
 //
-// NOTE: this fixture is built from Koha's long-standing, documented
-// addbiblio.pl markup conventions (tag/subfield_code/field_value input
-// names, .field/.subfield_line/.buttonPlus classes). It has not been
-// diffed against a live Koha 26.05 instance -- see the P4 PR description
-// for that caveat. kohaFillEngine.js's verify-before-write proof step is
-// what makes it safe to run against a real instance even if some of this
-// fixture's specific class names have drifted: it re-derives tag/subfield
-// from the DOM before ever writing, and simply skips/fails a field it
-// can't prove rather than guessing.
+// Unlike the fixture this replaced, this one is built from Koha's ACTUAL
+// template source (koha-tmpl/intranet-tmpl/prog/en/modules/cataloguing/
+// addbiblio.tt, fetched from Koha-Community/Koha master while diagnosing
+// why field detection/filling failed on a real Koha page):
+//
+//   - Each field row: `<li class="tag clearfix" id="tag_<tag>_<idx><rnd>">`
+//     with the tag number in `<span class="tagnum">`, NOT a hidden
+//     `input[name="tag"]` (that never existed in real Koha markup).
+//   - Indicator inputs: `name="tag_<tag>_indicator1_<idx><rnd>"` /
+//     `..._indicator2_..."`, class `indicator flat` -- NOT
+//     `name="indicator"`.
+//   - Subfield rows: `<li class="subfield_line" id="subfield<tag><code><rnd>">`
+//     with a code input `name="tag_<tag>_code_<code>_<idx>_<idx2>"
+//     value="<code>"` -- NOT `name="subfield_code"`, and no
+//     `subfield_<code>` class token.
+//   - Value inputs/textareas: `class="input_marceditor"` (confirmed
+//     correct in the version this replaced).
+//   - Control fields (000/001/.../008): a `textarea.input_marceditor`
+//     directly inside the `.tag` li, no subfield wrapper.
+//   - Clone ("+") controls: `<a class="buttonPlus" onclick="...">`
+//     (confirmed correct in the version this replaced).
+//   - Save controls: e.g. `<button class="btn btn-primary" id="saverecord">`
+//     -- caught by the engine's `[id*="save" i]` guard regardless of
+//     element type.
 
 import { MiniDocument, el } from './miniDom.js';
 
-function fieldRow({ tag, ind1 = ' ', ind2 = ' ', subfields = [] }) {
-  const tagInput = el('input', { name: 'tag', value: tag });
-  const indicators = [
-    el('input', { name: 'indicator', value: ind1 }),
-    el('input', { name: 'indicator', value: ind2 }),
-  ];
-  const subfieldRows = subfields.map((sf, idx) =>
-    el(
-      'div',
-      { class: `subfield_line tag_${tag}_subfield_${sf.code}` },
-      [
-        el('input', { name: 'subfield_code', value: sf.code }),
-        sf.tag === 'textarea'
-          ? el('textarea', { name: 'field_value', value: sf.value ?? '', id: `tag_${tag}_subfield_${sf.code}_${idx}` })
-          : el('input', { name: 'field_value', value: sf.value ?? '', id: `tag_${tag}_subfield_${sf.code}_${idx}` }),
-      ]
-    )
-  );
-  return el('div', { class: 'field', id: `tag_${tag}_000${subfields.length}` }, [
-    tagInput,
-    ...indicators,
-    el('div', { class: 'subfields_container' }, subfieldRows),
+function controlFieldRow(tag, value, idx = 0) {
+  return el('li', { class: 'tag clearfix', id: `tag_${tag}_${idx}rnd` }, [
+    el('div', { class: 'tag_title' }, [el('span', { class: 'tagnum', text: tag })]),
+    // Real Koha renders a hidden indicator1 input even for control fields.
+    el('input', { name: `tag_${tag}_indicator1_${idx}rnd`, class: 'indicator flat', value: ' ' }),
+    el('textarea', { name: `${tag}_value`, id: `mv_${tag}_${idx}`, class: 'input_marceditor', value: value ?? '' }),
   ]);
 }
 
-function controlFieldRow(tag, value) {
-  return el('div', { class: 'field', id: `tag_${tag}_0000` }, [
-    el('input', { name: 'tag', value: tag }),
-    el('input', { name: 'field_value', value }),
+function subfieldLine(tag, code, value, idx, idxSub) {
+  return el('li', { class: 'subfield_line', id: `subfield${tag}${code}${idx}rnd` }, [
+    el('input', { name: `tag_${tag}_code_${code}_${idx}_${idxSub}`, value: code }),
+    el('input', { name: `${tag}_${code}_value`, id: `mv_${tag}_${code}_${idx}`, class: 'input_marceditor', value: value ?? '' }),
+  ]);
+}
+
+function fieldRow({ tag, ind1 = ' ', ind2 = ' ', subfields = [] }, idx = 0) {
+  return el('li', { class: 'tag clearfix', id: `tag_${tag}_${idx}rnd` }, [
+    el('div', { class: 'tag_title' }, [el('span', { class: 'tagnum', text: tag })]),
+    el('input', { name: `tag_${tag}_indicator1_${idx}rnd`, class: 'indicator flat', value: ind1 }),
+    el('input', { name: `tag_${tag}_indicator2_${idx}rnd`, class: 'indicator flat', value: ind2 }),
+    el(
+      'ol',
+      { class: 'subfields_container' },
+      subfields.map((sf, sfIdx) => subfieldLine(tag, sf.code, sf.value, idx, sfIdx))
+    ),
   ]);
 }
 
@@ -57,35 +66,39 @@ function controlFieldRow(tag, value) {
 export function buildKohaEditorFixture({ existing650 = [''], saveClicked = { value: false } } = {}) {
   const doc = new MiniDocument();
 
-  const saveButton = el('button', { type: 'submit', text: 'Save' });
+  const saveButton = el('button', { class: 'btn btn-primary', id: 'saverecord', text: 'Save' });
   saveButton.addEventListener('click', () => {
     saveClicked.value = true;
   });
 
-  const form = el('form', { id: 'addbiblioform' }, [
-    controlFieldRow('000', ''),
-    controlFieldRow('005', ''),
-    controlFieldRow('008', ''),
-    fieldRow({ tag: '020', subfields: [{ code: 'a', value: '' }] }),
-    fieldRow({ tag: '040', subfields: [{ code: 'b', value: '' }, { code: 'e', value: '' }] }),
-    fieldRow({ tag: '082', ind1: '0', ind2: '4', subfields: [{ code: 'a', value: '' }, { code: '2', value: '' }] }),
-    fieldRow({ tag: '100', ind1: '1', subfields: [{ code: 'a', value: '' }] }),
-    fieldRow({ tag: '245', ind1: '0', ind2: '0', subfields: [{ code: 'a', value: '' }, { code: 'c', value: '' }] }),
-    fieldRow({ tag: '250', subfields: [{ code: 'a', value: '' }] }),
-    fieldRow({ tag: '300', subfields: [{ code: 'a', value: '' }] }),
+  let idx = 0;
+  const next = () => idx++;
+
+  const form = el('form', { id: 'f', name: 'f' }, [
+    controlFieldRow('000', '', next()),
+    controlFieldRow('005', '', next()),
+    controlFieldRow('008', '', next()),
+    fieldRow({ tag: '020', subfields: [{ code: 'a', value: '' }] }, next()),
+    fieldRow({ tag: '040', subfields: [{ code: 'b', value: '' }, { code: 'e', value: '' }] }, next()),
+    fieldRow({ tag: '082', ind1: '0', ind2: '4', subfields: [{ code: 'a', value: '' }, { code: '2', value: '' }] }, next()),
+    fieldRow({ tag: '100', ind1: '1', subfields: [{ code: 'a', value: '' }] }, next()),
+    fieldRow({ tag: '245', ind1: '0', ind2: '0', subfields: [{ code: 'a', value: '' }, { code: 'c', value: '' }] }, next()),
+    fieldRow({ tag: '250', subfields: [{ code: 'a', value: '' }] }, next()),
+    fieldRow({ tag: '300', subfields: [{ code: 'a', value: '' }] }, next()),
     // 650 is repeatable; seed however many occurrences the test wants, each
     // with its own clone ("+") control on the last one.
-    ...existing650.map((value, idx, arr) => {
-      const row = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value }] });
-      if (idx === arr.length - 1) {
-        const subfieldLine = row.querySelector('.subfield_line');
+    ...existing650.map((value, i, arr) => {
+      const rowIdx = next();
+      const row = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value }] }, rowIdx);
+      if (i === arr.length - 1) {
+        const subfieldRow = row.querySelector('.subfield_line');
         const plus = el('a', { class: 'buttonPlus', text: '+' });
         plus.addEventListener('click', () => {
           const container = row.parentElement; // form
-          const newRow = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value: '' }] });
+          const newRow = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value: '' }] }, next());
           container.append(newRow);
         });
-        subfieldLine.append(plus);
+        subfieldRow.append(plus);
       }
       return row;
     }),

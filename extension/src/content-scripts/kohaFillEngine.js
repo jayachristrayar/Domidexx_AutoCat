@@ -85,21 +85,29 @@ function uniqueElements(list) {
  * Locate candidate field-row containers for a MARC tag in the Koha advanced
  * editor DOM. Returns [] rather than guessing when nothing matches.
  *
+ * Verified against Koha's actual addbiblio.tt template (fetched from
+ * Koha-Community/Koha master, koha-tmpl/.../cataloguing/addbiblio.tt):
+ * each field row is `<li class="tag clearfix" id="tag_245_<index><random>">`
+ * with the tag number in a `<span class="tagnum">245</span>` inside
+ * `.tag_title` -- there is no `input[name="tag"]` anywhere in this
+ * template, so a strategy that looked for one (as an earlier version of
+ * this file did) could never match a real Koha page.
+ *
  * Strategy order:
- *  1. `[data-tag="TAG"]` — forward-looking, explicit attribute.
- *  2. `.field[id^="tag_TAG_"]` — Koha's long-standing addbiblio.pl markup
- *     (each field row is `<div class="field" id="tag_245_XXXXX">`).
- *  3. Any `input[name="tag"]` whose value equals TAG, climbing to its
- *     `.field` ancestor. Catches markup variants that don't expose the tag
- *     in the container id/attribute.
+ *  1. `[data-tag="TAG"]` — forward-looking, explicit attribute for any
+ *     future/customized skin that adds one.
+ *  2. `.tag[id^="tag_TAG_"]` — the real, confirmed addbiblio.pl markup.
+ *  3. Any `.tagnum` element whose text content equals TAG, climbing to its
+ *     `.tag` ancestor. Catches skins that keep the id scheme but not the
+ *     `.tag` class, or vice versa.
  */
 function findFieldContainers(doc, tag) {
   const results = [];
   results.push(...doc.querySelectorAll(`[data-tag="${tag}"]`));
-  results.push(...doc.querySelectorAll(`.field[id^="tag_${tag}_"]`));
-  for (const input of doc.querySelectorAll('input[name="tag"]')) {
-    if (input.value === tag) {
-      const container = (input.closest && input.closest('.field')) || input.parentElement;
+  results.push(...doc.querySelectorAll(`.tag[id^="tag_${tag}_"]`));
+  for (const el of doc.querySelectorAll('.tagnum')) {
+    if (el.textContent.trim() === tag) {
+      const container = (el.closest && el.closest('.tag, [id^="tag_"]')) || el.parentElement;
       if (container) results.push(container);
     }
   }
@@ -109,39 +117,56 @@ function findFieldContainers(doc, tag) {
 /**
  * Locate candidate subfield-value rows for `code` within a field container.
  *
+ * Verified against Koha's actual template: each subfield row is
+ * `<li class="subfield_line" id="subfield<tag><code><random>">`, and its
+ * subfield-code input is `<input name="tag_<tag>_code_<code>_<index>_<idx>"
+ * value="<code>">` -- the input's `name` is dynamic (includes tag/index),
+ * never the fixed `subfield_code` an earlier version of this file assumed,
+ * and there is no `subfield_<code>` class token on the row either. The one
+ * thing that's actually reliable is the input's `value`, and that its
+ * `name` always contains the literal substring `_code_`.
+ *
  * Strategy order:
- *  1. `[data-subfield="CODE"]`.
- *  2. `.subfield_line` whose class list contains `subfield_CODE` (Koha's
- *     historical `tag_245_subfield_a` class token convention).
- *  3. Any `input[name="subfield_code"]` whose value equals CODE, climbing
- *     to its `.subfield_line` ancestor.
+ *  1. `[data-subfield="CODE"]` — forward-looking, explicit attribute.
+ *  2. Any `.subfield_line` in the container whose `input[name*="_code_"]`
+ *     value equals CODE — the real, confirmed addbiblio.pl markup.
  */
 function findSubfieldRows(container, code) {
   const results = [];
   results.push(...container.querySelectorAll(`[data-subfield="${code}"]`));
-  results.push(...container.querySelectorAll(`.subfield_line[class*="subfield_${code}"]`));
-  for (const input of container.querySelectorAll('input[name="subfield_code"]')) {
-    if (input.value === code) {
-      const row = (input.closest && input.closest('.subfield_line')) || input.parentElement;
-      if (row) results.push(row);
-    }
+  for (const row of container.querySelectorAll('.subfield_line')) {
+    const codeInput = row.querySelector('input[name*="_code_"]');
+    if (codeInput && codeInput.value === code) results.push(row);
   }
   return uniqueElements(results);
 }
 
 function findValueInput(row) {
   return row.querySelector(
-    'input[name="field_value"], textarea[name="field_value"], input.input_marceditor, textarea.input_marceditor'
+    'input.input_marceditor, textarea.input_marceditor, input[name="field_value"], textarea[name="field_value"]'
   );
 }
 
+/**
+ * Indicator inputs for a field container. Koha names them
+ * `tag_<tag>_indicator1_<index><random>` / `..._indicator2_...` (class
+ * `indicator flat`, hidden via inline style for control fields that don't
+ * use them) -- never the fixed `name="indicator"` an earlier version of
+ * this file assumed. Matching by name substring disambiguates ind1 from
+ * ind2 explicitly rather than relying on DOM order.
+ */
 function findIndicatorInputs(container) {
-  return Array.from(container.querySelectorAll('input[name="indicator"]'));
+  const ind1 = container.querySelector('input[name*="_indicator1_"]');
+  const ind2 = container.querySelector('input[name*="_indicator2_"]');
+  if (ind1 && ind2) return [ind1, ind2];
+  // Fallback for skins that keep the `.indicator` class but not this name
+  // scheme: take the first two indicator-classed inputs in DOM order.
+  return Array.from(container.querySelectorAll('input.indicator')).slice(0, 2);
 }
 
 function findControlValueInput(container) {
   return container.querySelector(
-    'input[name="field_value"], textarea[name="field_value"], input.input_marceditor, textarea.input_marceditor'
+    'input.input_marceditor, textarea.input_marceditor, input[name="field_value"], textarea[name="field_value"]'
   );
 }
 
@@ -169,13 +194,13 @@ function findAddFieldControl(doc, tag) {
 // ---------------------------------------------------------------------
 
 function verifyFieldProof(container, tag) {
-  const tagInput = container.querySelector('input[name="tag"]');
-  const domTag = tagInput ? tagInput.value : container.getAttribute?.('data-tag') ?? null;
+  const tagLabel = container.querySelector('.tagnum');
+  const domTag = tagLabel ? tagLabel.textContent.trim() : container.getAttribute?.('data-tag') ?? null;
   return domTag === tag;
 }
 
 function verifySubfieldProof(row, code) {
-  const codeInput = row.querySelector('input[name="subfield_code"]');
+  const codeInput = row.querySelector('input[name*="_code_"]');
   const domCode = codeInput ? codeInput.value : row.getAttribute?.('data-subfield') ?? null;
   return domCode === code;
 }
@@ -406,12 +431,17 @@ function validateInstruction(instruction) {
  * current framework (general or custom) has rendered, not an assumed set.
  * Returns tags in ascending order, deduplicated.
  */
+const VALID_MARC_TAG = /^\d{3}$/;
+
 function detectFields(doc) {
   const tags = new Set();
-  for (const container of doc.querySelectorAll('.field[id^="tag_"], [data-tag]')) {
-    const tagInput = container.querySelector('input[name="tag"]');
-    const tag = tagInput ? tagInput.value : container.getAttribute?.('data-tag');
-    if (tag) tags.add(tag);
+  for (const container of doc.querySelectorAll('.tag[id^="tag_"], [data-tag]')) {
+    const tagLabel = container.querySelector('.tagnum');
+    const tag = (tagLabel ? tagLabel.textContent.trim() : container.getAttribute?.('data-tag')) || null;
+    // Never report something that isn't a real 3-digit MARC tag (rules out
+    // accidentally matching an unrelated element that merely looks similar,
+    // and rules out Save/Submit controls, which never carry a tag at all).
+    if (tag && VALID_MARC_TAG.test(tag) && !isSaveElement(container)) tags.add(tag);
   }
   return Array.from(tags).sort();
 }
