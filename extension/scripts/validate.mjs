@@ -78,12 +78,20 @@ if (manifest.action?.default_icon) {
 }
 
 // ---------------------------------------------------------------------
-// 4. popup
+// 4. side panel (primary UI) / popup (legacy, only checked if present)
 // ---------------------------------------------------------------------
-if (!manifest.action?.default_popup) {
-  warn('manifest.json has no action.default_popup -- clicking the toolbar icon will do nothing.');
-} else {
+if (manifest.action?.default_popup) {
   fileExists(manifest.action.default_popup, 'action.default_popup');
+}
+if (!manifest.side_panel?.default_path) {
+  if (!manifest.action?.default_popup) {
+    warn('manifest.json has neither side_panel.default_path nor action.default_popup -- clicking the toolbar icon will do nothing.');
+  }
+} else {
+  fileExists(manifest.side_panel.default_path, 'side_panel.default_path');
+  if (!Array.isArray(manifest.permissions) || !manifest.permissions.includes('sidePanel')) {
+    fail('manifest.json declares side_panel.default_path but "sidePanel" is missing from permissions.');
+  }
 }
 
 // ---------------------------------------------------------------------

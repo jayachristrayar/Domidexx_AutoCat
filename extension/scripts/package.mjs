@@ -61,6 +61,10 @@ Chrome should load the extension immediately, with no "Manifest file is
 missing or unreadable" or "Invalid value for 'web_accessible_resources'"
 errors.
 
+After loading, click the AutoCat icon in the toolbar to open it as a
+**Side Panel** next to the page (not a popup) -- it stays open while you
+work through Koha's "Add MARC record" page.
+
 ## From source, without the ZIP
 
 From the repository:
@@ -96,10 +100,14 @@ src/
     koha-fill.js
   lib/
     api.js
-  popup/
+  services/
+    api.js
+    config.js
+    koha.js
+  sidepanel/
     index.html
-    popup.css
-    popup.js
+    sidepanel.css
+    sidepanel.js
 \`\`\`
 
 No \`package.json\`, \`node_modules\`, or build scripts are included -- those

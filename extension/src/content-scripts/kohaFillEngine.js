@@ -369,7 +369,7 @@ function fillVariableField(doc, instruction) {
 }
 
 // ---------------------------------------------------------------------
-// Plan validation: never trust the popup/backend blindly.
+// Plan validation: never trust the side panel/backend blindly.
 // ---------------------------------------------------------------------
 
 const KNOWN_TAG = /^\d{3}$/;
@@ -396,6 +396,24 @@ function validateInstruction(instruction) {
     return 'invalid_tag';
   }
   return null;
+}
+
+/**
+ * Detect which MARC tags are actually present on the current page's
+ * editor -- the "Detect MARC fields" side-panel action. Reads real DOM
+ * content (each field row's own `tag` input), never guesses from
+ * selectors alone, so it reports exactly what this Koha installation's
+ * current framework (general or custom) has rendered, not an assumed set.
+ * Returns tags in ascending order, deduplicated.
+ */
+function detectFields(doc) {
+  const tags = new Set();
+  for (const container of doc.querySelectorAll('.field[id^="tag_"], [data-tag]')) {
+    const tagInput = container.querySelector('input[name="tag"]');
+    const tag = tagInput ? tagInput.value : container.getAttribute?.('data-tag');
+    if (tag) tags.add(tag);
+  }
+  return Array.from(tags).sort();
 }
 
 /**
@@ -477,4 +495,5 @@ globalThis.AutoCatKohaFillEngine = {
   writeSubfield,
   validateInstruction,
   runKohaFill,
+  detectFields,
 };
