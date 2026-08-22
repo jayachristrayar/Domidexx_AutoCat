@@ -1,6 +1,11 @@
-// Koha mapper — registry-driven metadata layer for P1.
-// Does NOT implement DOM autofill (P4). Declares which tags the mapper
-// understands for consistency checking and future autofill wiring.
+// Koha mapper — registry-driven metadata layer.
+// P1: mapping metadata for consistency checking (getMapperTags/canMapTag/
+// mapFieldToKoha/mapRecordToKoha below).
+// P4: buildKohaFillPlan() turns a validated MARC record into a structured,
+// DOM-agnostic set of fill instructions. This module only produces data —
+// it never touches a browser DOM. Turning a fill instruction into an actual
+// DOM write, verify-before-write, and post-write read-back happens in the
+// extension content script (extension/src/content-scripts/kohaFillEngine.js).
 
 import {
   getAllMarcRules,
@@ -88,4 +93,102 @@ export function mapRecordToKoha(fields) {
     else skipped.push(normalizeMarcTag(field?.tag));
   }
   return { mapped, skipped, incomplete: true, scope: 'P1 mapper metadata only — DOM autofill is P4' };
+}
+
+// ---------------------------------------------------------------------
+// P4: MARC record -> structured Koha fill plan
+// ---------------------------------------------------------------------
+
+function toFillSubfields(field) {
+  return (field.subfields ?? [])
+    .filter((sf) => sf.code != null)
+    .map((sf) => ({ code: sf.code, value: sf.value }));
+}
+
+/**
+ * Build the P4 "fill plan": a DOM-agnostic description of exactly what may
+ * be written into the Koha MARC editor, derived only from fields that are
+ * (a) already present in a validated MARC record, (b) mappable per the P1
+ * registry (canMapTag), and (c) not flagged invalid by validateProductionMarc.
+ *
+ * This never invents a field. A tag absent from marcResult.fields, or
+ * present but not koha_supported/mappable, or present but invalid, is
+ * reported in `skipped` rather than written.
+ *
+ * @param {object} marcResult - the object returned by generateMarcRecord().
+ * @param {object} [options]
+ * @param {object} [options.ddcApproval] - the DDC decision under review
+ *   (same shape passed into generateMarcRecord's ddc_approval).
+ * @returns {{ fields: object[], skipped: object[], notes: object[], ddc_gate: object, generated_at: string }}
+ */
+export function buildKohaFillPlan(marcResult, options = {}) {
+  const ddcApproval = options.ddcApproval ?? {};
+  const fields = [];
+  const skipped = [];
+  const notes = [];
+  const ddcApproved = ddcApproval.approval_status === 'APPROVED' && Boolean(ddcApproval.approved_ddc);
+
+  for (const field of marcResult?.fields ?? []) {
+    const tag = normalizeMarcTag(field?.tag);
+    if (!tag) continue;
+
+    if (!canMapTag(tag)) {
+      skipped.push({ tag, reason: 'not_koha_mapped' });
+      continue;
+    }
+
+    const fieldValidation = marcResult?.validation?.fields?.[tag];
+    if (fieldValidation && fieldValidation.valid === false) {
+      skipped.push({ tag, reason: 'validation_error' });
+      continue;
+    }
+
+    // Defense in depth: marcPipeline already omits 082 unless the DDC
+    // decision is APPROVED, but the fill plan re-checks so this gate can
+    // never be bypassed by a caller that hand-assembles a marcResult.
+    if (tag === '082' && !ddcApproved) {
+      skipped.push({ tag, reason: 'ddc_not_approved' });
+      continue;
+    }
+
+    const rule = getMarcRule(tag);
+    const mapping = getKohaMapping(tag);
+    const kind = mapping?.kind === 'CONTROL_FIELD' ? 'CONTROL_FIELD' : 'VARIABLE_FIELD';
+    const repeatable = Boolean(rule?.repeatable);
+
+    if (kind === 'CONTROL_FIELD') {
+      const value = field.subfields?.find((sf) => sf.code == null)?.value ?? field.value ?? null;
+      if (value == null || value === '') {
+        skipped.push({ tag, reason: 'empty_control_value' });
+        continue;
+      }
+      fields.push({ tag, field_type: 'CONTROL_FIELD', indicators: null, subfields: [{ code: null, value }], repeatable });
+      continue;
+    }
+
+    const subfields = toFillSubfields(field);
+    if (subfields.length === 0) {
+      skipped.push({ tag, reason: 'no_subfields' });
+      continue;
+    }
+    if (tag === '040' && !subfields.some((sf) => sf.code === 'a')) {
+      notes.push({ code: '040_not_configured', tag, message: '040$a (original cataloguing agency) is not configured for this institution; it will not be written.' });
+    }
+    const [ind1, ind2] = field.indicators ?? [' ', ' '];
+    fields.push({
+      tag,
+      field_type: 'VARIABLE_FIELD',
+      indicators: { ind1: ind1 ?? ' ', ind2: ind2 ?? ' ' },
+      subfields,
+      repeatable,
+    });
+  }
+
+  return {
+    fields,
+    skipped,
+    notes,
+    ddc_gate: { approved: ddcApproved, approved_ddc: ddcApproval.approved_ddc ?? null },
+    generated_at: new Date().toISOString(),
+  };
 }

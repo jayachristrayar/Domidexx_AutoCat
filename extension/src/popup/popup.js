@@ -185,9 +185,15 @@ function renderWorkspace(me) {
     </div>
     <div class="panel">
       <h2>MARC Preview</h2>
-      <p class="muted">Generate a validated MARC record after DDC approval. Koha autofill is reserved for P4.</p>
+      <p class="muted">Generate a validated MARC record after DDC approval.</p>
       <button type="button" id="generate-marc" disabled>Generate MARC</button>
       <div id="marc-result"></div>
+    </div>
+    <div class="panel">
+      <h2>Fill Koha</h2>
+      <p class="muted">Fills the open Koha MARC editor tab from the validated record above. This never clicks Save — you always save manually after reviewing the fill.</p>
+      <button type="button" id="fill-koha" disabled>Fill Koha</button>
+      <div id="koha-fill-result"></div>
     </div>
     <div class="panel row">
       <button type="button" class="secondary" id="logout">Log out</button>
@@ -208,8 +214,18 @@ function renderWorkspace(me) {
   const ddcResultEl = app.querySelector('#ddc-result');
   const marcResultEl = app.querySelector('#marc-result');
   const generateMarcButton = app.querySelector('#generate-marc');
+  const fillKohaButton = app.querySelector('#fill-koha');
+  const kohaFillResultEl = app.querySelector('#koha-fill-result');
   let currentMetadata = null;
   let currentDdcDecision = null;
+  let currentMarcResult = null;
+
+  function updateFillKohaAvailability() {
+    const ddcApproved = currentDdcDecision?.decision?.approval_status === 'APPROVED';
+    const marcValid = currentMarcResult?.validation?.valid === true;
+    const hasPlan = Array.isArray(currentMarcResult?.koha_fill?.fields) && currentMarcResult.koha_fill.fields.length > 0;
+    fillKohaButton.disabled = !(ddcApproved && marcValid && hasPlan);
+  }
   app.querySelector('#ddc-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -228,6 +244,7 @@ function renderWorkspace(me) {
         if (!approval.ok) { ddcResultEl.insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(formatError(approvedBody, 'DDC approval failed.'))}</div>`); return; }
         currentDdcDecision = { id: approvedBody.id, decision: approvedBody.decision };
         generateMarcButton.disabled = false;
+        updateFillKohaAvailability();
         ddcResultEl.insertAdjacentHTML('beforeend', '<div class="success">DDC approved. MARC generation is now available.</div>');
       });
     } catch (error) { ddcResultEl.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
@@ -236,17 +253,70 @@ function renderWorkspace(me) {
   generateMarcButton.addEventListener('click', async () => {
     if (!currentMetadata || !currentDdcDecision?.decision) return;
     marcResultEl.innerHTML = '<p class="muted">Generating MARC preview…</p>';
+    currentMarcResult = null;
+    updateFillKohaAvailability();
     try {
       const response = await apiFetch('/records/generate-marc', { method: 'POST', body: JSON.stringify({ metadata: currentMetadata, ddc_approval: currentDdcDecision.decision }) });
       const body = await readJson(response);
       if (!response.ok) {
         marcResultEl.innerHTML = `<div class="error">${escapeHtml(formatError(body, 'MARC generation requires review.'))}</div>`;
+        return;
       }
+      currentMarcResult = body;
+      updateFillKohaAvailability();
       marcResultEl.innerHTML = `<div class="result marc-preview"><strong>Status:</strong> ${escapeHtml(body.status)}<br /><strong>Validation:</strong> ${body.validation?.valid ? 'VALID' : 'REQUIRES REVIEW'}<table><thead><tr><th>Tag</th><th>Ind</th><th>Value</th><th>Source</th><th>Status</th></tr></thead><tbody>${(body.preview || []).map((row) => `<tr><td>${escapeHtml(row.tag)}</td><td>${escapeHtml(row.indicators)}</td><td>${escapeHtml(row.value)}</td><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.validation_status)}</td></tr>`).join('')}</tbody></table>${body.conflicts?.length ? `<div class="error">Metadata conflicts: ${escapeHtml(body.conflicts.map((c) => c.field).join(', '))}</div>` : ''}</div>`;
     } catch (error) {
       marcResultEl.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
     }
   });
+
+  fillKohaButton.addEventListener('click', async () => {
+    if (fillKohaButton.disabled || !currentMarcResult?.koha_fill) return;
+    kohaFillResultEl.innerHTML = '<p class="muted">Filling the open Koha MARC editor tab…</p>';
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.id) {
+        kohaFillResultEl.innerHTML = '<div class="error">No active browser tab found.</div>';
+        return;
+      }
+      const ddcApproved = currentDdcDecision?.decision?.approval_status === 'APPROVED';
+      const result = await chrome.tabs.sendMessage(tab.id, {
+        type: 'AUTOCAT_KOHA_FILL',
+        plan: currentMarcResult.koha_fill,
+        ddcApproved,
+      });
+      if (!result) {
+        kohaFillResultEl.innerHTML = '<div class="error">No response from the Koha tab. Open the Koha MARC editor (cataloguing/addbiblio.pl) and try again.</div>';
+        return;
+      }
+      renderKohaFillResult(result);
+    } catch (error) {
+      kohaFillResultEl.innerHTML = `<div class="error">Could not reach the Koha tab: ${escapeHtml(error.message)}. Open the Koha MARC editor and try again.</div>`;
+    }
+  });
+
+  function renderKohaFillResult(result) {
+    if (result.status === 'failed' && result.error) {
+      kohaFillResultEl.innerHTML = `<div class="error">${escapeHtml(result.error)}</div>`;
+      return;
+    }
+    const section = (label, items, render) =>
+      items?.length
+        ? `<strong>${escapeHtml(label)} (${items.length})</strong><ul>${items.map(render).join('')}</ul>`
+        : '';
+    const tagSf = (item) => `${escapeHtml(item.tag)}${item.subfield ? `$${escapeHtml(item.subfield)}` : ''}`;
+    kohaFillResultEl.innerHTML = `
+      <div class="result koha-fill-result">
+        <strong>Status:</strong> ${escapeHtml(result.status)}<br />
+        <p class="muted">Fill only — nothing was saved. Review below, then save manually in Koha.</p>
+        ${section('Filled', result.filled, (i) => `<li>${tagSf(i)}</li>`)}
+        ${section('Already present', result.already_present, (i) => `<li>${tagSf(i)}: ${escapeHtml(i.existing)}</li>`)}
+        ${section('Conflicts — resolve manually', result.conflicts, (i) => `<li>${tagSf(i)}<br />Existing: ${escapeHtml(i.existing)}<br />Proposed: ${escapeHtml(i.proposed)}</li>`)}
+        ${section('Failed verification', result.failed, (i) => `<li>${tagSf(i)}: ${escapeHtml(i.reason)}</li>`)}
+        ${section('Skipped', result.skipped, (i) => `<li>${tagSf(i)}: ${escapeHtml(i.reason)}</li>`)}
+      </div>
+    `;
+  }
 
   app.querySelector('#lookup-form').addEventListener('submit', async (event) => {
     event.preventDefault();

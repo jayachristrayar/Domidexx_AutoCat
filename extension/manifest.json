@@ -28,9 +28,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*/*"],
+      "matches": ["*://*/cgi-bin/koha/cataloguing/addbiblio.pl*"],
       "js": ["src/content-scripts/koha-fill.js"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["src/content-scripts/kohaFillEngine.js"],
+      "matches": ["*://*/cgi-bin/koha/cataloguing/addbiblio.pl*"]
     }
   ]
 }

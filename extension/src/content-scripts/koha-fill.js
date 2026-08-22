@@ -1,38 +1,41 @@
-// Koha cataloguing editor auto-fill. Detects common Koha MARC editor field
-// name patterns and fills them when the popup/background asks. Safe no-op on
-// non-Koha pages.
-const KOHA_FIELD_HINTS = [
-  { key: 'title', selectors: ['input[name="field_245a"]', 'input[id*="tag_245_subfield_a"]'] },
-  { key: 'author', selectors: ['input[name="field_100a"]', 'input[id*="tag_100_subfield_a"]'] },
-  { key: 'isbn', selectors: ['input[name="field_020a"]', 'input[id*="tag_020_subfield_a"]'] },
-  { key: 'publisher', selectors: ['input[name="field_260b"]', 'input[id*="tag_260_subfield_b"]', 'input[id*="tag_264_subfield_b"]'] },
-];
+// P4: Koha MARC editor content script.
+//
+// Thin message-handling wrapper only. All DOM location/verification/write
+// logic lives in kohaFillEngine.js (loaded dynamically below so the pure
+// engine module stays independently unit-testable under Node — see
+// backend/scripts/testKohaFillP4.js). This file itself never manipulates
+// the Koha DOM directly and never submits/saves the record; the cataloguer
+// always clicks Save by hand.
+//
+// Runs only on Koha's cataloguing/addbiblio.pl pages (see manifest.json's
+// narrowed content_scripts match pattern) — never on every page.
 
-function fillKohaFields(record) {
-  if (!record || typeof record !== 'object') return { filled: 0 };
+let enginePromise = null;
 
-  let filled = 0;
-  for (const hint of KOHA_FIELD_HINTS) {
-    const value = record[hint.key];
-    if (!value) continue;
-    for (const selector of hint.selectors) {
-      const input = document.querySelector(selector);
-      if (input && 'value' in input) {
-        input.value = value;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        filled += 1;
-        break;
-      }
-    }
+function loadEngine() {
+  if (!enginePromise) {
+    enginePromise = import(chrome.runtime.getURL('src/content-scripts/kohaFillEngine.js'));
   }
-  return { filled };
+  return enginePromise;
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === 'AUTOCAT_FILL_KOHA') {
-    sendResponse(fillKohaFields(message.record));
-    return true;
-  }
-  return false;
+  if (message?.type !== 'AUTOCAT_KOHA_FILL') return false;
+
+  (async () => {
+    try {
+      const engine = await loadEngine();
+      const plan = message.plan;
+      if (!plan || !Array.isArray(plan.fields)) {
+        sendResponse({ status: 'failed', error: 'missing_or_malformed_plan' });
+        return;
+      }
+      const result = engine.runKohaFill(document, plan, { ddcApproved: Boolean(message.ddcApproved) });
+      sendResponse(result);
+    } catch (error) {
+      sendResponse({ status: 'failed', error: String(error?.message ?? error) });
+    }
+  })();
+
+  return true; // keep the message channel open for the async response
 });
