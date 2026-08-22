@@ -208,9 +208,10 @@ export const CUSTOM_FIELD_CONFIG = {
     section: '9', subfieldsSource: 'explicit',
     subfields: [
       { code: '2', label: 'Source of classification or shelving scheme', default: 'Dewey Decimal Classification' },
-      { code: 'c', label: 'Item type', required: true },
+      { code: 'c', label: 'Koha/default item type', required: true },
       { code: 'e', label: 'Edition' },
       { code: 'h', label: 'Classification part' },
+      { code: 'i', label: 'Item part' },
       { code: 'k', label: 'Call number prefix' },
       { code: 'm', label: 'Call number suffix' },
       { code: 'n', label: 'Suppress in OPAC' },

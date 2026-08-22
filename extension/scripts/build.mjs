@@ -1,33 +1,33 @@
-import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'fs';
+// Builds a clean, directly-loadable copy of the extension into
+// <repo-root>/dist/extension/ -- manifest.json sits at the root of that
+// directory (no extra "Domidexx_AutoCat" or "extension" nesting inside
+// dist/), so `dist/extension/` itself is what gets selected in Chrome's
+// "Load unpacked", or zipped by scripts/package.mjs.
+//
+// Only files actually required by the shipped extension are copied
+// (manifest.json, src/, assets/) -- no package.json, node_modules,
+// scripts/, or other repo/dev-only files end up in the package.
+import { cpSync, mkdirSync, rmSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, '..');
-const dist = resolve(root, 'dist');
+const extensionRoot = resolve(__dirname, '..');
+const repoRoot = resolve(extensionRoot, '..');
+const outDir = resolve(repoRoot, 'dist', 'extension');
 
-rmSync(dist, { recursive: true, force: true });
-mkdirSync(dist, { recursive: true });
+rmSync(outDir, { recursive: true, force: true });
+mkdirSync(outDir, { recursive: true });
 
-function copy(from, to) {
-  mkdirSync(dirname(to), { recursive: true });
-  cpSync(from, to, { recursive: true });
+for (const entry of ['manifest.json', 'src', 'assets']) {
+  cpSync(resolve(extensionRoot, entry), resolve(outDir, entry), { recursive: true });
 }
 
-copy(resolve(root, 'manifest.json'), resolve(dist, 'manifest.json'));
-copy(resolve(root, 'src'), resolve(dist, 'src'));
-copy(resolve(root, 'assets'), resolve(dist, 'assets'));
+console.log(`[build] Copied manifest.json, src/, assets/ into ${outDir}`);
 
-// Ensure icons are real files inside the package (not repo-root symlinks).
-for (const size of [16, 48, 128]) {
-  cpSync(
-    resolve(root, `../assets/logo/icon${size}.png`),
-    resolve(dist, `assets/logo/icon${size}.png`)
-  );
-}
+// Self-verify the output is actually loadable before declaring success --
+// "do not claim success without validating the generated extension".
+execFileSync(process.execPath, [resolve(__dirname, 'validate.mjs'), outDir], { stdio: 'inherit' });
 
-const manifest = JSON.parse(readFileSync(resolve(dist, 'manifest.json'), 'utf8'));
-writeFileSync(resolve(dist, 'manifest.json'), JSON.stringify(manifest, null, 2));
-
-console.log(`Extension packaged at ${dist}`);
-console.log('Load unpacked in chrome://extensions from the dist/ folder (or extension/ during development).');
+console.log(`\n[build] Done. Load unpacked from: ${outDir}`);

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "validate": "node ./scripts/validate.mjs",
     "build": "node ./scripts/build.mjs",
-    "pack": "npm run build"
+    "package": "node ./scripts/package.mjs",
+    "pack": "npm run package"
   }
 }

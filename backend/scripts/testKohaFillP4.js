@@ -10,8 +10,14 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 import { generateMarcRecord } from '../src/services/marcPipeline.js';
-import * as engine from '../../extension/src/content-scripts/kohaFillEngine.js';
+// kohaFillEngine.js is a classic script (Manifest V3 content scripts can't
+// use export/import -- see that file's header comment), so it's imported
+// here for its side effect of populating globalThis.AutoCatKohaFillEngine,
+// the same way koha-fill.js reads it in the browser.
+import '../../extension/src/content-scripts/kohaFillEngine.js';
 import { buildKohaEditorFixture } from './lib/kohaEditorFixture.js';
+
+const engine = globalThis.AutoCatKohaFillEngine;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
