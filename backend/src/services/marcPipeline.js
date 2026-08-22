@@ -7,6 +7,13 @@ const SOURCE_DERIVED = 'SOURCE_DERIVED';
 const RULE_DERIVED = 'RULE_DERIVED';
 const CATALOGUER_APPROVED = 'CATALOGUER_APPROVED';
 
+// Tags this module mechanically constructs in buildAdditionalFields, beyond
+// the skeleton marcBuilder.js emits. Declared here so marcConsistency.js can
+// count them as builder-covered instead of flagging SUPPORTED_BUT_BUILDER_MISSING.
+export function getPipelineEmittedTags() {
+  return ['005'];
+}
+
 export function normalizeIsbn(value) {
   const raw = String(value ?? '').replace(/[-\s]/g, '').toUpperCase();
   if (/^\d{9}[0-9X]$/.test(raw)) return isbn10To13(raw);

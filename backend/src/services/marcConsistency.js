@@ -5,6 +5,7 @@ import { getAllMarcRules, getSeriesPolicy, hasMarcRule, normalizeMarcTag } from 
 import { getBuilderEmittedTags, getBuilderMechanicalTags } from './marcBuilder.js';
 import { getValidatorCoveredTags } from './marcValidator.js';
 import { getMapperTags, canMapTag } from './kohaMapper.js';
+import { getPipelineEmittedTags } from './marcPipeline.js';
 
 function yesNo(value) {
   return value ? 'YES' : 'NO';
@@ -26,8 +27,8 @@ function coverageLabel({ rule, builder, validator, mapper }) {
  */
 export function runMarcConsistencyCheck() {
   const rules = getAllMarcRules();
-  const builderTags = new Set(getBuilderEmittedTags().map(normalizeMarcTag));
-  const builderMechanical = new Set(getBuilderMechanicalTags().map(normalizeMarcTag));
+  const builderTags = new Set([...getBuilderEmittedTags(), ...getPipelineEmittedTags()].map(normalizeMarcTag));
+  const builderMechanical = new Set([...getBuilderMechanicalTags(), ...getPipelineEmittedTags()].map(normalizeMarcTag));
   const validatorTags = new Set(getValidatorCoveredTags().map(normalizeMarcTag));
   const mapperTags = new Set(getMapperTags().map(normalizeMarcTag));
 
