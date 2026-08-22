@@ -4,6 +4,7 @@ import pool from '../db/index.js';
 const SALT_ROUNDS = 12;
 
 export class UserAlreadyExistsError extends Error {}
+export class UserNotFoundError extends Error {}
 
 function institutionNameFromSlug(slug) {
   return slug
@@ -45,4 +46,18 @@ export async function createUser({ email, password, institutionSlug, subscriptio
   );
 
   return { userId: insertedUser.rows[0].id, institutionId };
+}
+
+// Admin-initiated password reset for a library user. Updates the hash and
+// clears all extension sessions so old tokens cannot keep working.
+export async function resetUserPassword(userId, password) {
+  const existing = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+  if (existing.rows.length === 0) {
+    throw new UserNotFoundError('User not found');
+  }
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
+  await pool.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  return { userId };
 }

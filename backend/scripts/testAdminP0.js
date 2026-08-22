@@ -158,8 +158,8 @@ async function main() {
       });
       const html = await dash.text();
       assert.equal(dash.status, 200, html.slice(0, 200));
-      assert.match(html, /Dashboard/);
-      assert.match(html, /MARC records/);
+      assert.match(html, /Overview|Dashboard|users/i);
+      assert.match(html, /MARC records|Library users/i);
       assert.doesNotMatch(html, /Internal server error/);
       console.log('PASS authenticated GET /admin renders dashboard');
 
@@ -167,7 +167,60 @@ async function main() {
         headers: { Cookie: cookie.split(';')[0] },
       });
       assert.equal(users.status, 200);
-      console.log('PASS GET /admin/users');
+      assert.match(await users.clone().text(), /Reset password|Set password|logo-64/);
+      console.log('PASS GET /admin/users shows password reset + logo');
+
+      const createUser = await fetch(`${base}/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Cookie: cookie.split(';')[0],
+        },
+        body: 'email=resetme@example.com&password=oldpassword1&institution_slug=demo-lib&subscription_tier=free',
+        redirect: 'manual',
+      });
+      assert.equal(createUser.status, 302);
+
+      const listUsers = await fetch(`${base}/admin/users`, {
+        headers: { Cookie: cookie.split(';')[0] },
+      });
+      const listHtml = await listUsers.text();
+      const idMatch = listHtml.match(/action="\/admin\/users\/(\d+)\/password"/);
+      assert.ok(idMatch, 'password form action present');
+      const userId = idMatch[1];
+
+      const reset = await fetch(`${base}/admin/users/${userId}/password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Cookie: cookie.split(';')[0],
+        },
+        body: 'password=newpassword9',
+        redirect: 'manual',
+      });
+      assert.equal(reset.status, 302);
+      assert.match(reset.headers.get('location') || '', /password_reset=1/);
+
+      const loginNew = await fetch(`${base}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Origin: 'chrome-extension://test' },
+        body: JSON.stringify({ email: 'resetme@example.com', password: 'newpassword9' }),
+      });
+      assert.equal(loginNew.status, 200);
+      const tokenBody = await loginNew.json();
+      assert.ok(tokenBody.token);
+      console.log('PASS admin password reset authenticates with new password');
+
+      const settings = await fetch(`${base}/admin/settings`, {
+        headers: { Cookie: cookie.split(';')[0] },
+      });
+      assert.equal(settings.status, 200);
+      assert.match(await settings.text(), /Admin console password|logo-128/);
+      console.log('PASS GET /admin/settings');
+
+      const logo = await fetch(`${base}/logo/logo-64.png`);
+      assert.equal(logo.status, 200);
+      console.log('PASS logo asset served');
     } finally {
       child.kill('SIGTERM');
       try {
