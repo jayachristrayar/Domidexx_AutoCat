@@ -21,7 +21,7 @@ if (!engine) {
 }
 
 // Koha's advanced MARC editor can still be rendering (or re-rendering, if
-// the cataloguer switches framework) when the popup's "Fill Koha" click
+// the cataloguer switches framework) when the side panel's "Fill MARC" click
 // reaches this content script. Rather than assuming the DOM is already
 // settled, wait briefly for at least one MARC field row to exist, using a
 // MutationObserver rather than a fixed sleep so a fast-rendering page
@@ -51,6 +51,25 @@ function waitForEditorReady(timeoutMs = 8000) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === 'AUTOCAT_DETECT_FIELDS') {
+    if (!engine) {
+      sendResponse({ status: 'failed', error: 'engine_not_loaded' });
+      return false;
+    }
+    (async () => {
+      const ready = await waitForEditorReady();
+      if (!ready) {
+        console.error('[AutoCat] Unsupported Koha page: MARC editor not found.');
+        sendResponse({ status: 'failed', error: 'marc_editor_not_found' });
+        return;
+      }
+      const tags = engine.detectFields(document);
+      console.log(`[AutoCat] MARC fields detected: ${tags.join(', ') || '(none)'}`);
+      sendResponse({ status: 'ok', tags });
+    })();
+    return true;
+  }
+
   if (message?.type !== 'AUTOCAT_KOHA_FILL') return false;
 
   if (!engine) {

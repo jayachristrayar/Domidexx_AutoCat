@@ -1,7 +1,10 @@
-// Default to the deployed AutoCat backend. Override via the popup's
-// "API base URL" field (stored in chrome.storage.local as apiBaseUrl) when
-// pointing at a local server during development.
-export const DEFAULT_API_BASE_URL = 'https://domidexx-autocat.onrender.com';
+// Internal HTTP layer for the AutoCat backend. Imported ONLY by
+// src/background/service-worker.js -- the Side Panel UI never imports this
+// file or calls fetch() directly; it talks to the backend exclusively via
+// chrome.runtime.sendMessage to the background worker (see
+// src/services/api.js for that thin client). This is what keeps API base
+// URLs, endpoint paths, and auth headers out of the UI layer entirely.
+import { API_BASE_URL, debugLog } from '../services/config.js';
 
 async function getStored(keys) {
   return chrome.storage.local.get(keys);
@@ -25,16 +28,6 @@ export async function getDeviceId() {
   return created;
 }
 
-export async function getApiBaseUrl() {
-  const { apiBaseUrl } = await getStored(['apiBaseUrl']);
-  return (apiBaseUrl || DEFAULT_API_BASE_URL).replace(/\/$/, '');
-}
-
-export async function setApiBaseUrl(url) {
-  const cleaned = String(url || '').trim().replace(/\/$/, '');
-  await setStored({ apiBaseUrl: cleaned || DEFAULT_API_BASE_URL });
-}
-
 export async function getSessionToken() {
   const { sessionToken } = await getStored(['sessionToken']);
   return sessionToken ?? null;
@@ -49,11 +42,7 @@ export async function setSessionToken(token) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const [token, baseUrl, deviceId] = await Promise.all([
-    getSessionToken(),
-    getApiBaseUrl(),
-    getDeviceId(),
-  ]);
+  const [token, deviceId] = await Promise.all([getSessionToken(), getDeviceId()]);
   const headers = {
     'Content-Type': 'application/json',
     'X-Device-Id': deviceId,
@@ -64,7 +53,8 @@ export async function apiFetch(path, options = {}) {
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${baseUrl}${path}`, {
+  debugLog('apiFetch', options.method || 'GET', path);
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
   });

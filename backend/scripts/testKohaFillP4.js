@@ -245,4 +245,16 @@ console.log('\n== extension engine: save guard ==');
   console.log('  isSaveElement distinguishes the Save button from ordinary MARC value inputs');
 }
 
+console.log('\n== extension engine: detectFields ==');
+{
+  const doc = buildKohaEditorFixture({ existing650: ['Library science', 'Cataloging'] });
+  const tags = engine.detectFields(doc);
+  assert.deepStrictEqual(tags, [...new Set(tags)].sort(), 'detectFields must return sorted, deduplicated tags');
+  for (const expected of ['000', '005', '008', '020', '040', '082', '100', '245', '250', '300', '650']) {
+    assert.ok(tags.includes(expected), `expected detectFields to report ${expected}, got ${tags.join(',')}`);
+  }
+  assert.ok(!tags.includes('662'), 'detectFields must not report a tag with no DOM row on the page');
+  console.log(`  detected ${tags.length} distinct tags from the fixture DOM: ${tags.join(', ')}`);
+}
+
 console.log('\nAll P4 Koha fill tests passed.');
