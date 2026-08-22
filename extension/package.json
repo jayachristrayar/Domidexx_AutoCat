@@ -1,16 +1,10 @@
 {
   "name": "autocat-extension",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build"
-  },
-  "dependencies": {
-    "webextension-polyfill": "^0.12.0"
-  },
-  "devDependencies": {
-    "vite": "^6.0.7"
+    "build": "node ./scripts/build.mjs",
+    "pack": "npm run build"
   }
 }

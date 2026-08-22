@@ -1,0 +1,189 @@
+:root {
+  color-scheme: light;
+  --ink: #1c1917;
+  --muted: #78716c;
+  --line: #e7e5e4;
+  --surface: #ffffff;
+  --bg: #fafaf9;
+  --accent: #0f766e;
+  --accent-ink: #f0fdfa;
+  --danger: #b91c1c;
+  --danger-bg: #fef2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 340px;
+  max-width: 380px;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  color: var(--ink);
+  background:
+    radial-gradient(120% 80% at 0% 0%, #ccfbf1 0%, transparent 55%),
+    radial-gradient(100% 70% at 100% 0%, #fef3c7 0%, transparent 50%),
+    var(--bg);
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+header img {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.tagline {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+main {
+  padding: 14px 16px 16px;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 0.8rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+label span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+
+input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--surface);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+button {
+  appearance: none;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.error {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  margin-bottom: 10px;
+}
+
+.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  margin-bottom: 10px;
+}
+
+.panel {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.meta {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.result {
+  margin-top: 10px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tabs button {
+  flex: 1;
+}
+
+.tabs button.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.tabs button:not(.active) {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}

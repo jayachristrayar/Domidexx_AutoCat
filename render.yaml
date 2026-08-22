@@ -10,6 +10,12 @@
 # runtime. Z39.50 lookups already no-op gracefully with a clear log message
 # when yaz-client isn't present (see backend/src/services/z3950Lookup.js),
 # so this is a safe default, not a silent break.
+#
+# Required env vars (set in the Dashboard; sync:false means Blueprint will
+# not invent values for you):
+#   DATABASE_URL          Postgres connection string (schema is applied on boot)
+#   ADMIN_PASSWORD        Shared password for /admin
+#   ADMIN_SESSION_SECRET  Long random string used to sign the admin cookie
 services:
   - type: web
     name: autocat-backend
@@ -17,6 +23,7 @@ services:
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
         sync: false

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AutoCat",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MARC 21 cataloguing assistant for librarians using Koha.",
   "icons": {
     "16": "assets/logo/icon16.png",
@@ -9,7 +9,10 @@
     "128": "assets/logo/icon128.png"
   },
   "permissions": ["storage", "activeTab", "scripting"],
-  "host_permissions": ["http://localhost:10000/*"],
+  "host_permissions": [
+    "http://localhost:10000/*",
+    "https://domidexx-autocat.onrender.com/*"
+  ],
   "background": {
     "service_worker": "src/background/service-worker.js",
     "type": "module"

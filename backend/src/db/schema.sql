@@ -1,12 +1,13 @@
 -- Groups users by library; the rule engine uses the single shared rules/ set, not per-institution profiles.
-CREATE TABLE institutions (
+-- IF NOT EXISTS so ensureSchema() can be re-run safely on every boot.
+CREATE TABLE IF NOT EXISTS institutions (
   id SERIAL PRIMARY KEY,
   slug TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
@@ -15,7 +16,7 @@ CREATE TABLE users (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE sessions (
+CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -23,14 +24,14 @@ CREATE TABLE sessions (
   expires_at TIMESTAMPTZ NOT NULL
 );
 
-CREATE TABLE isbn_cache (
+CREATE TABLE IF NOT EXISTS isbn_cache (
   isbn TEXT PRIMARY KEY,
   raw_json JSONB NOT NULL,
   source TEXT NOT NULL,
   fetched_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE marc_records (
+CREATE TABLE IF NOT EXISTS marc_records (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
   isbn TEXT,
@@ -41,7 +42,7 @@ CREATE TABLE marc_records (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE record_edits (
+CREATE TABLE IF NOT EXISTS record_edits (
   id SERIAL PRIMARY KEY,
   marc_record_id INTEGER REFERENCES marc_records(id),
   user_prompt TEXT,
@@ -50,7 +51,7 @@ CREATE TABLE record_edits (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE api_usage (
+CREATE TABLE IF NOT EXISTS api_usage (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
   provider TEXT NOT NULL,
@@ -58,7 +59,7 @@ CREATE TABLE api_usage (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE draft_state (
+CREATE TABLE IF NOT EXISTS draft_state (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) UNIQUE,
   marc_record_id INTEGER REFERENCES marc_records(id),
@@ -66,11 +67,12 @@ CREATE TABLE draft_state (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE ddc_relative_index (
+CREATE TABLE IF NOT EXISTS ddc_relative_index (
   id SERIAL PRIMARY KEY,
   term TEXT NOT NULL,
   ddc_number TEXT NOT NULL,
   qualifier TEXT,
   search_vector TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', term)) STORED
 );
-CREATE INDEX ddc_relative_index_search_idx ON ddc_relative_index USING GIN(search_vector);
+
+CREATE INDEX IF NOT EXISTS ddc_relative_index_search_idx ON ddc_relative_index USING GIN(search_vector);
