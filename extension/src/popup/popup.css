@@ -187,3 +187,6 @@ button:disabled {
   color: var(--ink);
   border: 1px solid var(--line);
 }
+.ddc-panel ul { margin: 6px 0 10px 18px; padding: 0; }
+.ddc-panel p { margin: 6px 0 10px; }
+textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font: inherit; }

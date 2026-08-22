@@ -89,3 +89,42 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_id TEXT;
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_user_device_idx ON sessions (user_id, device_id);
+
+CREATE TABLE IF NOT EXISTS ddc_classes (
+  number TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  parent_number TEXT,
+  main_class TEXT NOT NULL,
+  level INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'ASSIGNED',
+  path JSONB NOT NULL DEFAULT '[]'::jsonb,
+  source TEXT NOT NULL DEFAULT 'project_supplied_ddc_reference',
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS ddc_aliases (
+  id SERIAL PRIMARY KEY,
+  term TEXT NOT NULL,
+  ddc_number TEXT NOT NULL REFERENCES ddc_classes(number),
+  source TEXT NOT NULL DEFAULT 'project_alias',
+  weight INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (term, ddc_number, source)
+);
+
+CREATE TABLE IF NOT EXISTS ddc_decisions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id),
+  metadata_json JSONB NOT NULL,
+  decision_json JSONB NOT NULL,
+  ai_recommended_ddc TEXT,
+  approved_ddc TEXT,
+  approval_status TEXT NOT NULL DEFAULT 'PENDING',
+  approved_by TEXT,
+  approved_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS ddc_classes_label_idx ON ddc_classes USING GIN (to_tsvector('english', label));
+CREATE INDEX IF NOT EXISTS ddc_aliases_term_idx ON ddc_aliases USING GIN (to_tsvector('english', term));
+CREATE INDEX IF NOT EXISTS ddc_decisions_user_idx ON ddc_decisions (user_id, created_at DESC);

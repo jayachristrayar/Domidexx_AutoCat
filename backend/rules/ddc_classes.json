@@ -1,0 +1,6020 @@
+[
+  {
+    "number": "000",
+    "label": "General works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "100",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "200",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "300",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "400",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "500",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "600",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "700",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "800",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "900",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "010",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "020",
+    "label": "Library & information sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "030",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "040",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "050",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "060",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "070",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "080",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "090",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "110",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "120",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "130",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "140",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "150",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "160",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "170",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "180",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "190",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "210",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "220",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "230",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "240",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "250",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "260",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "270",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "280",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "290",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "310",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "320",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "330",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "340",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "350",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "360",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "370",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "380",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "390",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "410",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "420",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "430",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "440",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "450",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "460",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "470",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "480",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "490",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "510",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "520",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "530",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "540",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "550",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "560",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "570",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "580",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "590",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "610",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "620",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "630",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "640",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "650",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "660",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "670",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "680",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "690",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "710",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "720",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "730",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "740",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "750",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "760",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "770",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "780",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "790",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "810",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "820",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "830",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "840",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "850",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "860",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "870",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "880",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "890",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "910",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "920",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "930",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "940",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "950",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "960",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "970",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "980",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "990",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "001",
+    "label": "Knowledge",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "002",
+    "label": "The book",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "003",
+    "label": "Systems",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "004",
+    "label": "Data processing & computer science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "005",
+    "label": "Computer programming, programs & data",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "006",
+    "label": "Special computer methods",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "007",
+    "label": "General works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "008",
+    "label": "General works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "009",
+    "label": "General works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "011",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "012",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "013",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "014",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "015",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "016",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "017",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "018",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "019",
+    "label": "Bibliography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "021",
+    "label": "Library relationships",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "022",
+    "label": "Administration of physical plant",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "023",
+    "label": "Personnel management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "024",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "025",
+    "label": "Library operations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "026",
+    "label": "Libraries for specific subjects",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "027",
+    "label": "General libraries",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "028",
+    "label": "Reading & use of other information media",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "029",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "031",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "032",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "033",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "034",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "035",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "036",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "037",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "038",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "039",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "041",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "042",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "043",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "044",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "045",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "046",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "047",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "048",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "049",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "051",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "052",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "053",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "054",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "055",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "056",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "057",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "058",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "059",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "061",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "062",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "063",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "064",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "065",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "066",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "067",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "068",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "069",
+    "label": "General organizations & museum science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "071",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "072",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "073",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "074",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "075",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "076",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "077",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "078",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "079",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "081",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "082",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "083",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "084",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "085",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "086",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "087",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "088",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "089",
+    "label": "General collections",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "091",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "092",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "093",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "094",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "095",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "096",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "097",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "098",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "099",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "101",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "102",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "103",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "104",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "105",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "106",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "107",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "108",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "109",
+    "label": "Philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "111",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "112",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "113",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "114",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "115",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "116",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "117",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "118",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "119",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "121",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "122",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "123",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "124",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "125",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "126",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "127",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "128",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "129",
+    "label": "Epistemology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "131",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "132",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "133",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "134",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "135",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "136",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "137",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "138",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "139",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "141",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "142",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "143",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "144",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "145",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "146",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "147",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "148",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "149",
+    "label": "Specific philosophical schools",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "151",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "152",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "153",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "154",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "155",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "156",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "157",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "158",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "159",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "161",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "162",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "163",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "164",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "165",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "166",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "167",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "168",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "169",
+    "label": "Logic",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "171",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "172",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "173",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "174",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "175",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "176",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "177",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "178",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "179",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "181",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "182",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "183",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "184",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "185",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "186",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "187",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "188",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "189",
+    "label": "Ancient, medieval & eastern philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "191",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "192",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "193",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "194",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "195",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "196",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "197",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "198",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "199",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "201",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "202",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "203",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "204",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "205",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "206",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "207",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "208",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "209",
+    "label": "Religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "211",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "212",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "213",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "214",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "215",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "216",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "217",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "218",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "219",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "221",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "222",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "223",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "224",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "225",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "226",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "227",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "228",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "229",
+    "label": "Bible",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "231",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "232",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "233",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "234",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "235",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "236",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "237",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "238",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "239",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "241",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "242",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "243",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "244",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "245",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "246",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "247",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "248",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "249",
+    "label": "Christian practice & observance",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "251",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "252",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "253",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "254",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "255",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "256",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "257",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "258",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "259",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "261",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "262",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "263",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "264",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "265",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "266",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "267",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "268",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "269",
+    "label": "Christian social theology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "271",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "272",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "273",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "274",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "275",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "276",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "277",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "278",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "279",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "281",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "282",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "283",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "284",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "285",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "286",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "287",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "288",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "289",
+    "label": "Christian denominations",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "291",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "292",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "293",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "294",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "295",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "296",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "297",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "298",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "299",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "301",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "302",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "303",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "304",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "305",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "306",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "307",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "308",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "309",
+    "label": "Social sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "311",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "312",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "313",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "314",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "315",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "316",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "317",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "318",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "319",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "321",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "322",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "323",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "324",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "325",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "326",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "327",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "328",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "329",
+    "label": "Political science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "331",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "332",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "333",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "334",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "335",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "336",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "337",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "338",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "339",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "341",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "342",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "343",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "344",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "345",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "346",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "347",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "348",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "349",
+    "label": "Law",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "351",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "352",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "353",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "354",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "355",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "356",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "357",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "358",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "359",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "361",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "362",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "363",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "364",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "365",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "366",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "367",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "368",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "369",
+    "label": "Social problems & services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "371",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "372",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "373",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "374",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "375",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "376",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "377",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "378",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "379",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "381",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "382",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "383",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "384",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "385",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "386",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "387",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "388",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "389",
+    "label": "Commerce, communications & transportation",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "391",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "392",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "393",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "394",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "395",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "396",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "397",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "398",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "399",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "401",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "402",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "403",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "404",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "405",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "406",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "407",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "408",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "409",
+    "label": "Language",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "411",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "412",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "413",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "414",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "415",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "416",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "417",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "418",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "419",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "421",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "422",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "423",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "424",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "425",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "426",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "427",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "428",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "429",
+    "label": "English & Old English languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "431",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "432",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "433",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "434",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "435",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "436",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "437",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "438",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "439",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "441",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "442",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "443",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "444",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "445",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "446",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "447",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "448",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "449",
+    "label": "French & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "451",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "452",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "453",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "454",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "455",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "456",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "457",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "458",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "459",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "461",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "462",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "463",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "464",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "465",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "466",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "467",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "468",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "469",
+    "label": "Spanish, Portuguese, Galician",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "471",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "472",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "473",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "474",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "475",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "476",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "477",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "478",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "479",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "481",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "482",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "483",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "484",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "485",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "486",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "487",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "488",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "489",
+    "label": "Classical & modern Greek languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "491",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "492",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "493",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "494",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "495",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "496",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "497",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "498",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "499",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "501",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "502",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "503",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "504",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "505",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "506",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "507",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "508",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "509",
+    "label": "Natural sciences & mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "511",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "512",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "513",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "514",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "515",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "516",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "517",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "518",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "519",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "521",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "522",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "523",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "524",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "525",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "526",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "527",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "528",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "529",
+    "label": "Astronomy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "531",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "532",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "533",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "534",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "535",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "536",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "537",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "538",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "539",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "541",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "542",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "543",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "544",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "545",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "546",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "547",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "548",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "549",
+    "label": "Chemistry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "551",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "552",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "553",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "554",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "555",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "556",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "557",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "558",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "559",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "561",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "562",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "563",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "564",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "565",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "566",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "567",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "568",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "569",
+    "label": "Fossils & prehistoric life",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "571",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "572",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "573",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "574",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "575",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "576",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "577",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "578",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "579",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "581",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "582",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "583",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "584",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "585",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "586",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "587",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "588",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "589",
+    "label": "Plants",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "591",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "592",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "593",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "594",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "595",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "596",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "597",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "598",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "599",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "601",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "602",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "603",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "604",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "605",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "606",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "607",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "608",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "609",
+    "label": "Technology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "611",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "612",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "613",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "614",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "615",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "616",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "617",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "618",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "619",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "621",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "622",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "623",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "624",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "625",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "626",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "627",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "628",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "629",
+    "label": "Engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "631",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "632",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "633",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "634",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "635",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "636",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "637",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "638",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "639",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "641",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "642",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "643",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "644",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "645",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "646",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "647",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "648",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "649",
+    "label": "Home & family management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "651",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "652",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "653",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "654",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "655",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "656",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "657",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "658",
+    "label": "General management",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "659",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "661",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "662",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "663",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "664",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "665",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "666",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "667",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "668",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "669",
+    "label": "Chemical engineering",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "671",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "672",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "673",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "674",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "675",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "676",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "677",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "678",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "679",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "681",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "682",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "683",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "684",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "685",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "686",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "687",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "688",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "689",
+    "label": "Manufacture for specific uses",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "691",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "692",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "693",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "694",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "695",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "696",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "697",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "698",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "699",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "701",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "702",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "703",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "704",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "705",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "706",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "707",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "708",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "709",
+    "label": "The arts; fine & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "711",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "712",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "713",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "714",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "715",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "716",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "717",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "718",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "719",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "721",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "722",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "723",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "724",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "725",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "726",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "727",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "728",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "729",
+    "label": "Architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "731",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "732",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "733",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "734",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "735",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "736",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "737",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "738",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "739",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "741",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "742",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "743",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "744",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "745",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "746",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "747",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "748",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "749",
+    "label": "Drawing & decorative arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "751",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "752",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "753",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "754",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "755",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "756",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "757",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "758",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "759",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "761",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "762",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "763",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "764",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "765",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "766",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "767",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "768",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "769",
+    "label": "Graphic arts",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "771",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "772",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "773",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "774",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "775",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "776",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "777",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "778",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "779",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "781",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "782",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "783",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "784",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "785",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "786",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "787",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "788",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "789",
+    "label": "Music",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "791",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "792",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "793",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "794",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "795",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "796",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "797",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "798",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "799",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "801",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "802",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "803",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "804",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "805",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "806",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "807",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "808",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "809",
+    "label": "Literature & rhetoric",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "811",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "812",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "813",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "814",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "815",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "816",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "817",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "818",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "819",
+    "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "824",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "825",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "826",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "827",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "828",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "829",
+    "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "831",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "832",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "833",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "834",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "835",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "836",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "837",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "838",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "839",
+    "label": "German literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "841",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "842",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "843",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "844",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "845",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "846",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "847",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "848",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "849",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "851",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "852",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "853",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "854",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "855",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "856",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "857",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "858",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "859",
+    "label": "Italian literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "861",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "862",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "863",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "864",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "865",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "866",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "867",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "868",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "869",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "871",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "872",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "873",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "874",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "875",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "876",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "877",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "878",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "879",
+    "label": "Latin literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "881",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "882",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "883",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "884",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "885",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "886",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "887",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "888",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "889",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "891",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "892",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "893",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "894",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "895",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "896",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "897",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "898",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "899",
+    "label": "Other literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "901",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "902",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "903",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "904",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "905",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "906",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "907",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "908",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "909",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "911",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "912",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "913",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "914",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "915",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "916",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "917",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "918",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "919",
+    "label": "Geography & travel",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "921",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "922",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "923",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "924",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "925",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "926",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "927",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "928",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "929",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "931",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "932",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "933",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "934",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "935",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "936",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "937",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "938",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "939",
+    "label": "Ancient history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "941",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "942",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "943",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "944",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "945",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "946",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "947",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "948",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "949",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "951",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "952",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "953",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "954",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "955",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "956",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "957",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "958",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "959",
+    "label": "History of Asia",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "961",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "962",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "963",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "964",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "965",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "966",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "967",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "968",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "969",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "971",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "972",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "973",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "974",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "975",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "976",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "977",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "978",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "979",
+    "label": "History of North America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "981",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "982",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "983",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "984",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "985",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "986",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "987",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "988",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "989",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "991",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "992",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "993",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "994",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "995",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "996",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "997",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "998",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "999",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "006.3",
+    "label": "Artificial intelligence",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "025.1",
+    "label": "Library administration",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "025.5",
+    "label": "Library services to users",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  }
+]
