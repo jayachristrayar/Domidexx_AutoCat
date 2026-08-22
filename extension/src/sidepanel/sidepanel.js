@@ -5,6 +5,13 @@
 // Koha content script only through src/services/koha.js. Every user-facing
 // string here is a plain, human-readable status -- never a raw error,
 // status code, or JSON payload.
+//
+// One screen, one workflow: entering an ISBN and pressing "Look up" chains
+// lookup -> whole-book DDC analysis -> DDC approval -> MARC generation
+// automatically (product spec section 33) -- there is no "Generate DDC" /
+// "Approve" / "Generate MARC" sequence of separate buttons. The chat panel
+// at the bottom is for exceptions/corrections only (section 34): wrong
+// book, wrong metadata, DDC disagreement, "why this number", etc.
 import * as api from '../services/api.js';
 import * as koha from '../services/koha.js';
 import { debugLog } from '../services/config.js';
@@ -121,6 +128,137 @@ function renderAuth(message = '') {
 }
 
 // ---------------------------------------------------------------------
+// Koha connection status pill
+// ---------------------------------------------------------------------
+
+const KOHA_STATUS_META = {
+  NOT_DETECTED: { dot: 'red', label: 'KOHA NOT DETECTED', detail: 'Open a Koha cataloguing page to use AutoCat.' },
+  DETECTING: { dot: 'yellow', label: 'DETECTING KOHA…', detail: '' },
+  DETECTED_NO_EDITOR: { dot: 'yellow', label: 'KOHA DETECTED', detail: 'MARC editor not available on this page.' },
+  CONNECTED: { dot: 'green', label: 'KOHA CONNECTED', detail: 'Add MARC record' },
+};
+
+function kohaStatusHtml(state) {
+  const meta = KOHA_STATUS_META[state] || KOHA_STATUS_META.NOT_DETECTED;
+  return `
+    <span class="koha-dot ${meta.dot}"></span>
+    <span class="koha-label">${escapeHtml(meta.label)}</span>
+    ${meta.detail ? `<span class="koha-detail">${escapeHtml(meta.detail)}</span>` : ''}
+  `;
+}
+
+// ---------------------------------------------------------------------
+// Book details
+// ---------------------------------------------------------------------
+
+function bookDetailsHtml(metadata) {
+  const authors = (metadata.authors || []).join(', ') || 'Unknown';
+  const rows = [
+    ['Title', metadata.title],
+    ['Subtitle', metadata.subtitle],
+    ['Author', authors],
+    ['Editors', (metadata.editors || []).join(', ')],
+    ['Illustrators', (metadata.illustrators || []).join(', ')],
+    ['Translators', (metadata.translators || []).join(', ')],
+    ['Edition', metadata.edition],
+    ['Publisher', metadata.publisher],
+    ['Published', metadata.publish_date],
+    ['ISBN', metadata.isbn],
+    ['Language', metadata.language],
+    ['Pages', metadata.physical_description?.pages],
+    ['Series', metadata.series?.name ?? metadata.series],
+    ['Subjects', (metadata.subjects || []).join(', ')],
+  ].filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+  const primary = rows.slice(0, 4);
+  const rest = rows.slice(4);
+
+  return `
+    ${stateHtml('success', 'Book found')}
+    <div class="result">
+      <dl>
+        ${primary.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('')}
+      </dl>
+      ${rest.length ? `
+        <details class="book-more">
+          <summary>More details</summary>
+          <dl>${rest.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('')}</dl>
+          ${metadata.description ? `<p class="result-heading">Description</p><p>${escapeHtml(metadata.description)}</p>` : ''}
+        </details>
+      ` : ''}
+      ${metadata.provenance === 'unverified' ? '<p class="hint">Sourced via AI-assisted web research -- please verify against the physical item.</p>' : ''}
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------------------
+// DDC 23 classification
+// ---------------------------------------------------------------------
+
+function confidenceBadgeClass(confidence) {
+  const c = String(confidence || '').toUpperCase();
+  if (c === 'HIGH') return 'confidence-high';
+  if (c === 'MEDIUM') return 'confidence-medium';
+  return 'confidence-low';
+}
+
+function ddcHtml(decision, source) {
+  if (!decision?.recommended_ddc) {
+    return stateHtml('info', 'Insufficient evidence to determine a reliable DDC 23 classification. Add a description or table of contents and try again.');
+  }
+  const rec = decision.recommended_ddc;
+  const breakdown = decision.number_breakdown?.length
+    ? decision.number_breakdown
+    : (decision.classification_path || []).map((n) => ({ number: n, label: '' }));
+
+  return `
+    <div class="ddc-number">
+      <span class="ddc-value">${escapeHtml(rec.number)}</span>
+      <span class="badge ${confidenceBadgeClass(rec.confidence)}">${escapeHtml(rec.confidence || 'UNKNOWN')}</span>
+    </div>
+    <p class="ddc-label">${escapeHtml(rec.label || decision.primary_subject || '')}</p>
+    <p class="source-tag">${source === 'cataloguer' ? 'Cataloguer-approved classification' : 'AutoCat AI recommendation'}</p>
+
+    <p class="result-heading">Why this number?</p>
+    <p>${escapeHtml(decision.justification || '')}</p>
+
+    ${breakdown.length ? `
+      <p class="result-heading">Number breakdown</p>
+      <div class="breakdown">
+        ${breakdown.map((p, i) => `${i > 0 ? '<span class="breakdown-arrow">↓</span>' : ''}<div class="breakdown-row"><span class="breakdown-num">${escapeHtml(p.number)}</span><span class="breakdown-label">${escapeHtml(p.label || '')}</span></div>`).join('')}
+      </div>
+    ` : ''}
+
+    ${decision.alternatives?.length ? `
+      <p class="result-heading">Alternative considered</p>
+      <ul>${decision.alternatives.slice(0, 2).map((a) => `<li><strong>${escapeHtml(a.number)}</strong> — ${escapeHtml(a.label)}: ${escapeHtml(a.reason_rejected || a.reason_considered || '')}</li>`).join('')}</ul>
+    ` : ''}
+  `;
+}
+
+// ---------------------------------------------------------------------
+// MARC preview
+// ---------------------------------------------------------------------
+
+function marcHtml(marcResult) {
+  const valid = marcResult.validation?.valid === true;
+  const rows = marcResult.preview || [];
+  return `
+    ${stateHtml(valid ? 'success' : 'info', valid ? 'MARC READY' : 'MARC needs review before it can be filled')}
+    <div class="result">
+      <details class="marc-preview" ${rows.length <= 12 ? 'open' : ''}>
+        <summary>${rows.length} field${rows.length === 1 ? '' : 's'} prepared</summary>
+        <div class="marc-lines">
+          ${rows.map((row) => `<div class="marc-line"><span class="tag-chip">${escapeHtml(row.tag)}</span><span class="marc-value">${escapeHtml(row.value)}</span></div>`).join('')}
+        </div>
+      </details>
+      ${marcResult.conflicts?.length ? `<p class="result-heading">Source conflicts</p><p class="hint">${escapeHtml(marcResult.conflicts.map((c) => c.field).join(', '))} differ between sources -- the most reliable value was used.</p>` : ''}
+      ${!valid ? `<p class="result-heading">Needs attention</p><ul>${(marcResult.validation?.errors || []).map((e) => `<li>${escapeHtml(e.message)}</li>`).join('')}</ul>` : ''}
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------------------
 // Main workspace
 // ---------------------------------------------------------------------
 
@@ -134,53 +272,45 @@ function renderWorkspace(me) {
       <button type="button" class="secondary" id="logout">Log out</button>
     </div>
 
+    <div class="card koha-status-card" id="koha-status">${kohaStatusHtml('DETECTING')}</div>
+
     <div class="card">
-      <p class="section-title">ISBN Lookup</p>
+      <p class="section-title">ISBN</p>
       <form id="lookup-form" class="row">
-        <label><span>ISBN</span><input name="isbn" required placeholder="9780140328721" /></label>
-        <button type="submit">Look up</button>
+        <label><span>ISBN</span><input name="isbn" required placeholder="9780140328721" autocomplete="off" /></label>
+        <button type="submit" id="lookup-submit">Look up</button>
       </form>
       <div id="lookup-status"></div>
     </div>
 
-    <div class="card">
-      <p class="section-title">DDC Classification</p>
-      <p class="hint">Analyze the whole-book subject before approving a classification number.</p>
-      <form id="ddc-form" class="stack">
-        <label><span>Title</span><input name="title" required /></label>
-        <label><span>Description / TOC</span><textarea name="description" rows="4" placeholder="Paste description, abstract, or table of contents"></textarea></label>
-        <button type="submit">Recommend DDC</button>
-      </form>
+    <div class="card" id="book-card" hidden>
+      <p class="section-title">Book</p>
+      <div id="book-status"></div>
+    </div>
+
+    <div class="card" id="ddc-card" hidden>
+      <p class="section-title">DDC 23 Classification</p>
       <div id="ddc-status"></div>
     </div>
 
-    <div class="card">
-      <p class="section-title">MARC Tools</p>
-      <div class="stack">
-        <button type="button" class="secondary" id="detect-fields">Detect MARC fields</button>
-        <button type="button" class="secondary" id="generate-marc" disabled>Generate MARC</button>
-        <button type="button" id="fill-koha" disabled>Fill MARC</button>
-      </div>
-      <div id="detect-status"></div>
+    <div class="card" id="marc-card" hidden>
+      <p class="section-title">MARC</p>
       <div id="marc-status"></div>
+      <button type="button" id="fill-koha" class="full" disabled>Fill MARC</button>
       <div id="fill-status"></div>
     </div>
 
     <div class="card">
-      <p class="section-title">Status</p>
-      <div class="connection-status" id="connection-status">
-        <span class="status-dot" id="status-dot"></span>
-        <span id="status-text">Connected</span>
-      </div>
+      <p class="section-title">Ask AutoCat</p>
+      <p class="hint">Use this to correct something -- wrong book, wrong author, a different DDC number, or to ask why a number was chosen.</p>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="row">
+        <label class="chat-input-label"><span class="sr-only">Message</span><input name="message" placeholder="Ask something…" autocomplete="off" /></label>
+        <button type="submit" id="chat-send">Send</button>
+      </form>
+      <div id="chat-status"></div>
     </div>
   `;
-
-  const statusDot = app.querySelector('#status-dot');
-  const statusText = app.querySelector('#status-text');
-  function setConnected(ok) {
-    statusDot.classList.toggle('off', !ok);
-    statusText.textContent = ok ? 'Connected' : 'Connection issue';
-  }
 
   app.querySelector('#logout').addEventListener('click', async () => {
     try {
@@ -188,161 +318,163 @@ function renderWorkspace(me) {
     } catch (error) {
       debugLog('logout failed', error);
     }
+    stopKohaStatusWatch();
     renderAuth();
   });
 
-  // -- ISBN lookup --------------------------------------------------
+  // -- Koha connection status (auto, top of panel) -----------------------
+  const kohaStatusEl = app.querySelector('#koha-status');
+  async function refreshKohaStatus() {
+    const status = await koha.getStatus();
+    kohaStatusEl.innerHTML = kohaStatusHtml(status.state);
+  }
+  refreshKohaStatus();
+  const unsubscribeTabChange = koha.onTabChange(refreshKohaStatus);
+  const kohaStatusInterval = setInterval(refreshKohaStatus, 5000);
+  function stopKohaStatusWatch() {
+    unsubscribeTabChange();
+    clearInterval(kohaStatusInterval);
+  }
+
+  // -- Shared workspace state --------------------------------------------
+  const state = {
+    isbn: null,
+    metadata: null,
+    ddcId: null,
+    ddcDecision: null,
+    ddcSource: 'ai', // 'ai' | 'cataloguer' -- section 41: keep these distinguishable
+    marcResult: null,
+  };
+
+  const bookCard = app.querySelector('#book-card');
+  const bookStatus = app.querySelector('#book-status');
+  const ddcCard = app.querySelector('#ddc-card');
+  const ddcStatus = app.querySelector('#ddc-status');
+  const marcCard = app.querySelector('#marc-card');
+  const marcStatus = app.querySelector('#marc-status');
+  const fillKohaButton = app.querySelector('#fill-koha');
+  const fillStatus = app.querySelector('#fill-status');
   const lookupStatus = app.querySelector('#lookup-status');
-  let currentMetadata = null;
+  const lookupSubmit = app.querySelector('#lookup-submit');
+
+  function renderBook() {
+    if (!state.metadata) { bookCard.hidden = true; return; }
+    bookCard.hidden = false;
+    bookStatus.innerHTML = bookDetailsHtml(state.metadata);
+  }
+
+  function renderDdcSection() {
+    if (!state.ddcDecision) { ddcCard.hidden = true; return; }
+    ddcCard.hidden = false;
+    ddcStatus.innerHTML = ddcHtml(state.ddcDecision, state.ddcSource);
+  }
+
+  function updateFillAvailability() {
+    const ddcApproved = state.ddcDecision?.approval_status === 'APPROVED';
+    const marcValid = state.marcResult?.validation?.valid === true;
+    const hasPlan = Array.isArray(state.marcResult?.koha_fill?.fields) && state.marcResult.koha_fill.fields.length > 0;
+    fillKohaButton.disabled = !(ddcApproved && marcValid && hasPlan);
+  }
+
+  function renderMarcSection() {
+    if (!state.marcResult) { marcCard.hidden = true; return; }
+    marcCard.hidden = false;
+    marcStatus.innerHTML = marcHtml(state.marcResult);
+    updateFillAvailability();
+  }
+
+  function handleWorkflowError(error, targetEl) {
+    if (error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE') {
+      targetEl.innerHTML = stateHtml('error', 'AutoCat service is temporarily unavailable. Please try again.');
+      return;
+    }
+    if (error.code === 'AUTH_EXPIRED') {
+      stopKohaStatusWatch();
+      renderAuth(error.message);
+      return;
+    }
+    targetEl.innerHTML = stateHtml('error', error.message);
+  }
+
+  // -- The single automatic workflow: lookup -> analyze -> classify ------
+  // -> approve -> generate MARC (product spec section 33). Re-entrant: also
+  // used by the chat panel to re-run analysis/MARC after a correction.
+  async function runDdcAndMarc() {
+    ddcCard.hidden = false;
+    ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
+    marcCard.hidden = true;
+    state.marcResult = null;
+    let recommendation;
+    try {
+      recommendation = await api.recommendDdc(state.metadata);
+    } catch (error) {
+      handleWorkflowError(error, ddcStatus);
+      return;
+    }
+    state.ddcId = recommendation.id;
+    state.ddcDecision = recommendation.decision;
+    state.ddcSource = 'ai';
+    renderDdcSection();
+
+    marcCard.hidden = false;
+    marcStatus.innerHTML = stateHtml('loading', 'Preparing MARC…');
+    try {
+      // Auto-adopt AutoCat's own recommendation so MARC can be prepared in
+      // one pass; the librarian's real control point is Fill MARC + the
+      // manual Koha Save, and a chat correction can still override this
+      // before then (see applyDdcOverride below).
+      const approved = await api.approveDdc(state.ddcId);
+      state.ddcDecision = approved.decision;
+      renderDdcSection();
+    } catch (error) {
+      handleWorkflowError(error, marcStatus);
+      return;
+    }
+
+    try {
+      const marc = await api.generateMarc(state.metadata, state.ddcDecision);
+      state.marcResult = marc;
+      renderMarcSection();
+    } catch (error) {
+      handleWorkflowError(error, marcStatus);
+    }
+  }
 
   app.querySelector('#lookup-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const isbn = String(new FormData(event.currentTarget).get('isbn') || '').trim();
-    lookupStatus.innerHTML = stateHtml('loading', 'Looking up ISBN…');
+    if (!isbn) return;
+    lookupSubmit.disabled = true;
+    bookCard.hidden = true;
+    ddcCard.hidden = true;
+    marcCard.hidden = true;
+    lookupStatus.innerHTML = stateHtml('loading', 'Looking up this ISBN…');
     try {
       const body = await api.lookupIsbn(isbn);
-      setConnected(true);
       if (body.not_found) {
-        lookupStatus.innerHTML = stateHtml('error', 'ISBN not found.');
+        lookupStatus.innerHTML = stateHtml('error', 'This ISBN could not be found. Try another ISBN or edition.');
+        lookupSubmit.disabled = false;
         return;
       }
-      currentMetadata = body;
-      app.querySelector('#ddc-form input[name="title"]').value = body.title || '';
-      app.querySelector('#ddc-form textarea[name="description"]').value = body.description || '';
-      lookupStatus.innerHTML = `
-        ${stateHtml('success', 'ISBN metadata found')}
-        <div class="result">
-          <dl>
-            <dt>Title</dt><dd>${escapeHtml(body.title || '(no title)')}</dd>
-            <dt>Author</dt><dd>${escapeHtml((body.authors || []).join(', ') || 'Unknown')}</dd>
-            <dt>Publisher</dt><dd>${escapeHtml(body.publisher || '—')}</dd>
-            <dt>Published</dt><dd>${escapeHtml(body.publish_date || '—')}</dd>
-          </dl>
-        </div>
-      `;
+      state.isbn = isbn;
+      state.metadata = body;
+      lookupStatus.innerHTML = '';
+      renderBook();
+      await runDdcAndMarc();
     } catch (error) {
-      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
-      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
-      lookupStatus.innerHTML = stateHtml('error', error.message);
-    }
-  });
-
-  // -- DDC classification --------------------------------------------
-  const ddcStatus = app.querySelector('#ddc-status');
-  let currentDdcDecision = null;
-  const generateMarcButton = app.querySelector('#generate-marc');
-  const fillKohaButton = app.querySelector('#fill-koha');
-  let currentMarcResult = null;
-
-  function updateFillAvailability() {
-    const ddcApproved = currentDdcDecision?.decision?.approval_status === 'APPROVED';
-    const marcValid = currentMarcResult?.validation?.valid === true;
-    const hasPlan = Array.isArray(currentMarcResult?.koha_fill?.fields) && currentMarcResult.koha_fill.fields.length > 0;
-    fillKohaButton.disabled = !(ddcApproved && marcValid && hasPlan);
-  }
-
-  app.querySelector('#ddc-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    ddcStatus.innerHTML = stateHtml('loading', 'Analyzing book subject…');
-    try {
-      const metadata = { ...(currentMetadata || {}), title: form.get('title'), description: form.get('description') };
-      const body = await api.recommendDdc(metadata);
-      setConnected(true);
-      const d = body.decision;
-      currentDdcDecision = { id: body.id, decision: d };
-      ddcStatus.innerHTML = `
-        ${stateHtml('success', 'DDC recommendation ready')}
-        <div class="result">
-          <dl>
-            <dt>Subject</dt><dd>${escapeHtml(d.primary_subject)}</dd>
-            <dt>Domain</dt><dd>${escapeHtml(d.disciplinary_domain)}</dd>
-            <dt>Recommended</dt><dd>${escapeHtml(d.recommended_ddc?.number)} — ${escapeHtml(d.recommended_ddc?.label)}</dd>
-            <dt>Confidence</dt><dd>${escapeHtml(d.recommended_ddc?.confidence)}</dd>
-          </dl>
-          <p class="result-heading">Why this number?</p>
-          <p>${escapeHtml(d.justification)}</p>
-          <p class="result-heading">Status</p>
-          <p>Requires cataloguer approval</p>
-          <button type="button" id="approve-ddc">Approve recommended DDC</button>
-        </div>
-      `;
-      app.querySelector('#approve-ddc')?.addEventListener('click', async () => {
-        const approveButton = app.querySelector('#approve-ddc');
-        approveButton.disabled = true;
-        try {
-          const approved = await api.approveDdc(body.id);
-          currentDdcDecision = { id: approved.id, decision: approved.decision };
-          generateMarcButton.disabled = false;
-          updateFillAvailability();
-          ddcStatus.insertAdjacentHTML('beforeend', stateHtml('success', 'DDC approved. You can now generate MARC.'));
-        } catch (error) {
-          approveButton.disabled = false;
-          if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
-          ddcStatus.insertAdjacentHTML('beforeend', stateHtml('error', error.message));
-        }
-      });
-    } catch (error) {
-      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
-      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
-      ddcStatus.innerHTML = stateHtml('error', error.message);
-    }
-  });
-
-  // -- MARC tools -------------------------------------------------------
-  const detectStatus = app.querySelector('#detect-status');
-  const marcStatus = app.querySelector('#marc-status');
-  const fillStatus = app.querySelector('#fill-status');
-
-  app.querySelector('#detect-fields').addEventListener('click', async () => {
-    detectStatus.innerHTML = stateHtml('loading', 'Detecting MARC fields…');
-    try {
-      const tags = await koha.detectFields();
-      if (tags.length === 0) {
-        detectStatus.innerHTML = stateHtml('info', 'No MARC fields detected on this page.');
-        return;
-      }
-      detectStatus.innerHTML = `
-        ${stateHtml('success', `${tags.length} MARC field${tags.length === 1 ? '' : 's'} detected`)}
-        <div class="result">${tags.map((t) => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}</div>
-      `;
-    } catch (error) {
-      detectStatus.innerHTML = stateHtml('error', error.message);
-    }
-  });
-
-  generateMarcButton.addEventListener('click', async () => {
-    if (!currentMetadata || !currentDdcDecision?.decision) return;
-    marcStatus.innerHTML = stateHtml('loading', 'Generating MARC record…');
-    currentMarcResult = null;
-    updateFillAvailability();
-    try {
-      const body = await api.generateMarc(currentMetadata, currentDdcDecision.decision);
-      setConnected(true);
-      currentMarcResult = body;
-      updateFillAvailability();
-      const valid = body.validation?.valid === true;
-      marcStatus.innerHTML = `
-        ${stateHtml(valid ? 'success' : 'info', valid ? 'MARC record ready' : 'MARC record needs review')}
-        <div class="result">
-          <p class="result-heading">Fields</p>
-          <div>${(body.preview || []).map((row) => `<span class="tag-chip">${escapeHtml(row.tag)}</span>`).join('')}</div>
-          ${body.conflicts?.length ? `<p class="result-heading">Conflicts</p><p>${escapeHtml(body.conflicts.map((c) => c.field).join(', '))} — please double-check before filling Koha.</p>` : ''}
-        </div>
-      `;
-    } catch (error) {
-      if ((error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE')) setConnected(false);
-      if (error.code === 'AUTH_EXPIRED') { renderAuth(error.message); return; }
-      marcStatus.innerHTML = stateHtml('error', error.message);
+      handleWorkflowError(error, lookupStatus);
+    } finally {
+      lookupSubmit.disabled = false;
     }
   });
 
   fillKohaButton.addEventListener('click', async () => {
-    if (fillKohaButton.disabled || !currentMarcResult?.koha_fill) return;
+    if (fillKohaButton.disabled || !state.marcResult?.koha_fill) return;
+    fillKohaButton.disabled = true;
     fillStatus.innerHTML = stateHtml('loading', 'Filling MARC fields…');
     try {
-      const ddcApproved = currentDdcDecision?.decision?.approval_status === 'APPROVED';
-      const result = await koha.fillKoha(currentMarcResult.koha_fill, ddcApproved);
+      const ddcApproved = state.ddcDecision?.approval_status === 'APPROVED';
+      const result = await koha.fillKoha(state.marcResult.koha_fill, ddcApproved);
       const filled = result.filled?.length ?? 0;
       const conflicts = result.conflicts?.length ?? 0;
       const failed = result.failed?.length ?? 0;
@@ -351,11 +483,108 @@ function renderWorkspace(me) {
       if (failed) summary += `, ${failed} failed`;
       fillStatus.innerHTML = `
         ${stateHtml(failed || conflicts ? 'info' : 'success', filled ? `MARC fields filled — ${summary}` : 'No new fields were filled')}
-        <p class="hint">Nothing was saved — review the fields in Koha, then save manually.</p>
+        <p class="hint">Nothing was saved -- review the fields in Koha, then save manually.</p>
         ${conflicts ? `<div class="result"><p class="result-heading">Needs your review</p><ul>${result.conflicts.map((c) => `<li>${escapeHtml(c.tag)}${c.subfield ? `$${escapeHtml(c.subfield)}` : ''}: Koha already has “${escapeHtml(c.existing)}”, AutoCat suggests “${escapeHtml(c.proposed)}”</li>`).join('')}</ul></div>` : ''}
       `;
     } catch (error) {
       fillStatus.innerHTML = stateHtml('error', error.message);
+    } finally {
+      updateFillAvailability();
+    }
+  });
+
+  // -- Chat: exceptions / corrections only (spec section 34) --------------
+  const chatLog = app.querySelector('#chat-log');
+  const chatStatus = app.querySelector('#chat-status');
+  const chatInput = app.querySelector('#chat-form input[name="message"]');
+  const chatSend = app.querySelector('#chat-send');
+
+  function appendChatMessage(role, text) {
+    const bubble = document.createElement('div');
+    bubble.className = `chat-bubble ${role}`;
+    bubble.textContent = text;
+    chatLog.appendChild(bubble);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function mergeMetadataPatch(patch) {
+    if (!patch) return;
+    const next = { ...state.metadata };
+    for (const [key, value] of Object.entries(patch)) {
+      if (key === 'keywords_add') {
+        next.keywords = [...new Set([...(next.keywords || []), ...value])];
+        continue;
+      }
+      next[key] = value;
+      // A cataloguer-entered correction always wins over a source lookup --
+      // never silently re-overwritten by a later API result (section 16).
+      next.cataloguer_edits = { ...(next.cataloguer_edits || {}), [key]: value };
+    }
+    state.metadata = next;
+    renderBook();
+  }
+
+  async function applyDdcOverride(override) {
+    state.ddcSource = 'cataloguer';
+    marcStatus.innerHTML = stateHtml('loading', 'Applying your DDC correction…');
+    try {
+      const approved = await api.approveDdc(state.ddcId, override.number);
+      state.ddcDecision = { ...approved.decision, ai_recommendation_overridden: true };
+      renderDdcSection();
+      const marc = await api.generateMarc(state.metadata, state.ddcDecision);
+      state.marcResult = marc;
+      renderMarcSection();
+    } catch (error) {
+      handleWorkflowError(error, marcStatus);
+    }
+  }
+
+  app.querySelector('#chat-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = chatInput.value.trim();
+    if (!message) return;
+    appendChatMessage('user', message);
+    chatInput.value = '';
+    chatSend.disabled = true;
+    chatStatus.innerHTML = stateHtml('loading', 'AutoCat is thinking…');
+    try {
+      const context = {
+        isbn: state.isbn,
+        metadata: state.metadata,
+        ddc: state.ddcId != null ? { id: state.ddcId, decision: state.ddcDecision } : undefined,
+        marc_ready: state.marcResult?.validation?.valid === true,
+      };
+      const response = await api.chat(message, context);
+      chatStatus.innerHTML = '';
+      appendChatMessage('assistant', response.reply);
+
+      if (response.request_relookup) {
+        state.metadata = null;
+        state.ddcDecision = null;
+        state.marcResult = null;
+        bookCard.hidden = true;
+        ddcCard.hidden = true;
+        marcCard.hidden = true;
+        app.querySelector('#lookup-form input[name="isbn"]').focus();
+        return;
+      }
+
+      if (response.metadata_patch) mergeMetadataPatch(response.metadata_patch);
+
+      if (response.ddc_override?.valid) {
+        await applyDdcOverride(response.ddc_override);
+        return;
+      }
+
+      if (response.needs_reanalysis && state.metadata) {
+        await runDdcAndMarc();
+      }
+    } catch (error) {
+      chatStatus.innerHTML = '';
+      if (error.code === 'AUTH_EXPIRED') { stopKohaStatusWatch(); renderAuth(error.message); return; }
+      appendChatMessage('assistant', 'Sorry, AutoCat could not process that just now. Please try again.');
+    } finally {
+      chatSend.disabled = false;
     }
   });
 }

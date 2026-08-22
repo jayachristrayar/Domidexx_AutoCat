@@ -459,3 +459,234 @@ button.full {
   border-top: 1px solid var(--line);
   margin: 14px 0;
 }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Koha connection status pill ---------- */
+
+.koha-status-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.koha-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.koha-dot.green {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+}
+
+.koha-dot.yellow {
+  background: #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.15);
+}
+
+.koha-dot.red {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.koha-label {
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+}
+
+.koha-detail {
+  font-size: 0.76rem;
+  color: var(--muted);
+  width: 100%;
+}
+
+/* ---------- book details ---------- */
+
+.book-more {
+  margin-top: 8px;
+}
+
+.book-more summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+.book-more dl {
+  margin-top: 8px;
+}
+
+/* ---------- DDC ---------- */
+
+.ddc-number {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ddc-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.ddc-label {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.source-tag {
+  margin: 4px 0 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent-dark);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.confidence-high {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.confidence-medium {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.confidence-low {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.breakdown {
+  margin-top: 4px;
+  font-size: 0.82rem;
+}
+
+.breakdown-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 0;
+}
+
+.breakdown-num {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-weight: 700;
+  min-width: 46px;
+}
+
+.breakdown-label {
+  color: var(--muted);
+}
+
+.breakdown-arrow {
+  display: block;
+  color: var(--muted);
+  padding-left: 4px;
+}
+
+/* ---------- MARC preview ---------- */
+
+.marc-preview summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+.marc-lines {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.marc-line {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 0.78rem;
+}
+
+.marc-value {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  word-break: break-word;
+}
+
+#fill-koha {
+  margin-top: 10px;
+}
+
+/* ---------- chat ---------- */
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.chat-log:empty {
+  display: none;
+}
+
+.chat-bubble {
+  max-width: 88%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.chat-bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: 3px;
+}
+
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 3px;
+}
+
+.chat-input-label {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}

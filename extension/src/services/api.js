@@ -46,5 +46,6 @@ export const logout = () => call('logout', {});
 export const getMe = () => call('getMe', {});
 export const lookupIsbn = (isbn) => call('lookupIsbn', { isbn });
 export const recommendDdc = (metadata) => call('recommendDdc', { metadata });
-export const approveDdc = (id) => call('approveDdc', { id });
+export const approveDdc = (id, ddcNumber) => call('approveDdc', { id, ddcNumber });
 export const generateMarc = (metadata, ddcApproval) => call('generateMarc', { metadata, ddcApproval });
+export const chat = (message, context) => call('chat', { message, context });

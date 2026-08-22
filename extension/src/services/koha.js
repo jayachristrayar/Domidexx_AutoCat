@@ -45,3 +45,25 @@ export async function detectFields() {
 export async function fillKoha(plan, ddcApproved) {
   return call('fillKoha', { plan, ddcApproved });
 }
+
+// { state: 'NOT_DETECTED' | 'DETECTING' | 'DETECTED_NO_EDITOR' | 'CONNECTED' }
+export async function getStatus() {
+  try {
+    return await call('getStatus', {});
+  } catch (error) {
+    debugLog('getStatus failed, reporting NOT_DETECTED', error);
+    return { state: 'NOT_DETECTED' };
+  }
+}
+
+// Subscribes to the background worker's AUTOCAT_TAB_CHANGED broadcast (fired
+// on tab switch, tab URL/load change, and window focus change) so the Side
+// Panel can re-check Koha connection status without polling chrome.tabs.*
+// itself. Returns an unsubscribe function.
+export function onTabChange(callback) {
+  const listener = (message) => {
+    if (message?.type === 'AUTOCAT_TAB_CHANGED') callback();
+  };
+  chrome.runtime.onMessage.addListener(listener);
+  return () => chrome.runtime.onMessage.removeListener(listener);
+}
