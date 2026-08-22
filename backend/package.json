@@ -9,7 +9,9 @@
     "parse-rules": "node scripts/parseRulesDocx.js",
     "test:p0": "node scripts/testAdminP0.js",
     "test:access": "node scripts/testUserAccess.js",
-    "test": "npm run test:p0 && npm run test:access"
+    "test:p1": "node scripts/testMarcRulesP1.js",
+    "consistency:marc": "node scripts/marcConsistencyReport.js",
+    "test": "npm run test:p0 && npm run test:access && npm run test:p1"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

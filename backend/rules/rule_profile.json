@@ -3,8 +3,16 @@
   "ddc_edition_default": null,
   "ils": "Koha",
   "knowledge_base_files": [
+    "marc_runtime_rules.json",
     "marc_field_rules.json",
     "shared/isbd_and_entry_rules.json"
   ],
-  "notes": "Manual mentions multiple DDC editions (22nd, 23rd); confirm which edition is current before setting ddc_edition_default."
+  "cataloguing_source": {
+    "original_agency": null,
+    "language": "eng",
+    "transcribing_agency": null,
+    "description_conventions": "aacr2",
+    "notes": "040 is configuration-driven. Set agency codes per institution; null values are not emitted."
+  },
+  "notes": "Manual mentions multiple DDC editions (22nd, 23rd); confirm which edition is current before setting ddc_edition_default. Series policy for the target Koha framework is field 440 (not silent 490 replacement)."
 }
