@@ -34,3 +34,12 @@ services:
         sync: false
       - key: LIBRARYTHING_API_KEY
         sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_SESSION_SECRET
+        sync: false
+      # Not strictly required by Render (which may already default to this),
+      # but set explicitly since the admin login cookie's Secure flag
+      # depends on it -- see requireAdminSession.js.
+      - key: NODE_ENV
+        value: production
