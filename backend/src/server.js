@@ -10,7 +10,13 @@
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
-import { ensureSchema, checkDatabase } from './db/index.js';
+import {
+  ensureSchema,
+  checkDatabase,
+  getTableStatus,
+  getConfigStatus,
+  REQUIRED_TABLES,
+} from './db/index.js';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
@@ -46,13 +52,49 @@ const extensionCors = cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+function classifyError(err) {
+  if (!err) return 'internal_error';
+  if (err.code === '42P01') return 'database_error'; // undefined_table
+  if (err.code === '28P01' || err.code === '28000') return 'database_error';
+  if (typeof err.code === 'string' && err.code.startsWith('08')) return 'database_error';
+  if (err.code === 'ADMIN_PASSWORD_MISSING' || err.code === 'ADMIN_SESSION_SECRET_MISSING') {
+    return 'configuration_error';
+  }
+  if (err.type === 'entity.parse.failed') return 'validation_error';
+  return 'internal_error';
+}
+
+function isAdminRequest(req) {
+  const target = req.originalUrl || req.url || req.path || '';
+  return target.startsWith('/admin');
+}
+
 app.get('/health', async (_req, res) => {
+  const config = getConfigStatus();
   try {
     await checkDatabase();
-    res.json({ status: 'ok', database: 'up' });
+    const tables = await getTableStatus();
+    const missingTables = REQUIRED_TABLES.filter((name) => !tables[name]);
+    const healthy = missingTables.length === 0 && config.DATABASE_URL === 'SET';
+
+    res.status(healthy ? 200 : 503).json({
+      status: healthy ? 'ok' : 'degraded',
+      database: 'up',
+      tables,
+      missing_tables: missingTables,
+      config,
+    });
   } catch (error) {
-    console.error('Health check database failure:', error.message);
-    res.status(503).json({ status: 'degraded', database: 'down', error: error.message });
+    console.error('Health check database failure:', {
+      code: error.code || null,
+      message: error.message,
+    });
+    res.status(503).json({
+      status: 'degraded',
+      database: 'down',
+      error_class: classifyError(error),
+      config,
+    });
   }
 });
 
@@ -63,35 +105,60 @@ app.use('/records', extensionCors, recordsRouter);
 
 app.use((err, req, res, _next) => {
   if (err instanceof CorsOriginError) {
-    res.status(403).json({ error: 'Origin not allowed' });
+    res.status(403).json({ error: 'Origin not allowed', error_class: 'authorization_error' });
     return;
   }
-  console.error(err);
 
-  const wantsHtml = req.path.startsWith('/admin') || (req.accepts('html', 'json') === 'html');
-  if (wantsHtml) {
+  const errorClass = classifyError(err);
+  console.error('Request failed:', {
+    error_class: errorClass,
+    code: err.code || null,
+    message: err.message,
+    path: req.originalUrl || req.path,
+  });
+
+  if (isAdminRequest(req)) {
+    const missingRelation =
+      err.code === '42P01'
+        ? `<p class="err">Database table missing: <code>${escapeHtmlSafe(err.table || err.message)}</code>. Schema ensure may have failed on boot — check <code>/health</code>.</p>`
+        : '';
+
     res.status(500).send(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8" /><title>Error — AutoCat Admin</title>
-<style>body{font-family:system-ui,sans-serif;max-width:480px;margin:64px auto;padding:0 16px;color:#1a1a1a}
-.err{background:#fde8e8;border:1px solid #f3b8b8;color:#a11;padding:12px 14px;border-radius:6px}</style>
+<style>body{font-family:system-ui,sans-serif;max-width:520px;margin:64px auto;padding:0 16px;color:#1a1a1a}
+.err{background:#fde8e8;border:1px solid #f3b8b8;color:#a11;padding:12px 14px;border-radius:6px}
+code{font-size:13px}</style>
 </head><body>
-<h1>Something went wrong</h1>
-<div class="err">The admin dashboard hit a server error. Check that DATABASE_URL, ADMIN_PASSWORD, and ADMIN_SESSION_SECRET are set, and that the database schema has been applied.</div>
+<h1>Admin dashboard error</h1>
+<div class="err">Something went wrong while loading this page (<code>${escapeHtmlSafe(errorClass)}</code>).</div>
+${missingRelation}
+<p>Safe checks: open <a href="/health"><code>/health</code></a> and confirm <code>database</code> is up and <code>missing_tables</code> is empty. Confirm <code>ADMIN_PASSWORD</code>, <code>ADMIN_SESSION_SECRET</code>, and <code>DATABASE_URL</code> are SET in Render.</p>
 <p><a href="/admin/login">Back to login</a></p>
 </body></html>`);
     return;
   }
 
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', error_class: errorClass });
 });
+
+function escapeHtmlSafe(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 async function start() {
   try {
     await ensureSchema();
   } catch (error) {
-    console.error('Failed to ensure database schema on startup:', error);
+    console.error('Failed to ensure database schema on startup:', {
+      code: error.code || null,
+      message: error.message,
+    });
     // Still listen so /health can report the failure; request handlers that
-    // touch the DB will keep returning 500 until connectivity is fixed.
+    // touch the DB will keep returning errors until connectivity/schema is fixed.
   }
 
   startModelRefreshSchedule();

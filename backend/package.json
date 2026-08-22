@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "parse-rules": "node scripts/parseRulesDocx.js"
+    "parse-rules": "node scripts/parseRulesDocx.js",
+    "test:p0": "node scripts/testAdminP0.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

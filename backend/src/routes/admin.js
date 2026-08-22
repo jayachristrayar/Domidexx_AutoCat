@@ -199,10 +199,18 @@ router.use(requireAdminSession);
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const [{ rows: userCount }, { rows: recordCount }] = await Promise.all([
-      pool.query('SELECT count(*) FROM users'),
-      pool.query('SELECT count(*) FROM marc_records'),
-    ]);
+    let userCount;
+    let recordCount;
+    try {
+      [{ rows: userCount }, { rows: recordCount }] = await Promise.all([
+        pool.query('SELECT count(*) FROM users'),
+        pool.query('SELECT count(*) FROM marc_records'),
+      ]);
+    } catch (error) {
+      // Surface undefined_table etc. through the HTML error page with a class.
+      error.message = `Dashboard query failed: ${error.message}`;
+      throw error;
+    }
 
     res.send(
       layout({
@@ -212,6 +220,7 @@ router.get(
           <h2>Dashboard</h2>
           <p class="muted">${userCount[0].count} users &middot; ${recordCount[0].count} MARC records.</p>
           <p>Use the navigation above to manage users, review drafted records, check API usage, or sanity-check the loaded cataloguing rules.</p>
+          <p class="muted"><a href="/health">System health</a></p>
         `,
       })
     );
