@@ -1,7 +1,4 @@
 import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { Router } from 'express';
 import { z } from 'zod';
 import pool from '../db/index.js';
@@ -21,9 +18,11 @@ import {
   UserAlreadyExistsError,
   UserNotFoundError,
 } from '../services/userService.js';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const RULES_DIR = path.join(__dirname, '..', '..', 'rules');
+import {
+  getAllMarcRules,
+  getRuleProfile,
+  getSeriesPolicy,
+} from '../services/marcRuleRegistry.js';
 
 const router = Router();
 
@@ -788,7 +787,7 @@ router.get(
 );
 
 // ---------------------------------------------------------------------
-// Rules (read-only)
+// Rules (read-only) — runtime registry (same loader as builder/validator)
 // ---------------------------------------------------------------------
 
 router.get(
@@ -796,10 +795,12 @@ router.get(
   asyncHandler(async (_req, res) => {
     let ruleProfile;
     let fieldRules;
+    let seriesPolicy;
     let readError = null;
     try {
-      ruleProfile = JSON.parse(fs.readFileSync(path.join(RULES_DIR, 'rule_profile.json'), 'utf8'));
-      fieldRules = JSON.parse(fs.readFileSync(path.join(RULES_DIR, 'marc_field_rules.json'), 'utf8'));
+      ruleProfile = getRuleProfile();
+      fieldRules = getAllMarcRules();
+      seriesPolicy = getSeriesPolicy();
     } catch (error) {
       readError = error.message;
     }
@@ -809,14 +810,40 @@ router.get(
         layout({
           title: 'Rules',
           activeHref: '/admin/rules',
-          body: `<h2>Rules</h2><div class="error">Could not load rule files: ${escapeHtml(readError)}</div>`,
+          body: `<h2>Rules</h2><div class="error">Could not load rule registry: ${escapeHtml(readError)}</div>`,
         })
       );
     }
 
+    const flag = (value) => (value ? 'yes' : 'no');
     const tagRows = fieldRules
-      .map((rule) => `<tr><td>${escapeHtml(rule.tag)}</td><td>${escapeHtml(rule.field_name)}</td></tr>`)
+      .map(
+        (rule) => `<tr>
+          <td>${escapeHtml(rule.tag)}</td>
+          <td>${escapeHtml(rule.label)}</td>
+          <td><code>${escapeHtml(rule.status)}</code></td>
+          <td>${escapeHtml(rule.generation_method ?? '—')}</td>
+          <td>${rule.validation ? (rule.validation.incomplete ? 'partial' : 'yes') : '—'}</td>
+          <td>${flag(rule.ai_assisted)}</td>
+          <td>${flag(rule.evidence_required)}</td>
+          <td>${flag(rule.koha_supported)}</td>
+        </tr>`
+      )
       .join('');
+
+    const seriesBlock = seriesPolicy
+      ? `<h2>Series policy</h2>
+          <div class="panel table-wrap">
+          <table>
+            <tbody>
+              <tr><th>Target framework field</th><td>${escapeHtml(seriesPolicy.target_framework_field)}</td></tr>
+              <tr><th>Status</th><td><code>${escapeHtml(seriesPolicy.status)}</code></td></tr>
+              <tr><th>Do not silently replace with</th><td>${escapeHtml(seriesPolicy.do_not_silently_replace_with)}</td></tr>
+              <tr><th>Notes</th><td>${escapeHtml(seriesPolicy.notes ?? '—')}</td></tr>
+            </tbody>
+          </table>
+          </div>`
+      : '';
 
     res.send(
       layout({
@@ -834,14 +861,18 @@ router.get(
             </tbody>
           </table>
           </div>
-          <h2>MARC tags with rules defined (${fieldRules.length})</h2>
+          ${seriesBlock}
+          <h2>MARC runtime rule registry (${fieldRules.length})</h2>
           <div class="panel table-wrap">
           <table>
-            <thead><tr><th>Tag</th><th>Field name</th></tr></thead>
+            <thead><tr>
+              <th>Tag</th><th>Label</th><th>Status</th><th>Generation</th>
+              <th>Validation</th><th>AI</th><th>Evidence</th><th>Koha</th>
+            </tr></thead>
             <tbody>${tagRows}</tbody>
           </table>
           </div>
-          <p class="muted">Rule content itself lives in backend/rules/ -- this is a read-only sanity-check view; editing rules via the UI is a future task.</p>
+          <p class="muted">Loaded via marcRuleRegistry (marc_runtime_rules.json). Cataloguing prose from marc_field_rules.json is attached by tag. Editing rules via the UI is a future task.</p>
         `,
       })
     );

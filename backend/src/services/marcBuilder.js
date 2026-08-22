@@ -2,10 +2,30 @@
 // normalized ISBN-lookup result (see isbnLookup.js's mergeSources output
 // shape). No LLM calls happen here -- see fields_needing_llm in the return
 // value for what's left for a later AI-drafting step to fill in.
+//
+// P1: consults the runtime rule registry. Every emitted tag must have a
+// rule; missing rules are reported as BUILDER_WITHOUT_RULE (never silent).
+
+import {
+  getCataloguingSourceConfig,
+  getMarcRule,
+  hasMarcRule,
+  normalizeMarcTag,
+} from './marcRuleRegistry.js';
 
 // Tags this module is responsible for constructing mechanically when LOC
 // didn't already supply them.
 const MECHANICAL_TAGS = ['020', '245', '250', '260', '300'];
+
+/** Tags the builder may emit (mechanical + control + optional config-driven). */
+export function getBuilderMechanicalTags() {
+  return [...MECHANICAL_TAGS];
+}
+
+export function getBuilderEmittedTags() {
+  // Actual generation surface for consistency checking.
+  return ['000', '008', '020', '040', '245', '250', '260', '300', '082', '100', '110', '111', '520', '600', '610', '650', '700', '710', '711'];
+}
 
 // Tags/tag-families that need cataloguing JUDGMENT (classification,
 // main/added entry choice, subject analysis, a summary) rather than
@@ -328,6 +348,33 @@ function build008Entry(normalizedBiblioData) {
   return { tag: '008', indicators: [null, null], subfields: [{ code: null, value }] };
 }
 
+// --- 040: Cataloguing Source (configuration-driven) ---
+// Only emit subfields that have non-empty configured values. Never hardcode
+// a particular institution's agency code.
+function build040(_normalizedBiblioData, ruleProfile) {
+  const cfg = ruleProfile?.cataloguing_source ?? getCataloguingSourceConfig() ?? {};
+  const subfields = [];
+  if (cfg.original_agency) subfields.push({ code: 'a', value: String(cfg.original_agency).trim() });
+  if (cfg.language) subfields.push({ code: 'b', value: String(cfg.language).trim() });
+  if (cfg.transcribing_agency) subfields.push({ code: 'c', value: String(cfg.transcribing_agency).trim() });
+  if (cfg.description_conventions) {
+    subfields.push({ code: 'e', value: String(cfg.description_conventions).trim() });
+  }
+  if (subfields.length === 0) return null;
+  return { tag: '040', indicators: [' ', ' '], subfields };
+}
+
+function assertEmittedTagsHaveRules(skeleton) {
+  const issues = [];
+  for (const field of skeleton) {
+    const tag = normalizeMarcTag(field.tag);
+    if (!hasMarcRule(tag)) {
+      issues.push({ code: 'BUILDER_WITHOUT_RULE', tag, message: `Builder emitted ${field.tag} with no runtime rule` });
+    }
+  }
+  return issues;
+}
+
 // buildSkeleton(normalizedBiblioData, ruleProfile) -> { skeleton,
 // fields_needing_llm, fields_from_loc }
 //
@@ -340,6 +387,10 @@ export function buildSkeleton(normalizedBiblioData, ruleProfile) {
   const fieldsFromLoc = [];
 
   for (const tag of MECHANICAL_TAGS) {
+    // Registry consultation: mechanical tags must be registered.
+    if (!getMarcRule(tag)) {
+      // Still attempt build, but consistency layer will flag BUILDER_WITHOUT_RULE.
+    }
     const locEntries = locFields.filter((field) => field.tag === tag);
     if (locEntries.length > 0) {
       for (const entry of locEntries) {
@@ -353,6 +404,7 @@ export function buildSkeleton(normalizedBiblioData, ruleProfile) {
     if (built) skeleton.push(built);
   }
 
+  // Leader is stored as tag LDR in skeleton; registry canonical tag is 000.
   skeleton.push(buildLeaderEntry(normalizedBiblioData, ruleProfile));
 
   const locEightFields = locFields.filter((field) => field.tag === '008');
@@ -361,6 +413,15 @@ export function buildSkeleton(normalizedBiblioData, ruleProfile) {
     fieldsFromLoc.push('008');
   } else {
     skeleton.push(build008Entry(normalizedBiblioData));
+  }
+
+  const loc040 = locFields.filter((field) => field.tag === '040');
+  if (loc040.length > 0) {
+    for (const entry of loc040) skeleton.push(toSkeletonEntry(entry));
+    fieldsFromLoc.push('040');
+  } else {
+    const built040 = build040(normalizedBiblioData, ruleProfile);
+    if (built040) skeleton.push(built040);
   }
 
   const fieldsNeedingLlm = [];
@@ -376,5 +437,12 @@ export function buildSkeleton(normalizedBiblioData, ruleProfile) {
     }
   }
 
-  return { skeleton, fields_needing_llm: fieldsNeedingLlm, fields_from_loc: fieldsFromLoc };
+  const rule_consistency = assertEmittedTagsHaveRules(skeleton);
+
+  return {
+    skeleton,
+    fields_needing_llm: fieldsNeedingLlm,
+    fields_from_loc: fieldsFromLoc,
+    rule_consistency,
+  };
 }

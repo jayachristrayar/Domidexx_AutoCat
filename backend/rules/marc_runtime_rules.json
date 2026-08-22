@@ -1,0 +1,725 @@
+{
+  "schema_version": 1,
+  "status_model": [
+    "SUPPORTED",
+    "PARTIAL",
+    "OPTIONAL",
+    "PROFILE_DEPENDENT",
+    "LEGACY",
+    "PLANNED",
+    "NOT_SUPPORTED"
+  ],
+  "notes": "Runtime source of truth for AutoCat MARC field behaviour. Cataloguing prose remains in marc_field_rules.json and is attached by tag at load time. Do not claim SUPPORTED unless builder + validator + (mapper or control-field path) are implemented.",
+  "series_policy": {
+    "target_framework_field": "440",
+    "koha_framework_shows": "440",
+    "do_not_silently_replace_with": "490",
+    "490_8xx_requires": "explicit cataloguing-policy change",
+    "status": "PLANNED",
+    "notes": "Target Koha 26.05 framework exposes 440 SERIES -- TITLE. AutoCat keeps 440 as the series target. Builder/mapper for 440 are not yet implemented."
+  },
+  "rules": [
+    {
+      "tag": "000",
+      "aliases": ["LDR"],
+      "label": "Leader",
+      "description": "MARC21 record leader (24 characters). Control field — no indicators or subfields.",
+      "status": "PARTIAL",
+      "field_type": "CONTROL_FIELD",
+      "repeatable": false,
+      "required": true,
+      "generation_method": "mechanical",
+      "validation": {
+        "length": 24,
+        "positions": {
+          "05": { "name": "record_status", "allowed": ["n", "c", "d", "a", "p"] },
+          "06": { "name": "type_of_record", "notes": "Builder default: a (language material)" },
+          "07": { "name": "bibliographic_level", "notes": "Builder default: m (monograph)" },
+          "09": { "name": "character_coding", "notes": "Builder default: a (UCS/Unicode)" },
+          "10": { "name": "indicator_count", "fixed": "2" },
+          "11": { "name": "subfield_code_count", "fixed": "2" },
+          "17": { "name": "encoding_level", "notes": "Often blank when not coded" },
+          "18": { "name": "descriptive_cataloging_form", "notes": "a when profile is AACR2" },
+          "20-23": { "name": "entry_map", "fixed": "4500" }
+        },
+        "incomplete": "Full position-by-position cataloguing validation is not claimed; P1 validates length and basic structural defaults the builder emits."
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "CONTROL_FIELD",
+        "notes": "Mapped as record leader / control field 000, not as variable-field indicators/subfields."
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Builder already generates LDR; registry tag is 000 with alias LDR."
+    },
+    {
+      "tag": "008",
+      "label": "Fixed-Length Data Elements",
+      "description": "40-character fixed-length control field for books/monographs under the current AACR2 + ISBD + MARC21 profile.",
+      "status": "PARTIAL",
+      "field_type": "CONTROL_FIELD",
+      "repeatable": false,
+      "required": true,
+      "generation_method": "mechanical",
+      "validation": {
+        "length": 40,
+        "positions_supported": {
+          "00-05": { "name": "date_entered", "notes": "YYMMDD; builder-generated" },
+          "06": { "name": "type_of_date", "notes": "Builder: s when year known, n when unknown" },
+          "07-10": { "name": "date1", "notes": "Publication year or uuuu" },
+          "11-14": { "name": "date2", "notes": "Blank for simple monograph" },
+          "15-17": { "name": "place_of_publication", "notes": "Not coded when place unknown in data model" },
+          "18-34": { "name": "material_specific", "notes": "Not coded by current builder" },
+          "35-37": { "name": "language", "notes": "Builder default eng — not source-derived" },
+          "38": { "name": "modified_record", "notes": "Blank default" },
+          "39": { "name": "cataloging_source", "notes": "Builder default d (other)" }
+        },
+        "incomplete": "Do not invent validation for positions the application cannot generate or verify."
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "CONTROL_FIELD"
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Builder already generates a minimal 008 for printed monographs."
+    },
+    {
+      "tag": "020",
+      "label": "International Standard Book Number (ISBN)",
+      "description": "ISBN uniquely identifying the specific edition/format.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true, "notes": "13-digit ISBN, no hyphens/spaces" },
+          "c": { "repeatable": false, "required_when_present": false, "notes": "Terms of availability — optional" },
+          "q": { "repeatable": true, "required_when_present": false, "notes": "Qualifying information" },
+          "z": { "repeatable": true, "required_when_present": false, "notes": "Canceled/invalid ISBN" }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD",
+        "primary_subfield": "a"
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Builder + validator + mapper path implemented for $a."
+    },
+    {
+      "tag": "040",
+      "label": "Cataloguing Source",
+      "description": "Identifies the original and transcribing cataloguing agencies and description conventions. Configuration-driven — never hardcode a particular institution.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "config_driven",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": false, "notes": "Original cataloguing agency — from cataloguing_source.original_agency" },
+          "b": { "repeatable": false, "required_when_present": false, "notes": "Language of cataloguing — from cataloguing_source.language" },
+          "c": { "repeatable": false, "required_when_present": false, "notes": "Transcribing agency — from cataloguing_source.transcribing_agency" },
+          "e": { "repeatable": true, "required_when_present": false, "notes": "Description conventions — from cataloguing_source.description_conventions" }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD"
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Only emit subfields that have valid configured values in rule_profile.cataloguing_source. Mapper/autofill full path remains later."
+    },
+    {
+      "tag": "082",
+      "label": "Dewey Decimal Classification Number",
+      "description": "DDC class number + Cutter. Whole-book subject analysis and approval workflow are P2.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "indicators": null,
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true, "notes": "Classification number" },
+          "b": { "repeatable": false, "required_when_present": false, "notes": "Item number / Cutter" },
+          "2": { "repeatable": false, "required_when_present": true, "notes": "DDC edition number" }
+        },
+        "incomplete": "Full DDC candidate ranking, evidence, justification, and approval are P2."
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD",
+        "primary_subfield": "a",
+        "notes": "Runtime mapping exists as rule metadata only until Koha autofill (P4)."
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Rule ready for P2 DDC engine. Do not claim full DDC support in P1."
+    },
+    {
+      "tag": "100",
+      "label": "Main Entry — Personal Name",
+      "description": "Principal access point when one person is chiefly responsible.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "b": { "repeatable": false, "required_when_present": false },
+          "c": { "repeatable": true, "required_when_present": false },
+          "d": { "repeatable": false, "required_when_present": false },
+          "e": { "repeatable": true, "required_when_present": false },
+          "q": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Choice of 100 vs 110/111/title main entry requires cataloguing judgment."
+    },
+    {
+      "tag": "110",
+      "label": "Main Entry — Corporate Body",
+      "description": "Principal access point when AACR2 corporate-responsibility test is met.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "b": { "repeatable": true, "required_when_present": false },
+          "e": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "111",
+      "label": "Main Entry — Meeting/Conference",
+      "description": "Principal access point for proceedings/reports of a named meeting.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "c": { "repeatable": true, "required_when_present": false },
+          "d": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "245",
+      "label": "Title Statement",
+      "description": "Title proper, other title information, and statement of responsibility.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": true,
+      "generation_method": "mechanical",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "b": { "repeatable": false, "required_when_present": false },
+          "c": { "repeatable": false, "required_when_present": false },
+          "h": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "246",
+      "label": "Varying Form of Title",
+      "description": "Evidence-based varying titles (cover, spine, parallel, running, portion, other title access). Do not auto-generate for every record.",
+      "status": "PLANNED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "evidence_based",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true, "notes": "Title proper of varying form" },
+          "b": { "repeatable": false, "required_when_present": false },
+          "i": { "repeatable": false, "required_when_present": false, "notes": "Display text / title type note" },
+          "n": { "repeatable": true, "required_when_present": false },
+          "p": { "repeatable": true, "required_when_present": false }
+        },
+        "title_types": [
+          "cover title",
+          "spine title",
+          "parallel title",
+          "running title",
+          "portion of title",
+          "other title access point"
+        ]
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Generate only when reliable evidence exists. Builder does not emit 246 in P1."
+    },
+    {
+      "tag": "250",
+      "label": "Edition Statement",
+      "description": "Edition of the item in hand when stated on the source.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "b": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "260",
+      "label": "Publication, Distribution, etc.",
+      "description": "Place, publisher, and date of publication (AACR2 Area 4).",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": true, "required_when_present": false },
+          "b": { "repeatable": true, "required_when_present": false },
+          "c": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Place often unknown in current ISBN data model — builder may supply [S.l.]."
+    },
+    {
+      "tag": "300",
+      "label": "Physical Description",
+      "description": "Extent, other physical details, dimensions, accompanying material.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": false },
+          "b": { "repeatable": false, "required_when_present": false },
+          "c": { "repeatable": false, "required_when_present": false },
+          "e": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "440",
+      "label": "Series — Title",
+      "description": "Series statement/title as exposed by the target Koha framework. Policy field for this AutoCat profile.",
+      "status": "PLANNED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true, "notes": "Title of series" },
+          "n": { "repeatable": true, "required_when_present": false },
+          "p": { "repeatable": true, "required_when_present": false },
+          "v": { "repeatable": false, "required_when_present": false, "notes": "Volume/sequential designation" },
+          "x": { "repeatable": false, "required_when_present": false, "notes": "ISSN of series" }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": true,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD",
+        "primary_subfield": "a",
+        "notes": "Do NOT map to 490 unless an explicit cataloguing-policy change is approved."
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "SERIES POLICY: Koha framework shows 440. AutoCat retains 440 as the target. Builder and mapper for 440 are not implemented in P1 — status is PLANNED, not SUPPORTED."
+    },
+    {
+      "tag": "500",
+      "label": "General Note",
+      "description": "General information not accommodated in a more specific note field.",
+      "status": "OPTIONAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "none",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Rule-only until generation/mapping is implemented."
+    },
+    {
+      "tag": "504",
+      "label": "Bibliography, etc. Note",
+      "description": "Bibliography / index note.",
+      "status": "OPTIONAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "none",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Rule-only until generation is implemented."
+    },
+    {
+      "tag": "520",
+      "label": "Summary, Abstract, Annotation",
+      "description": "Brief objective summary of content/scope.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "u": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": false,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "586",
+      "label": "Awards Note",
+      "description": "Literary/academic awards the work has received.",
+      "status": "OPTIONAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "none",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": true,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Rule-only until generation/mapping is implemented."
+    },
+    {
+      "tag": "600",
+      "label": "Subject Added Entry — Personal Name",
+      "description": "Subject access when the work is about a person.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "d": { "repeatable": false, "required_when_present": false },
+          "v": { "repeatable": true, "required_when_present": false },
+          "x": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "610",
+      "label": "Subject Added Entry — Corporate Name",
+      "description": "Subject access when the work is about a corporate body.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "x": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "650",
+      "label": "Subject Added Entry — Topical Term",
+      "description": "Topical subject access points.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "y": { "repeatable": true, "required_when_present": false },
+          "z": { "repeatable": true, "required_when_present": false },
+          "2": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "700",
+      "label": "Added Entry — Personal Name",
+      "description": "Access point for persons associated with the work who are not the 100 main entry.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "e": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "710",
+      "label": "Added Entry — Corporate Name",
+      "description": "Access point for a corporate body associated with the work that is not the main entry.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "e": { "repeatable": true, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "711",
+      "label": "Added Entry — Meeting Name",
+      "description": "Access point for a meeting associated with the work that is not the 111 main entry.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "ai_assisted",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "d": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": true,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": null
+    },
+    {
+      "tag": "800",
+      "label": "Series Added Entry — Personal Name",
+      "description": "Series author access when using 490/800 practice. Current Koha target framework uses 440 instead.",
+      "status": "LEGACY",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "none",
+      "validation": {
+        "subfields": {
+          "a": { "repeatable": false, "required_when_present": true },
+          "t": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": false,
+      "koha_mapping": {
+        "kind": "NOT_MAPPED",
+        "notes": "Series policy for this profile is 440, not 490/800."
+      },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Retained from cataloguing manual. Do not silently migrate series work to 800 while 440 is the framework target."
+    },
+    {
+      "tag": "856",
+      "label": "Electronic Location and Access",
+      "description": "URL/URI for electronic access or related material.",
+      "status": "OPTIONAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "none",
+      "validation": {
+        "subfields": {
+          "3": { "repeatable": false, "required_when_present": false },
+          "u": { "repeatable": false, "required_when_present": true }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": true,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "u" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Rule-only until generation/mapping is implemented."
+    },
+    {
+      "tag": "942",
+      "label": "Added Elements (Koha local field)",
+      "description": "Koha-specific item-type / record-level defaults. Institution-configuration dependent.",
+      "status": "PROFILE_DEPENDENT",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "config_driven",
+      "validation": {
+        "subfields": {
+          "c": { "repeatable": false, "required_when_present": false, "notes": "Item type — from institution Koha config, not hardcoded" }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD",
+        "primary_subfield": "c",
+        "notes": "No hardcoded item-type values in P1."
+      },
+      "profile": "Koha local",
+      "notes": "Do not invent institution item types during P1. Values come from later institution configuration."
+    }
+  ]
+}
