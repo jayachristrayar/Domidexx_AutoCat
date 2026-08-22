@@ -5,6 +5,7 @@ import {
   setApiBaseUrl,
   setSessionToken,
   getSessionToken,
+  getDeviceId,
   DEFAULT_API_BASE_URL,
 } from '../lib/api.js';
 
@@ -135,9 +136,10 @@ function renderAuth(errorMessage = '') {
     }
 
     try {
+      const deviceId = await getDeviceId();
       const response = await apiFetch(mode === 'login' ? '/auth/login' : '/auth/signup', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, device_id: deviceId }),
       });
       const body = await readJson(response);
       if (!response.ok || !body?.token) {

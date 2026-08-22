@@ -11,6 +11,20 @@ async function setStored(values) {
   return chrome.storage.local.set(values);
 }
 
+function randomDeviceId() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function getDeviceId() {
+  const { deviceId } = await getStored(['deviceId']);
+  if (deviceId) return deviceId;
+  const created = randomDeviceId();
+  await setStored({ deviceId: created });
+  return created;
+}
+
 export async function getApiBaseUrl() {
   const { apiBaseUrl } = await getStored(['apiBaseUrl']);
   return (apiBaseUrl || DEFAULT_API_BASE_URL).replace(/\/$/, '');
@@ -35,9 +49,14 @@ export async function setSessionToken(token) {
 }
 
 export async function apiFetch(path, options = {}) {
-  const [token, baseUrl] = await Promise.all([getSessionToken(), getApiBaseUrl()]);
+  const [token, baseUrl, deviceId] = await Promise.all([
+    getSessionToken(),
+    getApiBaseUrl(),
+    getDeviceId(),
+  ]);
   const headers = {
     'Content-Type': 'application/json',
+    'X-Device-Id': deviceId,
     ...(options.headers || {}),
   };
 
