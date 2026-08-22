@@ -2,6 +2,7 @@ import { buildSkeleton } from './marcBuilder.js';
 import { validateRecord } from './marcValidator.js';
 import { getRuleProfile, hasMarcRule, normalizeMarcTag } from './marcRuleRegistry.js';
 import { findBundledClass, buildPath } from './ddcKnowledgeBase.js';
+import { buildKohaFillPlan } from './kohaMapper.js';
 
 const SOURCE_DERIVED = 'SOURCE_DERIVED';
 const RULE_DERIVED = 'RULE_DERIVED';
@@ -183,9 +184,14 @@ export function generateMarcRecord(input = {}, options = {}) {
   const ddc = buildApproved082(input.ddc_approval ?? input.ddcDecision ?? {}, ruleProfile);
   const ddcErrors = ddc.errors;
   if (ddc.ok) fields.push(ddc.field);
-  const validation = validateProductionMarc(fields, { metadata, ddcApproval: input.ddc_approval ?? input.ddcDecision ?? {}, ddcErrors });
+  const ddcApproval = input.ddc_approval ?? input.ddcDecision ?? {};
+  const validation = validateProductionMarc(fields, { metadata, ddcApproval, ddcErrors });
   const marcRecord = toStructuredRecord(fields);
-  return { metadata, marc_record: marcRecord, fields, validation, preview: marcPreview(fields, validation), provenance: fields.map((f) => ({ tag: normalizeMarcTag(f.tag), source: f.source, provenance: f.provenance })), conflicts, status: validation.valid ? 'READY_FOR_KOHA' : 'REQUIRES_CATALOGUER_REVIEW' };
+  const result = { metadata, marc_record: marcRecord, fields, validation, preview: marcPreview(fields, validation), provenance: fields.map((f) => ({ tag: normalizeMarcTag(f.tag), source: f.source, provenance: f.provenance })), conflicts, status: validation.valid ? 'READY_FOR_KOHA' : 'REQUIRES_CATALOGUER_REVIEW' };
+  // P4: only offer a Koha fill plan once the record validates. An invalid
+  // record must not produce fill instructions.
+  result.koha_fill = validation.valid ? buildKohaFillPlan(result, { ddcApproval }) : null;
+  return result;
 }
 
 export function validateProductionMarc(fields, { metadata = {}, ddcApproval = {}, ddcErrors = [] } = {}) {
