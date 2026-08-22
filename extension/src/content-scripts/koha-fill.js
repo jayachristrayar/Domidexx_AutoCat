@@ -57,6 +57,15 @@ function waitForEditorReady(timeoutMs = 8000) {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  // Cheap, non-waiting readiness probe for the Koha connection status pill --
+  // unlike AUTOCAT_DETECT_FIELDS this never waits for the editor to render,
+  // so the side panel's status check stays fast even on a page that isn't
+  // the cataloguing editor at all.
+  if (message?.type === 'AUTOCAT_PING') {
+    sendResponse({ status: 'ok', ready: isEditorReady() });
+    return false;
+  }
+
   if (message?.type === 'AUTOCAT_DETECT_FIELDS') {
     if (!engine) {
       sendResponse({ status: 'failed', error: 'engine_not_loaded' });

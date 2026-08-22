@@ -160,7 +160,7 @@ async function actionRecommendDdc({ metadata }) {
   }
 }
 
-async function actionApproveDdc({ id }) {
+async function actionApproveDdc({ id, ddcNumber }) {
   if (id == null) {
     console.error('[AutoCat] approveDdc called without a decision id.');
     return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
@@ -168,7 +168,10 @@ async function actionApproveDdc({ id }) {
   try {
     const response = await apiFetch(`/api/ddc/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
-      body: JSON.stringify({ action: 'APPROVE' }),
+      // ddc_number is only sent when the cataloguer (via chat) is overriding
+      // AutoCat's own recommendation with a different, already-validated
+      // number; omitted, the backend approves the AI recommendation as-is.
+      body: JSON.stringify(ddcNumber ? { action: 'APPROVE', ddc_number: ddcNumber } : { action: 'APPROVE' }),
     });
     const body = await readJson(response);
     if (!response.ok) {
@@ -208,6 +211,20 @@ async function actionGenerateMarc({ metadata, ddcApproval }) {
   }
 }
 
+async function actionChat({ message, context }) {
+  try {
+    const response = await apiFetch('/api/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, context }),
+    });
+    const body = await readJson(response);
+    if (!response.ok) return friendlyResultFor(response, body);
+    return { ok: true, data: body };
+  } catch (error) {
+    return networkErrorResult(error);
+  }
+}
+
 const API_ACTIONS = {
   login: actionLogin,
   signup: actionSignup,
@@ -217,6 +234,7 @@ const API_ACTIONS = {
   recommendDdc: actionRecommendDdc,
   approveDdc: actionApproveDdc,
   generateMarc: actionGenerateMarc,
+  chat: actionChat,
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -312,9 +330,41 @@ async function kohaActionFill({ plan, ddcApproved }) {
   return { ok: true, data: result };
 }
 
+// Drives the Side Panel's always-visible Koha connection status pill
+// (section 26 of the product spec: connected / detecting / not detected /
+// detected-but-no-editor). Unlike findActiveKohaTab above, this never
+// rejects a non-Koha or non-cataloguing tab as an error -- "not connected"
+// is a normal status to report, not a failure.
+async function actionGetStatus() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !tab.url) {
+    return { ok: true, data: { state: 'NOT_DETECTED' } };
+  }
+  if (!/\/cgi-bin\/koha\//i.test(tab.url)) {
+    return { ok: true, data: { state: 'NOT_DETECTED' } };
+  }
+  if (!tab.url.includes(KOHA_ADDBIBLIO_PATH)) {
+    return { ok: true, data: { state: 'DETECTED_NO_EDITOR' } };
+  }
+  try {
+    const result = await chrome.tabs.sendMessage(tab.id, { type: 'AUTOCAT_PING' });
+    if (result?.status === 'ok' && result.ready) {
+      return { ok: true, data: { state: 'CONNECTED' } };
+    }
+    return { ok: true, data: { state: 'DETECTED_NO_EDITOR' } };
+  } catch (error) {
+    // Content script not injected yet (tab still loading, or the extension
+    // was just installed/reloaded on an already-open Koha tab) -- the page
+    // IS the right URL, it just isn't ready to talk to yet.
+    debugLog('AUTOCAT_PING failed, reporting DETECTING', error);
+    return { ok: true, data: { state: 'DETECTING' } };
+  }
+}
+
 const KOHA_ACTIONS = {
   detectFields: kohaActionDetectFields,
   fillKoha: kohaActionFill,
+  getStatus: actionGetStatus,
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -335,4 +385,27 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       sendResponse({ ok: false, code: 'CONTENT_SCRIPT_UNAVAILABLE', message: 'AutoCat could not connect to this Koha page. Please reload the Koha page and try again.' });
     });
   return true; // keep the message channel open for the async response
+});
+
+// ---------------------------------------------------------------------
+// Tab-change broadcast, so the Side Panel's Koha status pill (section 26)
+// updates itself the moment the active tab changes or a Koha page finishes
+// (re)loading -- the Side Panel never polls chrome.tabs.* directly, it just
+// listens for this message and re-asks for getStatus.
+// ---------------------------------------------------------------------
+
+function broadcastTabChanged() {
+  chrome.runtime.sendMessage({ type: 'AUTOCAT_TAB_CHANGED' }).catch(() => {
+    // No listener attached (side panel closed) -- expected and harmless.
+  });
+}
+
+chrome.tabs.onActivated.addListener(() => broadcastTabChanged());
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (tab.active && (changeInfo.status === 'complete' || changeInfo.url)) {
+    broadcastTabChanged();
+  }
+});
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId !== chrome.windows.WINDOW_ID_NONE) broadcastTabChanged();
 });

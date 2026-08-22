@@ -11,13 +11,14 @@
     "test:access": "node scripts/testUserAccess.js",
     "test:p1": "node scripts/testMarcRulesP1.js",
     "consistency:marc": "node scripts/marcConsistencyReport.js",
-    "test": "npm run test:p0 && npm run test:access && npm run test:p1",
+    "test": "npm run test:p0 && npm run test:access && npm run test:p1 && npm run test:chat",
     "seed:ddc": "node scripts/seedDdc.js",
     "seed:marc-frameworks": "node scripts/seedMarcFrameworks.js",
     "test:p2": "node scripts/testDdcP2.js",
     "test:p3": "node scripts/testMarcP3.js",
     "test:p4": "node scripts/testKohaFillP4.js",
-    "test:marc-frameworks": "node scripts/testMarcFrameworksP5.js"
+    "test:marc-frameworks": "node scripts/testMarcFrameworksP5.js",
+    "test:chat": "node scripts/testChatP6.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
