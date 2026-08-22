@@ -190,3 +190,6 @@ button:disabled {
 .ddc-panel ul { margin: 6px 0 10px 18px; padding: 0; }
 .ddc-panel p { margin: 6px 0 10px; }
 textarea { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px; font: inherit; }
+.marc-preview table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+.marc-preview th, .marc-preview td { border-bottom: 1px solid #e2e8f0; padding: 4px; text-align: left; vertical-align: top; }
+.marc-preview td:nth-child(3) { word-break: break-word; }

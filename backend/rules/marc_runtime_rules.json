@@ -56,6 +56,28 @@
       "notes": "Builder already generates LDR; registry tag is 000 with alias LDR."
     },
     {
+      "tag": "005",
+      "label": "Date and Time of Latest Transaction",
+      "description": "Deterministic MARC21 transaction timestamp.",
+      "status": "SUPPORTED",
+      "field_type": "CONTROL_FIELD",
+      "repeatable": false,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "length": 16
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "CONTROL_FIELD"
+      },
+      "profile": "MARC21",
+      "notes": "P3 generates 005 from system UTC time; no LLM involvement."
+    },
+    {
       "tag": "008",
       "label": "Fixed-Length Data Elements",
       "description": "40-character fixed-length control field for books/monographs under the current AACR2 + ISBD + MARC21 profile.",
@@ -117,6 +139,35 @@
       },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
       "notes": "Builder + validator + mapper path implemented for $a."
+    },
+    {
+      "tag": "041",
+      "label": "Language Code",
+      "description": "Language code when reliable language evidence exists; kept consistent with 008 language positions by the P3 MARC pipeline.",
+      "status": "PARTIAL",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical_when_evidenced",
+      "validation": {
+        "indicators": {
+          "1": [" ", "0", "1"],
+          "2": [" ", "7"]
+        },
+        "subfields": {
+          "a": { "repeatable": true, "required_when_present": true, "notes": "MARC language code for text" }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": true,
+      "cataloguer_review_required": true,
+      "koha_supported": true,
+      "koha_mapping": {
+        "kind": "VARIABLE_FIELD",
+        "primary_subfield": "a"
+      },
+      "profile": "MARC21",
+      "notes": "P3 emits 041$a only when supplied language evidence maps to a known MARC language code."
     },
     {
       "tag": "040",
