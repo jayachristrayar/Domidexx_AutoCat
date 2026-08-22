@@ -15,6 +15,9 @@ import {
 import {
   createUser,
   resetUserPassword,
+  setUserActive,
+  updateUserAccess,
+  deleteUser,
   UserAlreadyExistsError,
   UserNotFoundError,
 } from '../services/userService.js';
@@ -51,7 +54,7 @@ function renderLoginPage({ errorHtml = '' } = {}) {
 <title>Admin Login — Domidexx AutoCat</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/admin.css" />
 <link rel="icon" href="/logo/logo-32.png" />
 </head>
@@ -59,10 +62,10 @@ function renderLoginPage({ errorHtml = '' } = {}) {
 <div class="login-shell">
   <form class="login-card" method="POST" action="/admin/login">
     <div class="login-brand">
-      <img src="/logo/logo-64.png" width="48" height="48" alt="Domidexx AutoCat logo" />
+      <img src="/logo/logo-64.png" width="52" height="52" alt="Domidexx AutoCat logo" />
       <div>
-        <h1>Domidexx AutoCat</h1>
-        <p>Admin console</p>
+        <h1><span class="brand-d">D</span>omidexx AutoCat</h1>
+        <p>Structuring the Unseen</p>
       </div>
     </div>
     ${configBanner}
@@ -116,17 +119,17 @@ function layout({ title, activeHref, body }) {
 <title>${escapeHtml(title)} — Domidexx AutoCat Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/admin.css" />
 <link rel="icon" href="/logo/logo-32.png" />
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="/admin">
-    <img src="/logo/logo-64.png" width="36" height="36" alt="Domidexx AutoCat logo" />
+    <img src="/logo/logo-64.png" width="40" height="40" alt="Domidexx AutoCat logo" />
     <span class="brand-text">
-      <strong>Domidexx AutoCat</strong>
-      <span>Admin console</span>
+      <strong><span class="brand-d">D</span>omidexx AutoCat</strong>
+      <span>Structuring the Unseen</span>
     </span>
   </a>
   <nav>${nav}</nav>
@@ -254,7 +257,29 @@ const createUserSchema = z.object({
   password: z.string().min(8),
   institution_slug: z.string().min(1),
   subscription_tier: z.enum(['free', 'paid']),
+  device_limit: z.coerce.number().int().min(1).max(50).default(2),
+  expires_at: z.string().optional(),
 });
+
+function formatExpiry(value) {
+  if (!value) return 'No expiry';
+  return new Date(value).toLocaleString();
+}
+
+function accessStatus(user) {
+  if (!user.is_active) return { label: 'Inactive', className: 'badge-off' };
+  if (user.expires_at && new Date(user.expires_at) < new Date()) {
+    return { label: 'Expired', className: 'badge-warn' };
+  }
+  return { label: 'Active', className: 'badge-ok' };
+}
+
+function toExpiresAtOrNull(raw) {
+  if (!raw || !String(raw).trim()) return null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
+}
 
 function renderUsersPage({ users, formError, notice }) {
   const rows = users
@@ -262,29 +287,46 @@ function renderUsersPage({ users, formError, notice }) {
       const lastSeen = user.last_seen_at
         ? new Date(user.last_seen_at).toLocaleString()
         : '<span class="muted">never</span>';
+      const status = accessStatus(user);
+      const expiryValue = user.expires_at
+        ? new Date(user.expires_at).toISOString().slice(0, 16)
+        : '';
       return `<tr>
         <td>
           <strong>${escapeHtml(user.email)}</strong>
-          <div class="muted" style="font-size:0.8rem">#${user.id}</div>
+          <div class="muted" style="font-size:0.8rem">#${user.id} · ${escapeHtml(formatExpiry(user.expires_at))}</div>
+          <div style="margin-top:6px"><span class="badge ${status.className}">${status.label}</span></div>
         </td>
         <td>${escapeHtml(user.institution_name ?? '—')}</td>
         <td><span class="badge">${escapeHtml(user.subscription_tier)}</span></td>
+        <td>${user.device_limit}</td>
         <td>${new Date(user.created_at).toLocaleDateString()}</td>
         <td>${lastSeen}</td>
         <td>
-          <form class="inline" method="POST" action="/admin/users/${user.id}/tier">
-            <select name="tier">
-              <option value="free" ${user.subscription_tier === 'free' ? 'selected' : ''}>free</option>
-              <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>paid</option>
-            </select>
-            <button type="submit" class="btn">Save tier</button>
-          </form>
-        </td>
-        <td>
-          <form class="inline" method="POST" action="/admin/users/${user.id}/password">
-            <input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" />
-            <button type="submit" class="btn btn-secondary">Set password</button>
-          </form>
+          <div class="user-actions">
+            <form class="inline" method="POST" action="/admin/users/${user.id}/tier">
+              <select name="tier">
+                <option value="free" ${user.subscription_tier === 'free' ? 'selected' : ''}>free</option>
+                <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>paid</option>
+              </select>
+              <button type="submit" class="btn">Save tier</button>
+            </form>
+            <form class="inline" method="POST" action="/admin/users/${user.id}/access">
+              <input type="number" name="device_limit" min="1" max="50" value="${user.device_limit}" title="Device limit" required />
+              <input type="datetime-local" name="expires_at" value="${escapeHtml(expiryValue)}" title="Expiry (leave blank for none)" />
+              <button type="submit" class="btn btn-secondary">Save access</button>
+            </form>
+            <form class="inline" method="POST" action="/admin/users/${user.id}/password">
+              <input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" />
+              <button type="submit" class="btn btn-secondary">Set password</button>
+            </form>
+            <form class="inline" method="POST" action="/admin/users/${user.id}/${user.is_active ? 'deactivate' : 'activate'}">
+              <button type="submit" class="btn ${user.is_active ? 'btn-gold' : 'btn'}">${user.is_active ? 'Deactivate' : 'Activate'}</button>
+            </form>
+            <form class="inline" method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? MARC records are kept but detached.');">
+              <button type="submit" class="btn btn-danger-outline">Delete account</button>
+            </form>
+          </div>
         </td>
       </tr>`;
     })
@@ -295,12 +337,12 @@ function renderUsersPage({ users, formError, notice }) {
     activeHref: '/admin/users',
     body: `
       <h2>Users</h2>
-      <p class="lede">Create cataloguer accounts and reset passwords manually. Setting a password clears that user's extension sessions.</p>
+      <p class="lede">Activate or deactivate accounts, set device limits and expiry periods, reset passwords, or delete accounts.</p>
       ${formError ? `<div class="error">${escapeHtml(formError)}</div>` : ''}
       ${notice ? `<div class="success">${escapeHtml(notice)}</div>` : ''}
       <div class="panel table-wrap">
         <table>
-          <thead><tr><th>Email</th><th>Institution</th><th>Tier</th><th>Created</th><th>Last active</th><th>Change tier</th><th>Reset password</th></tr></thead>
+          <thead><tr><th>Email / status</th><th>Institution</th><th>Tier</th><th>Devices</th><th>Created</th><th>Last active</th><th>Actions</th></tr></thead>
           <tbody>${rows || '<tr><td colspan="7" class="muted">No users yet.</td></tr>'}</tbody>
         </table>
       </div>
@@ -316,6 +358,8 @@ function renderUsersPage({ users, formError, notice }) {
               <option value="paid">paid</option>
             </select>
           </label>
+          <label><span>Device limit</span><input type="number" name="device_limit" min="1" max="50" value="2" required /></label>
+          <label><span>Expiry (optional)</span><input type="datetime-local" name="expires_at" /></label>
           <button class="btn" type="submit">Create user</button>
         </form>
       </div>
@@ -327,7 +371,8 @@ router.get(
   '/users',
   asyncHandler(async (req, res) => {
     const { rows: users } = await pool.query(
-      `SELECT u.id, u.email, u.subscription_tier, u.created_at, i.name AS institution_name,
+      `SELECT u.id, u.email, u.subscription_tier, u.created_at, u.is_active, u.device_limit, u.expires_at,
+              i.name AS institution_name,
               MAX(s.last_seen_at) AS last_seen_at
        FROM users u
        LEFT JOIN institutions i ON i.id = u.institution_id
@@ -336,15 +381,25 @@ router.get(
        ORDER BY u.created_at DESC`
     );
 
+    const notice = req.query.created
+      ? 'User created.'
+      : req.query.password_reset
+        ? 'Password updated. Existing extension sessions for that user were signed out.'
+        : req.query.activated
+          ? 'Account activated.'
+          : req.query.deactivated
+            ? 'Account deactivated and sessions cleared.'
+            : req.query.access
+              ? 'Device limit / expiry updated.'
+              : req.query.deleted
+                ? 'Account deleted.'
+                : null;
+
     res.send(
       renderUsersPage({
         users,
         formError: req.query.error || null,
-        notice: req.query.created
-          ? 'User created.'
-          : req.query.password_reset
-            ? 'Password updated. Existing extension sessions for that user were signed out.'
-            : null,
+        notice,
       })
     );
   })
@@ -358,12 +413,19 @@ router.post(
       return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid form input.')}`);
     }
 
+    const expiresAt = toExpiresAtOrNull(parsed.data.expires_at);
+    if (expiresAt === undefined) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid expiry date.')}`);
+    }
+
     try {
       await createUser({
         email: parsed.data.email,
         password: parsed.data.password,
         institutionSlug: parsed.data.institution_slug,
         subscriptionTier: parsed.data.subscription_tier,
+        deviceLimit: parsed.data.device_limit,
+        expiresAt,
       });
     } catch (error) {
       if (error instanceof UserAlreadyExistsError) {
@@ -415,6 +477,99 @@ router.post(
   })
 );
 
+const accessSchema = z.object({
+  device_limit: z.coerce.number().int().min(1).max(50),
+  expires_at: z.string().optional(),
+});
+
+router.post(
+  '/users/:id/access',
+  asyncHandler(async (req, res) => {
+    const parsed = accessSchema.safeParse(req.body);
+    const userId = Number(req.params.id);
+    if (!parsed.success || !Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid access settings.')}`);
+    }
+
+    const expiresAt = toExpiresAtOrNull(parsed.data.expires_at);
+    if (expiresAt === undefined) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid expiry date.')}`);
+    }
+
+    try {
+      await updateUserAccess({
+        userId,
+        deviceLimit: parsed.data.device_limit,
+        expiresAt,
+      });
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+
+    res.redirect('/admin/users?access=1');
+  })
+);
+
+router.post(
+  '/users/:id/activate',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await setUserActive(userId, true);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?activated=1');
+  })
+);
+
+router.post(
+  '/users/:id/deactivate',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await setUserActive(userId, false);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?deactivated=1');
+  })
+);
+
+router.post(
+  '/users/:id/delete',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await deleteUser(userId);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?deleted=1');
+  })
+);
+
 router.get('/settings', (_req, res) => {
   res.send(
     layout({
@@ -424,8 +579,14 @@ router.get('/settings', (_req, res) => {
         <h2>Settings</h2>
         <p class="lede">Password and branding notes for operators.</p>
         <div class="panel">
-          <h3 class="panel-title">Library user passwords</h3>
-          <p>Reset any cataloguer password from <a href="/admin/users">Users → Reset password</a>. That updates the stored hash and signs out their extension sessions immediately.</p>
+          <h3 class="panel-title">Library user access controls</h3>
+          <p>On the Users page you can:</p>
+          <ul>
+            <li><strong>Activate / Deactivate</strong> an account (deactivation signs them out immediately)</li>
+            <li><strong>Device limit</strong> — max concurrent extension devices</li>
+            <li><strong>Expiry period</strong> — optional access end date/time</li>
+            <li><strong>Set password</strong> or <strong>Delete account</strong></li>
+          </ul>
         </div>
         <div class="panel">
           <h3 class="panel-title">Admin console password</h3>
@@ -439,8 +600,8 @@ router.get('/settings', (_req, res) => {
         </div>
         <div class="panel">
           <h3 class="panel-title">Brand logo</h3>
-          <p>The header uses the Domidexx AutoCat mark from <code>/logo/logo-64.png</code>.</p>
-          <img src="/logo/logo-128.png" width="96" height="96" alt="Domidexx AutoCat logo preview" style="border-radius:16px;background:#fff;border:1px solid var(--line)" />
+          <p>Header uses the Domidexx AutoCat mark with a transparent background (no white tile), aligned to the <a href="https://domidexx.in" target="_blank" rel="noreferrer">domidexx.in</a> blue palette.</p>
+          <img src="/logo/logo-128.png" width="96" height="96" alt="Domidexx AutoCat logo preview" style="background:transparent" />
         </div>
         <div class="notice">
           The green “Add MARC record” screens with tabs 0–9 are <strong>Koha’s own cataloguing UI</strong>. AutoCat fills fields into Koha; it does not replace Koha’s chrome. UI refreshes here apply to the AutoCat admin console and extension.

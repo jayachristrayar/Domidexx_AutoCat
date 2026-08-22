@@ -13,12 +13,16 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   institution_id INTEGER REFERENCES institutions(id),
   subscription_tier TEXT NOT NULL DEFAULT 'free',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  device_limit INTEGER NOT NULL DEFAULT 2,
+  expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),
+  device_id TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   last_seen_at TIMESTAMPTZ DEFAULT now(),
   expires_at TIMESTAMPTZ NOT NULL
@@ -76,3 +80,12 @@ CREATE TABLE IF NOT EXISTS ddc_relative_index (
 );
 
 CREATE INDEX IF NOT EXISTS ddc_relative_index_search_idx ON ddc_relative_index USING GIN(search_vector);
+
+-- Additive migrations for databases created before access-control columns existed.
+-- Safe to re-run: ADD COLUMN IF NOT EXISTS is a no-op when the column is present.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS device_limit INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_id TEXT;
+CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
+CREATE INDEX IF NOT EXISTS sessions_user_device_idx ON sessions (user_id, device_id);
