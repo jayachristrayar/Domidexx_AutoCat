@@ -128,3 +128,113 @@ CREATE TABLE IF NOT EXISTS ddc_decisions (
 CREATE INDEX IF NOT EXISTS ddc_classes_label_idx ON ddc_classes USING GIN (to_tsvector('english', label));
 CREATE INDEX IF NOT EXISTS ddc_aliases_term_idx ON ddc_aliases USING GIN (to_tsvector('english', term));
 CREATE INDEX IF NOT EXISTS ddc_decisions_user_idx ON ddc_decisions (user_id, created_at DESC);
+
+-- ---------------------------------------------------------------------
+-- MARC21 framework engine.
+--
+-- Two layers, never merged:
+--   1. General MARC21 vocabulary -- marc_fields/marc_subfields/marc_indicators,
+--      seeded once against the "GENERAL" framework row. This is the master
+--      MARC21 definition: what a tag/subfield *means*. It is never deleted
+--      or mutated when a custom framework changes.
+--   2. Per-framework configuration -- framework_field_settings /
+--      framework_subfield_settings. A custom framework (or the GENERAL
+--      framework itself) is a set of rows pointing at the master
+--      marc_fields/marc_subfields rows, carrying only what differs per
+--      framework: enabled, required, default_value, display_order.
+-- Disabling/require-ing a field in one framework only touches that
+-- framework's settings rows -- the master marc_fields/marc_subfields rows
+-- are untouched.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS marc_frameworks (
+  id SERIAL PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  framework_type TEXT NOT NULL CHECK (framework_type IN ('GENERAL', 'CUSTOM')),
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Master MARC21 vocabulary. One row per tag, independent of any framework.
+CREATE TABLE IF NOT EXISTS marc_fields (
+  id SERIAL PRIMARY KEY,
+  tag TEXT UNIQUE NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT,
+  section TEXT NOT NULL,
+  repeatable BOOLEAN NOT NULL DEFAULT false,
+  field_type TEXT NOT NULL CHECK (field_type IN ('CONTROL_FIELD', 'VARIABLE_FIELD')) DEFAULT 'VARIABLE_FIELD',
+  authority_control BOOLEAN NOT NULL DEFAULT false,
+  is_koha_field BOOLEAN NOT NULL DEFAULT false,
+  minimal_definition BOOLEAN NOT NULL DEFAULT false,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS marc_subfields (
+  id SERIAL PRIMARY KEY,
+  field_id INTEGER NOT NULL REFERENCES marc_fields(id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT,
+  repeatable BOOLEAN NOT NULL DEFAULT false,
+  required BOOLEAN NOT NULL DEFAULT false,
+  default_value TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  hidden BOOLEAN NOT NULL DEFAULT false,
+  authority_control BOOLEAN NOT NULL DEFAULT false,
+  active BOOLEAN NOT NULL DEFAULT true,
+  UNIQUE (field_id, code)
+);
+
+CREATE TABLE IF NOT EXISTS marc_indicators (
+  id SERIAL PRIMARY KEY,
+  field_id INTEGER NOT NULL REFERENCES marc_fields(id) ON DELETE CASCADE,
+  position SMALLINT NOT NULL CHECK (position IN (1, 2)),
+  code TEXT NOT NULL,
+  label TEXT NOT NULL,
+  description TEXT,
+  UNIQUE (field_id, position, code)
+);
+
+-- Per-framework field configuration. Every framework (GENERAL included) has
+-- its own settings rows so "what does this framework show" is always a
+-- plain settings lookup, never a special case for GENERAL.
+CREATE TABLE IF NOT EXISTS framework_field_settings (
+  id SERIAL PRIMARY KEY,
+  framework_id INTEGER NOT NULL REFERENCES marc_frameworks(id) ON DELETE CASCADE,
+  field_id INTEGER NOT NULL REFERENCES marc_fields(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  required BOOLEAN NOT NULL DEFAULT false,
+  default_value TEXT,
+  -- Which tab (Koha's "0"-"9" section navigation) this field appears under
+  -- *for this framework*. Deliberately independent of marc_fields.section
+  -- (the field's general MARC block, e.g. "2XX") -- a framework's own
+  -- section tab grouping (per its screenshots/local practice) can and does
+  -- diverge from the general MARC block a tag semantically belongs to.
+  section TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (framework_id, field_id)
+);
+
+CREATE TABLE IF NOT EXISTS framework_subfield_settings (
+  id SERIAL PRIMARY KEY,
+  framework_field_setting_id INTEGER NOT NULL REFERENCES framework_field_settings(id) ON DELETE CASCADE,
+  subfield_id INTEGER NOT NULL REFERENCES marc_subfields(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT true,
+  required BOOLEAN NOT NULL DEFAULT false,
+  default_value TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  UNIQUE (framework_field_setting_id, subfield_id)
+);
+
+CREATE INDEX IF NOT EXISTS marc_fields_section_idx ON marc_fields (section, display_order);
+CREATE INDEX IF NOT EXISTS marc_subfields_field_idx ON marc_subfields (field_id, display_order);
+CREATE INDEX IF NOT EXISTS marc_indicators_field_idx ON marc_indicators (field_id, position);
+CREATE INDEX IF NOT EXISTS framework_field_settings_framework_idx ON framework_field_settings (framework_id, display_order);
+CREATE INDEX IF NOT EXISTS framework_subfield_settings_setting_idx ON framework_subfield_settings (framework_field_setting_id, display_order);
