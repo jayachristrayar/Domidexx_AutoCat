@@ -20,6 +20,12 @@ export const REQUIRED_TABLES = [
   'ddc_classes',
   'ddc_aliases',
   'ddc_decisions',
+  'marc_frameworks',
+  'marc_fields',
+  'marc_subfields',
+  'marc_indicators',
+  'framework_field_settings',
+  'framework_subfield_settings',
 ];
 
 function buildPoolConfig() {

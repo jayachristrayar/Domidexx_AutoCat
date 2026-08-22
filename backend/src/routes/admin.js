@@ -23,6 +23,12 @@ import {
   getRuleProfile,
   getSeriesPolicy,
 } from '../services/marcRuleRegistry.js';
+import {
+  listFrameworks,
+  getFrameworkFieldTree,
+  setFieldSetting,
+  setSubfieldSetting,
+} from '../services/marcFrameworkService.js';
 
 const router = Router();
 
@@ -101,6 +107,7 @@ const NAV_ITEMS = [
   { href: '/admin/records', label: 'Records' },
   { href: '/admin/usage', label: 'Usage' },
   { href: '/admin/rules', label: 'Rules' },
+  { href: '/admin/frameworks', label: 'MARC Frameworks' },
   { href: '/admin/settings', label: 'Settings' },
 ];
 
@@ -876,6 +883,175 @@ router.get(
         `,
       })
     );
+  })
+);
+
+// ---------------------------------------------------------------------
+// MARC Frameworks (General MARC21 vocabulary + custom framework config)
+// ---------------------------------------------------------------------
+
+const CONTROL_CODE_TOKEN = '_control_';
+function encodeSubfieldCode(code) {
+  return code == null ? CONTROL_CODE_TOKEN : encodeURIComponent(code);
+}
+function decodeSubfieldCode(param) {
+  return param === CONTROL_CODE_TOKEN ? null : decodeURIComponent(param);
+}
+
+router.get(
+  '/frameworks',
+  asyncHandler(async (_req, res) => {
+    const frameworks = await listFrameworks();
+    const rows = frameworks
+      .map(
+        (fw) => `<tr>
+          <td><a href="/admin/frameworks/${escapeHtml(fw.code)}">${escapeHtml(fw.name)}</a></td>
+          <td><code>${escapeHtml(fw.code)}</code></td>
+          <td><span class="badge ${fw.framework_type === 'GENERAL' ? 'badge-warn' : 'badge-ok'}">${escapeHtml(fw.framework_type)}</span></td>
+          <td>${escapeHtml(fw.description ?? '—')}</td>
+        </tr>`
+      )
+      .join('');
+    res.send(
+      layout({
+        title: 'MARC Frameworks',
+        activeHref: '/admin/frameworks',
+        body: `
+          <h2>MARC Frameworks</h2>
+          <p class="lede">Two separate layers: <strong>General MARC21</strong> is the master vocabulary (what a tag/subfield means); a <strong>Custom</strong> framework is a library's own selection of enabled fields, required flags, and defaults on top of it. Disabling or requiring a field in a custom framework never changes General MARC21.</p>
+          <div class="panel table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Code</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>${rows || '<tr><td colspan="4" class="muted">No frameworks seeded yet — run <code>npm run seed:marc-frameworks</code>.</td></tr>'}</tbody>
+            </table>
+          </div>
+        `,
+      })
+    );
+  })
+);
+
+function frameworkFieldRow(frameworkCode, field) {
+  const subfieldRows = field.subfields
+    .map(
+      (sf) => `<tr class="framework-subfield-row">
+        <td></td>
+        <td><code>$${sf.code == null ? '(control value)' : escapeHtml(sf.code)}</code></td>
+        <td>${escapeHtml(sf.label)}</td>
+        <td>
+          <form method="POST" action="/admin/frameworks/${escapeHtml(frameworkCode)}/fields/${escapeHtml(field.tag)}/subfields/${encodeSubfieldCode(sf.code)}" class="inline">
+            <label><input type="checkbox" name="enabled" ${sf ? 'checked' : ''} value="1" /> Enabled</label>
+            <label><input type="checkbox" name="required" ${sf.required ? 'checked' : ''} value="1" /> Required</label>
+            <input type="text" name="default_value" value="${escapeHtml(sf.default_value ?? '')}" placeholder="Default value" size="20" />
+            <button type="submit" class="btn btn-secondary">Save</button>
+          </form>
+        </td>
+      </tr>`
+    )
+    .join('');
+
+  return `
+    <tr class="framework-field-row">
+      <td><code>${escapeHtml(field.tag)}</code></td>
+      <td>${escapeHtml(field.label)} ${field.is_koha_field ? '<span class="badge badge-warn">Koha-specific</span>' : ''} ${field.minimal_definition ? '<span class="badge badge-off">minimal definition</span>' : ''}</td>
+      <td>${escapeHtml(field.section ?? '—')}</td>
+      <td>${field.repeatable ? 'Yes' : 'No'}</td>
+      <td>
+        <form method="POST" action="/admin/frameworks/${escapeHtml(frameworkCode)}/fields/${escapeHtml(field.tag)}" class="inline">
+          <label><input type="checkbox" name="enabled" checked value="1" /> Enabled</label>
+          <label><input type="checkbox" name="required" ${field.required ? 'checked' : ''} value="1" /> Required</label>
+          <input type="text" name="section" value="${escapeHtml(field.section ?? '')}" placeholder="Section tab" size="4" />
+          <button type="submit" class="btn btn-secondary">Save field</button>
+        </form>
+      </td>
+    </tr>
+    ${subfieldRows}
+  `;
+}
+
+router.get(
+  '/frameworks/:code',
+  asyncHandler(async (req, res) => {
+    const tree = await getFrameworkFieldTree(req.params.code, { onlyEnabled: false });
+    if (!tree) {
+      return res.status(404).send(
+        layout({ title: 'MARC Frameworks', activeHref: '/admin/frameworks', body: `<div class="error">Unknown framework: ${escapeHtml(req.params.code)}</div>` })
+      );
+    }
+
+    const bySection = {};
+    for (const field of tree.fields) (bySection[field.section ?? 'UNSPECIFIED'] ??= []).push(field);
+    const sectionKeys = Object.keys(bySection).sort();
+
+    const sectionsHtml = sectionKeys
+      .map(
+        (section) => `
+        <details ${section === sectionKeys[0] ? 'open' : ''}>
+          <summary><strong>Section ${escapeHtml(section)}</strong> (${bySection[section].length} field${bySection[section].length === 1 ? '' : 's'})</summary>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Tag</th><th>Field</th><th>Section</th><th>Repeatable</th><th>Settings</th></tr></thead>
+              <tbody>${bySection[section].map((f) => frameworkFieldRow(tree.framework.code, f)).join('')}</tbody>
+            </table>
+          </div>
+        </details>
+      `
+      )
+      .join('');
+
+    res.send(
+      layout({
+        title: tree.framework.name,
+        activeHref: '/admin/frameworks',
+        body: `
+          <h2>${escapeHtml(tree.framework.name)} <span class="badge ${tree.framework.framework_type === 'GENERAL' ? 'badge-warn' : 'badge-ok'}">${escapeHtml(tree.framework.framework_type)}</span></h2>
+          <p class="lede">${escapeHtml(tree.framework.description ?? '')}</p>
+          <p><a href="/admin/frameworks">&larr; All frameworks</a> · <a href="/api/marc-frameworks/${escapeHtml(tree.framework.code)}/export">Export JSON</a></p>
+          ${tree.framework.framework_type === 'GENERAL' ? '<div class="notice">This is the master MARC21 vocabulary. Changes here should be rare — most day-to-day configuration (required fields, defaults, enabling/disabling) belongs on a custom framework instead.</div>' : ''}
+          ${sectionsHtml}
+        `,
+      })
+    );
+  })
+);
+
+const fieldSettingSchema = z.object({
+  enabled: z.string().optional(),
+  required: z.string().optional(),
+  section: z.string().optional(),
+});
+
+router.post(
+  '/frameworks/:code/fields/:tag',
+  asyncHandler(async (req, res) => {
+    const parsed = fieldSettingSchema.safeParse(req.body);
+    if (!parsed.success) return res.redirect(`/admin/frameworks/${req.params.code}?error=1`);
+    await setFieldSetting(req.params.code, req.params.tag, {
+      enabled: Boolean(parsed.data.enabled),
+      required: Boolean(parsed.data.required),
+      section: parsed.data.section || null,
+    });
+    res.redirect(`/admin/frameworks/${req.params.code}`);
+  })
+);
+
+const subfieldSettingSchema = z.object({
+  enabled: z.string().optional(),
+  required: z.string().optional(),
+  default_value: z.string().optional(),
+});
+
+router.post(
+  '/frameworks/:code/fields/:tag/subfields/:subfieldCode',
+  asyncHandler(async (req, res) => {
+    const parsed = subfieldSettingSchema.safeParse(req.body);
+    if (!parsed.success) return res.redirect(`/admin/frameworks/${req.params.code}?error=1`);
+    await setSubfieldSetting(req.params.code, req.params.tag, decodeSubfieldCode(req.params.subfieldCode), {
+      enabled: Boolean(parsed.data.enabled),
+      required: Boolean(parsed.data.required),
+      default_value: parsed.data.default_value || null,
+    });
+    res.redirect(`/admin/frameworks/${req.params.code}`);
   })
 );
 
