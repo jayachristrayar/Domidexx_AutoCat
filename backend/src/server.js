@@ -1,13 +1,20 @@
+// Must be the first import: ES module imports are evaluated in order, each
+// one's body fully run before the next import starts. './routes/admin.js'
+// below transitively imports './db/index.js', which reads
+// process.env.DATABASE_URL to construct the pg Pool at module-eval time --
+// that happens before any code in *this* file runs, so a `dotenv.config()`
+// call placed after the imports (as this used to be) is too late to
+// populate process.env from a local .env file. `dotenv/config` runs
+// dotenv's config() as a side effect of being imported, so loading it first
+// guarantees env vars are set before anything downstream reads them.
+import 'dotenv/config';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import express from 'express';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
 import recordsRouter from './routes/records.js';
 import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
-
-dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 10000;
