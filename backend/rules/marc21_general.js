@@ -129,6 +129,12 @@ export const GENERAL_MARC21_FIELDS = [
     subfields: [sf('a', 'Standard number or code', { required: true }), sf('c', 'Terms of availability'), sf('d', 'Additional codes'), sf('q', 'Qualifying information', { repeatable: true }), sf('z', 'Canceled/invalid standard number or code', { repeatable: true }), sf('2', 'Source of number or code')],
   }),
   field({
+    tag: '027', label: 'Standard Technical Report Number', section: '0XX', repeatable: true,
+    description: 'The internationally-assigned standard number for technical reports and similar documents.',
+    indicators: NO_INDICATORS,
+    subfields: [sf('a', 'Standard technical report number', { required: true }), sf('q', 'Qualifying information', { repeatable: true }), sf('z', 'Canceled/invalid number', { repeatable: true })],
+  }),
+  field({
     tag: '028', label: 'Publisher, Distributor, etc. Number', section: '0XX', repeatable: true,
     description: 'A number assigned by a publisher/distributor other than an ISBN/ISSN, e.g. a music publisher plate number.',
     indicators: [ind(1, '0', 'Type of number — Issue number'), ind(1, '1', 'Type of number — Matrix number'), ind(1, '2', 'Type of number — Plate number'), ind(1, '3', 'Type of number — Other music number'), ind(1, '4', 'Type of number — Videorecording number'), ind(1, '5', 'Type of number — Other publisher number'), ind(1, '6', 'Type of number — Distributor number'), ind(2, '0', 'Note/added entry controller — No note, no added entry'), ind(2, '1', 'Note/added entry controller — Note, added entry'), ind(2, '2', 'Note/added entry controller — Note, no added entry'), ind(2, '3', 'Note/added entry controller — No note, added entry')],
@@ -1118,9 +1124,10 @@ export const GENERAL_MARC21_FIELDS = [
     indicators: NO_INDICATORS,
     subfields: [
       sf('2', 'Source of classification or shelving scheme', { required: true }),
-      sf('c', 'Item type', { required: true }),
+      sf('c', 'Koha/default item type', { required: true }),
       sf('e', 'Edition'),
       sf('h', 'Classification part'),
+      sf('i', 'Item part'),
       sf('k', 'Call number prefix'),
       sf('m', 'Call number suffix'),
       sf('n', 'Suppress in OPAC'),

@@ -9,6 +9,8 @@ import {
   DEFAULT_API_BASE_URL,
 } from '../lib/api.js';
 
+console.log('[AutoCat] Extension initialized');
+
 const app = document.getElementById('app');
 
 function escapeHtml(value) {
@@ -276,6 +278,7 @@ function renderWorkspace(me) {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) {
+        console.error('[AutoCat] Fill Koha failed: no active browser tab found.');
         kohaFillResultEl.innerHTML = '<div class="error">No active browser tab found.</div>';
         return;
       }
@@ -286,12 +289,18 @@ function renderWorkspace(me) {
         ddcApproved,
       });
       if (!result) {
+        console.error('[AutoCat] Unsupported Koha page: no response from the content script.');
         kohaFillResultEl.innerHTML = '<div class="error">No response from the Koha tab. Open the Koha MARC editor (cataloguing/addbiblio.pl) and try again.</div>';
         return;
       }
       renderKohaFillResult(result);
     } catch (error) {
-      kohaFillResultEl.innerHTML = `<div class="error">Could not reach the Koha tab: ${escapeHtml(error.message)}. Open the Koha MARC editor and try again.</div>`;
+      // chrome.tabs.sendMessage rejects with "Receiving end does not exist"
+      // when the active tab isn't a Koha cataloguing page the content
+      // script runs on -- this is the expected/common failure mode, not a
+      // bug, so it gets a specific message rather than a raw stack trace.
+      console.error('[AutoCat] Unsupported Koha page:', error.message);
+      kohaFillResultEl.innerHTML = `<div class="error">Could not reach the Koha tab (${escapeHtml(error.message)}). Open the Koha MARC editor (cataloguing/addbiblio.pl) in this tab and try again.</div>`;
     }
   });
 

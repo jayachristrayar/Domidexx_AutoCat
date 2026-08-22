@@ -7,6 +7,22 @@
 // under a Node test harness against a fixture DOM (see
 // backend/scripts/testKohaFillP4.js).
 //
+// Deliberately a CLASSIC script, not an ES module: Manifest V3 content
+// scripts declared in manifest.json's content_scripts[].js are always
+// loaded as classic scripts (only background.service_worker supports
+// "type": "module"), so `export`/`import` syntax here would throw a
+// SyntaxError at injection time. Chrome loads this file directly as the
+// first entry in content_scripts[].js (see manifest.json); koha-fill.js is
+// listed second and runs in the same isolated-world global scope, so it
+// can read the API this file attaches to `globalThis.AutoCatKohaFillEngine`
+// below. This also means no `web_accessible_resources` entry or dynamic
+// `import()` of a chrome-extension:// URL is needed anywhere — both were
+// the source of Chrome's "Invalid value for 'web_accessible_resources[0]'"
+// load error. For Node-side testing (backend/scripts/testKohaFillP4.js),
+// this file is still a syntactically valid ES module (no top-level
+// `export`/`import`, just declarations) -- importing it for its
+// side-effect populates the same `globalThis.AutoCatKohaFillEngine`.
+//
 // Hard safety rule (see also SKILL/PR notes): this file must never call
 // `.submit(`, `.requestSubmit(`, or `.click(` on anything. The cataloguer
 // always performs the final Save by hand. A static test greps this file's
@@ -35,7 +51,7 @@ function safeMatches(el, selector) {
 }
 
 /** True if `el` looks like a save/submit control this engine must never touch. */
-export function isSaveElement(el) {
+function isSaveElement(el) {
   if (!el) return false;
   for (const selector of SAVE_GUARD_SELECTORS) {
     if (safeMatches(el, selector)) return true;
@@ -77,7 +93,7 @@ function uniqueElements(list) {
  *     `.field` ancestor. Catches markup variants that don't expose the tag
  *     in the container id/attribute.
  */
-export function findFieldContainers(doc, tag) {
+function findFieldContainers(doc, tag) {
   const results = [];
   results.push(...doc.querySelectorAll(`[data-tag="${tag}"]`));
   results.push(...doc.querySelectorAll(`.field[id^="tag_${tag}_"]`));
@@ -100,7 +116,7 @@ export function findFieldContainers(doc, tag) {
  *  3. Any `input[name="subfield_code"]` whose value equals CODE, climbing
  *     to its `.subfield_line` ancestor.
  */
-export function findSubfieldRows(container, code) {
+function findSubfieldRows(container, code) {
   const results = [];
   results.push(...container.querySelectorAll(`[data-subfield="${code}"]`));
   results.push(...container.querySelectorAll(`.subfield_line[class*="subfield_${code}"]`));
@@ -152,19 +168,19 @@ function findAddFieldControl(doc, tag) {
 // content and refuse to write if they don't prove out.
 // ---------------------------------------------------------------------
 
-export function verifyFieldProof(container, tag) {
+function verifyFieldProof(container, tag) {
   const tagInput = container.querySelector('input[name="tag"]');
   const domTag = tagInput ? tagInput.value : container.getAttribute?.('data-tag') ?? null;
   return domTag === tag;
 }
 
-export function verifySubfieldProof(row, code) {
+function verifySubfieldProof(row, code) {
   const codeInput = row.querySelector('input[name="subfield_code"]');
   const domCode = codeInput ? codeInput.value : row.getAttribute?.('data-subfield') ?? null;
   return domCode === code;
 }
 
-export function verifyIndicators(container, expected) {
+function verifyIndicators(container, expected) {
   if (!expected) return true;
   const inputs = findIndicatorInputs(container);
   if (inputs.length < 2) return false;
@@ -188,7 +204,7 @@ function makeProof({ tag, indicators = null, subfield = null, selector = null })
  * Write one control-field value (000/005/008/...). Verifies the tag before
  * writing and reads the value back afterward.
  */
-export function writeControlField(container, tag, value) {
+function writeControlField(container, tag, value) {
   const proof = makeProof({ tag, selector: 'control-field' });
   proof.intended = value;
   if (!verifyFieldProof(container, tag)) return { ...proof, reason: 'tag_mismatch' };
@@ -208,7 +224,7 @@ export function writeControlField(container, tag, value) {
  * field's tag and the row's subfield code before writing, and reads the
  * value back afterward.
  */
-export function writeSubfield(container, row, tag, code, value) {
+function writeSubfield(container, row, tag, code, value) {
   const proof = makeProof({ tag, subfield: code, selector: 'subfield-row' });
   proof.intended = value;
   if (!verifyFieldProof(container, tag)) return { ...proof, reason: 'tag_mismatch' };
@@ -360,7 +376,7 @@ const KNOWN_TAG = /^\d{3}$/;
 const KNOWN_SUBFIELD = /^[a-z0-9]$/i;
 const KNOWN_INDICATOR = /^[0-9 ]$/;
 
-export function validateInstruction(instruction) {
+function validateInstruction(instruction) {
   if (!instruction || typeof instruction !== 'object') return 'malformed_instruction';
   if (!KNOWN_TAG.test(instruction.tag ?? '')) return 'invalid_tag';
   if (instruction.field_type === 'VARIABLE_FIELD') {
@@ -390,7 +406,7 @@ export function validateInstruction(instruction) {
  *
  * Returns { status, filled, already_present, conflicts, failed, skipped }.
  */
-export function runKohaFill(doc, plan, options = {}) {
+function runKohaFill(doc, plan, options = {}) {
   const filled = [];
   const alreadyPresent = [];
   const conflicts = [];
@@ -447,3 +463,18 @@ function routeResult(result, buckets) {
       buckets.skipped.push(result);
   }
 }
+
+// Public surface, attached to the shared content-script global rather than
+// exported (see file-header note on why this can't be an ES module here).
+globalThis.AutoCatKohaFillEngine = {
+  isSaveElement,
+  findFieldContainers,
+  findSubfieldRows,
+  verifyFieldProof,
+  verifySubfieldProof,
+  verifyIndicators,
+  writeControlField,
+  writeSubfield,
+  validateInstruction,
+  runKohaFill,
+};
