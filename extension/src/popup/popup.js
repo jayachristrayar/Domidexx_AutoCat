@@ -173,6 +173,22 @@ function renderWorkspace(me) {
       </form>
       <div id="lookup-result"></div>
     </div>
+    <div class="panel">
+      <h2>DDC Classification</h2>
+      <p class="muted">Analyze the whole-book subject before approving 082$a.</p>
+      <form id="ddc-form">
+        <label><span>Title</span><input name="title" required /></label>
+        <label><span>Description / TOC</span><textarea name="description" rows="4" placeholder="Paste description, abstract, or table of contents"></textarea></label>
+        <button type="submit">Recommend DDC</button>
+      </form>
+      <div id="ddc-result"></div>
+    </div>
+    <div class="panel">
+      <h2>MARC Preview</h2>
+      <p class="muted">Generate a validated MARC record after DDC approval. Koha autofill is reserved for P4.</p>
+      <button type="button" id="generate-marc" disabled>Generate MARC</button>
+      <div id="marc-result"></div>
+    </div>
     <div class="panel row">
       <button type="button" class="secondary" id="logout">Log out</button>
     </div>
@@ -189,6 +205,49 @@ function renderWorkspace(me) {
   });
 
   const resultEl = app.querySelector('#lookup-result');
+  const ddcResultEl = app.querySelector('#ddc-result');
+  const marcResultEl = app.querySelector('#marc-result');
+  const generateMarcButton = app.querySelector('#generate-marc');
+  let currentMetadata = null;
+  let currentDdcDecision = null;
+  app.querySelector('#ddc-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    ddcResultEl.innerHTML = '<p class="muted">Analyzing whole-book subject…</p>';
+    try {
+      const metadata = { ...(currentMetadata || {}), title: form.get('title'), description: form.get('description') };
+      const response = await apiFetch('/api/ddc/recommend', { method: 'POST', body: JSON.stringify({ metadata }) });
+      const body = await readJson(response);
+      if (!response.ok) { ddcResultEl.innerHTML = `<div class="error">${escapeHtml(formatError(body, 'DDC recommendation failed.'))}</div>`; return; }
+      const d = body.decision;
+      currentDdcDecision = { id: body.id, decision: d };
+      ddcResultEl.innerHTML = `<div class="result ddc-panel"><strong>Primary subject:</strong> ${escapeHtml(d.primary_subject)}<br /><strong>Disciplinary domain:</strong> ${escapeHtml(d.disciplinary_domain)}<br /><strong>Main class:</strong> ${escapeHtml(d.main_class?.number)} — ${escapeHtml(d.main_class?.label)}<br /><strong>Classification path:</strong> ${escapeHtml((d.classification_path || []).join(' → '))}<br /><strong>Recommended DDC:</strong> ${escapeHtml(d.recommended_ddc?.number)} — ${escapeHtml(d.recommended_ddc?.label)}<br /><strong>Confidence:</strong> ${escapeHtml(d.recommended_ddc?.confidence)}<br /><strong>Why this number?</strong><p>${escapeHtml(d.justification)}</p><strong>Evidence:</strong><ul>${(d.evidence || []).map((e) => `<li>✓ ${escapeHtml(e.type)}</li>`).join('')}</ul><strong>Alternative candidates:</strong><ul>${(d.alternatives || []).map((a) => `<li>${escapeHtml(a.number)} — ${escapeHtml(a.label)}: ${escapeHtml(a.reason_rejected)}</li>`).join('') || '<li>None</li>'}</ul><strong>Provenance:</strong> ${escapeHtml((d.provenance || []).join(', '))}<br /><strong>Status:</strong> REQUIRES CATALOGUER APPROVAL<br /><button type="button" id="approve-ddc">Approve recommended DDC</button></div>`;
+      app.querySelector('#approve-ddc')?.addEventListener('click', async () => {
+        const approval = await apiFetch(`/api/ddc/${body.id}/approve`, { method: 'POST', body: JSON.stringify({ action: 'APPROVE' }) });
+        const approvedBody = await readJson(approval);
+        if (!approval.ok) { ddcResultEl.insertAdjacentHTML('beforeend', `<div class="error">${escapeHtml(formatError(approvedBody, 'DDC approval failed.'))}</div>`); return; }
+        currentDdcDecision = { id: approvedBody.id, decision: approvedBody.decision };
+        generateMarcButton.disabled = false;
+        ddcResultEl.insertAdjacentHTML('beforeend', '<div class="success">DDC approved. MARC generation is now available.</div>');
+      });
+    } catch (error) { ddcResultEl.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
+  });
+
+  generateMarcButton.addEventListener('click', async () => {
+    if (!currentMetadata || !currentDdcDecision?.decision) return;
+    marcResultEl.innerHTML = '<p class="muted">Generating MARC preview…</p>';
+    try {
+      const response = await apiFetch('/records/generate-marc', { method: 'POST', body: JSON.stringify({ metadata: currentMetadata, ddc_approval: currentDdcDecision.decision }) });
+      const body = await readJson(response);
+      if (!response.ok) {
+        marcResultEl.innerHTML = `<div class="error">${escapeHtml(formatError(body, 'MARC generation requires review.'))}</div>`;
+      }
+      marcResultEl.innerHTML = `<div class="result marc-preview"><strong>Status:</strong> ${escapeHtml(body.status)}<br /><strong>Validation:</strong> ${body.validation?.valid ? 'VALID' : 'REQUIRES REVIEW'}<table><thead><tr><th>Tag</th><th>Ind</th><th>Value</th><th>Source</th><th>Status</th></tr></thead><tbody>${(body.preview || []).map((row) => `<tr><td>${escapeHtml(row.tag)}</td><td>${escapeHtml(row.indicators)}</td><td>${escapeHtml(row.value)}</td><td>${escapeHtml(row.source)}</td><td>${escapeHtml(row.validation_status)}</td></tr>`).join('')}</tbody></table>${body.conflicts?.length ? `<div class="error">Metadata conflicts: ${escapeHtml(body.conflicts.map((c) => c.field).join(', '))}</div>` : ''}</div>`;
+    } catch (error) {
+      marcResultEl.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`;
+    }
+  });
+
   app.querySelector('#lookup-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const isbn = String(new FormData(event.currentTarget).get('isbn') || '').trim();
@@ -204,6 +263,9 @@ function renderWorkspace(me) {
         resultEl.innerHTML = `<div class="error">No catalog match for ${escapeHtml(body.isbn || isbn)}.</div>`;
         return;
       }
+      currentMetadata = body;
+      app.querySelector('#ddc-form input[name="title"]').value = body.title || '';
+      app.querySelector('#ddc-form textarea[name="description"]').value = body.description || '';
       resultEl.innerHTML = `
         <div class="result">
           <strong>${escapeHtml(body.title || '(no title)')}</strong><br />

@@ -1,0 +1,11 @@
+[
+  {"term":"library information science librarianship libraries information services","ddc_number":"020","source":"project_alias","weight":10},
+  {"term":"library operations cataloging circulation acquisitions reference services discovery","ddc_number":"025","source":"project_alias","weight":10},
+  {"term":"library administration management staff personnel academic libraries","ddc_number":"025.1","source":"project_alias","weight":8},
+  {"term":"artificial intelligence machine learning neural networks deep learning","ddc_number":"006.3","source":"project_alias","weight":10},
+  {"term":"computer science data processing computing programming software","ddc_number":"004","source":"project_alias","weight":8},
+  {"term":"programming software programs data algorithms","ddc_number":"005","source":"project_alias","weight":8},
+  {"term":"education teaching learning pedagogy schools curriculum","ddc_number":"370","source":"project_alias","weight":8},
+  {"term":"history civilization ancient europe asia africa america geography","ddc_number":"900","source":"project_alias","weight":6},
+  {"term":"business management organizations leadership general management","ddc_number":"658","source":"project_alias","weight":8}
+]

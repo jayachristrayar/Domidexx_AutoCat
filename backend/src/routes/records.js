@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { lookupIsbn } from '../services/isbnLookup.js';
+import { generateMarcRecord } from '../services/marcPipeline.js';
 
 const router = Router();
 
@@ -60,6 +61,15 @@ router.get(
       userId: req.user.userId,
     });
     res.json(toClientResponse(result));
+  })
+);
+
+router.post(
+  '/generate-marc',
+  requireSession,
+  asyncHandler(async (req, res) => {
+    const result = generateMarcRecord(req.body ?? {});
+    res.status(result.validation.valid ? 201 : 422).json(result);
   })
 );
 
