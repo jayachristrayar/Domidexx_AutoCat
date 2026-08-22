@@ -12,7 +12,12 @@ import {
   clearAdminSessionCookie,
   assertAdminSecretsConfigured,
 } from '../middleware/requireAdminSession.js';
-import { createUser, UserAlreadyExistsError } from '../services/userService.js';
+import {
+  createUser,
+  resetUserPassword,
+  UserAlreadyExistsError,
+  UserNotFoundError,
+} from '../services/userService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RULES_DIR = path.join(__dirname, '..', '..', 'rules');
@@ -20,6 +25,7 @@ const RULES_DIR = path.join(__dirname, '..', '..', 'rules');
 const router = Router();
 
 const RECORDS_PAGE_SIZE = 50;
+
 
 function adminConfigErrorMessage() {
   if (!process.env.ADMIN_PASSWORD) {
@@ -39,25 +45,35 @@ function renderLoginPage({ errorHtml = '' } = {}) {
 
   return `<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8" /><title>Admin Login — AutoCat</title>
-<style>
-  body { font-family: system-ui, sans-serif; background: #f7f7f8; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-  form { background: #fff; padding: 32px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); width: 320px; }
-  h1 { font-size: 18px; margin: 0 0 16px; }
-  input { width: 100%; padding: 8px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-bottom: 12px; }
-  button { width: 100%; padding: 8px; background: #1a1a1a; color: #fff; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .error { background: #fde8e8; color: #a11; border: 1px solid #f3b8b8; padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px; }
-</style>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Admin Login — Domidexx AutoCat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/admin.css" />
+<link rel="icon" href="/logo/logo-32.png" />
 </head>
 <body>
-<form method="POST" action="/admin/login">
-  <h1>AutoCat Admin</h1>
-  ${configBanner}
-  ${errorHtml}
-  <input type="password" name="password" placeholder="Password" required autofocus ${configError ? 'disabled' : ''} />
-  <button type="submit" ${configError ? 'disabled' : ''}>Log in</button>
-</form>
+<div class="login-shell">
+  <form class="login-card" method="POST" action="/admin/login">
+    <div class="login-brand">
+      <img src="/logo/logo-64.png" width="48" height="48" alt="Domidexx AutoCat logo" />
+      <div>
+        <h1>Domidexx AutoCat</h1>
+        <p>Admin console</p>
+      </div>
+    </div>
+    ${configBanner}
+    ${errorHtml}
+    <label><span>Admin password</span>
+      <input type="password" name="password" required autofocus ${configError ? 'disabled' : ''} />
+    </label>
+    <button class="btn" type="submit" ${configError ? 'disabled' : ''}>Log in</button>
+    <p class="muted" style="margin-top:14px;font-size:0.82rem">Library user passwords are managed on the Users page after login. The shared admin password is set via the <code>ADMIN_PASSWORD</code> environment variable in Render.</p>
+  </form>
+</div>
 </body>
 </html>`;
 }
@@ -78,10 +94,12 @@ function escapeHtml(value) {
 }
 
 const NAV_ITEMS = [
+  { href: '/admin', label: 'Overview' },
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/records', label: 'Records' },
   { href: '/admin/usage', label: 'Usage' },
   { href: '/admin/rules', label: 'Rules' },
+  { href: '/admin/settings', label: 'Settings' },
 ];
 
 function layout({ title, activeHref, body }) {
@@ -94,41 +112,27 @@ function layout({ title, activeHref, body }) {
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>${escapeHtml(title)} — AutoCat Admin</title>
-<style>
-  body { font-family: system-ui, sans-serif; margin: 0; color: #1a1a1a; background: #f7f7f8; }
-  header { background: #1a1a1a; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
-  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
-  header nav a { color: #ccc; text-decoration: none; margin-right: 16px; font-size: 14px; }
-  header nav a:hover, header nav a.active { color: #fff; font-weight: 600; }
-  header form { margin-left: auto; }
-  header button { background: none; border: 1px solid #555; color: #ccc; border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; }
-  main { padding: 24px; max-width: 1100px; margin: 0 auto; }
-  h2 { font-size: 20px; margin-top: 0; }
-  table { border-collapse: collapse; width: 100%; background: #fff; margin-bottom: 24px; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e5e5; font-size: 14px; }
-  th { background: #eee; font-weight: 600; }
-  tr:hover td { background: #fafafa; }
-  form.inline { display: inline-block; margin: 0; }
-  fieldset { border: 1px solid #ddd; border-radius: 6px; padding: 16px; margin-bottom: 24px; background: #fff; max-width: 480px; }
-  legend { font-weight: 600; padding: 0 6px; }
-  label { display: block; margin-bottom: 10px; font-size: 14px; }
-  label span { display: block; margin-bottom: 4px; color: #555; }
-  input, select { padding: 6px 8px; font-size: 14px; width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-  button[type="submit"], .button { background: #1a1a1a; color: #fff; border: none; border-radius: 4px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
-  .error { background: #fde8e8; color: #a11; border: 1px solid #f3b8b8; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; }
-  .success { background: #e6f6e9; color: #17692a; border: 1px solid #b7e2c0; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; }
-  .muted { color: #888; }
-  pre { background: #1a1a1a; color: #e8e8e8; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
-  a.button-link { display: inline-block; text-decoration: none; }
-  .pagination { display: flex; gap: 8px; align-items: center; font-size: 14px; }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>${escapeHtml(title)} — Domidexx AutoCat Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,650&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/admin.css" />
+<link rel="icon" href="/logo/logo-32.png" />
 </head>
 <body>
-<header>
-  <h1>AutoCat Admin</h1>
+<header class="topbar">
+  <a class="brand" href="/admin">
+    <img src="/logo/logo-64.png" width="36" height="36" alt="Domidexx AutoCat logo" />
+    <span class="brand-text">
+      <strong>Domidexx AutoCat</strong>
+      <span>Admin console</span>
+    </span>
+  </a>
   <nav>${nav}</nav>
-  <form method="POST" action="/admin/logout"><button type="submit">Log out</button></form>
+  <div class="topbar-actions">
+    <form method="POST" action="/admin/logout"><button type="submit">Log out</button></form>
+  </div>
 </header>
 <main>
 ${body}
@@ -214,13 +218,27 @@ router.get(
 
     res.send(
       layout({
-        title: 'Dashboard',
-        activeHref: null,
+        title: 'Overview',
+        activeHref: '/admin',
         body: `
-          <h2>Dashboard</h2>
-          <p class="muted">${userCount[0].count} users &middot; ${recordCount[0].count} MARC records.</p>
-          <p>Use the navigation above to manage users, review drafted records, check API usage, or sanity-check the loaded cataloguing rules.</p>
-          <p class="muted"><a href="/health">System health</a></p>
+          <h2>Overview</h2>
+          <p class="lede">Monitor cataloguers, drafted MARC records, and system health. Library user passwords can be reset on the Users page.</p>
+          <div class="grid-2">
+            <div class="panel">
+              <h3 class="panel-title">Library users</h3>
+              <p style="font-size:2rem;margin:0;font-family:var(--font-display)">${userCount[0].count}</p>
+              <p class="muted">Accounts that sign in through the AutoCat extension.</p>
+            </div>
+            <div class="panel">
+              <h3 class="panel-title">MARC records</h3>
+              <p style="font-size:2rem;margin:0;font-family:var(--font-display)">${recordCount[0].count}</p>
+              <p class="muted">Draft and completed records stored in Postgres.</p>
+            </div>
+          </div>
+          <div class="panel">
+            <h3 class="panel-title">Quick links</h3>
+            <p class="muted"><a href="/admin/users">Manage users &amp; passwords</a> · <a href="/admin/records">Review records</a> · <a href="/health">System health JSON</a></p>
+          </div>
         `,
       })
     );
@@ -245,18 +263,27 @@ function renderUsersPage({ users, formError, notice }) {
         ? new Date(user.last_seen_at).toLocaleString()
         : '<span class="muted">never</span>';
       return `<tr>
-        <td>${escapeHtml(user.email)}</td>
+        <td>
+          <strong>${escapeHtml(user.email)}</strong>
+          <div class="muted" style="font-size:0.8rem">#${user.id}</div>
+        </td>
         <td>${escapeHtml(user.institution_name ?? '—')}</td>
-        <td>${escapeHtml(user.subscription_tier)}</td>
+        <td><span class="badge">${escapeHtml(user.subscription_tier)}</span></td>
         <td>${new Date(user.created_at).toLocaleDateString()}</td>
         <td>${lastSeen}</td>
         <td>
           <form class="inline" method="POST" action="/admin/users/${user.id}/tier">
-            <select name="tier" style="width:auto;display:inline-block;">
+            <select name="tier">
               <option value="free" ${user.subscription_tier === 'free' ? 'selected' : ''}>free</option>
               <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>paid</option>
             </select>
-            <button type="submit" class="button" style="padding:4px 8px;">Save</button>
+            <button type="submit" class="btn">Save tier</button>
+          </form>
+        </td>
+        <td>
+          <form class="inline" method="POST" action="/admin/users/${user.id}/password">
+            <input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" />
+            <button type="submit" class="btn btn-secondary">Set password</button>
           </form>
         </td>
       </tr>`;
@@ -268,17 +295,20 @@ function renderUsersPage({ users, formError, notice }) {
     activeHref: '/admin/users',
     body: `
       <h2>Users</h2>
+      <p class="lede">Create cataloguer accounts and reset passwords manually. Setting a password clears that user's extension sessions.</p>
       ${formError ? `<div class="error">${escapeHtml(formError)}</div>` : ''}
       ${notice ? `<div class="success">${escapeHtml(notice)}</div>` : ''}
-      <table>
-        <thead><tr><th>Email</th><th>Institution</th><th>Tier</th><th>Created</th><th>Last active</th><th>Change tier</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="6" class="muted">No users yet.</td></tr>'}</tbody>
-      </table>
-      <fieldset>
-        <legend>Create user</legend>
-        <form method="POST" action="/admin/users">
+      <div class="panel table-wrap">
+        <table>
+          <thead><tr><th>Email</th><th>Institution</th><th>Tier</th><th>Created</th><th>Last active</th><th>Change tier</th><th>Reset password</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="7" class="muted">No users yet.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="panel">
+        <h3 class="panel-title">Create user</h3>
+        <form class="stack-form" method="POST" action="/admin/users">
           <label><span>Email</span><input type="email" name="email" required /></label>
-          <label><span>Password</span><input type="password" name="password" minlength="8" required /></label>
+          <label><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="new-password" /></label>
           <label><span>Institution slug</span><input type="text" name="institution_slug" placeholder="e.g. riverside-public-library" required /></label>
           <label><span>Subscription tier</span>
             <select name="subscription_tier">
@@ -286,9 +316,9 @@ function renderUsersPage({ users, formError, notice }) {
               <option value="paid">paid</option>
             </select>
           </label>
-          <button type="submit">Create user</button>
+          <button class="btn" type="submit">Create user</button>
         </form>
-      </fieldset>
+      </div>
     `,
   });
 }
@@ -310,7 +340,11 @@ router.get(
       renderUsersPage({
         users,
         formError: req.query.error || null,
-        notice: req.query.created ? 'User created.' : null,
+        notice: req.query.created
+          ? 'User created.'
+          : req.query.password_reset
+            ? 'Password updated. Existing extension sessions for that user were signed out.'
+            : null,
       })
     );
   })
@@ -343,6 +377,7 @@ router.post(
 );
 
 const tierSchema = z.object({ tier: z.enum(['free', 'paid']) });
+const passwordSchema = z.object({ password: z.string().min(8) });
 
 router.post(
   '/users/:id/tier',
@@ -357,6 +392,63 @@ router.post(
     res.redirect('/admin/users');
   })
 );
+
+router.post(
+  '/users/:id/password',
+  asyncHandler(async (req, res) => {
+    const parsed = passwordSchema.safeParse(req.body);
+    const userId = Number(req.params.id);
+    if (!parsed.success || !Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Password must be at least 8 characters.')}`);
+    }
+
+    try {
+      await resetUserPassword(userId, parsed.data.password);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+
+    res.redirect('/admin/users?password_reset=1');
+  })
+);
+
+router.get('/settings', (_req, res) => {
+  res.send(
+    layout({
+      title: 'Settings',
+      activeHref: '/admin/settings',
+      body: `
+        <h2>Settings</h2>
+        <p class="lede">Password and branding notes for operators.</p>
+        <div class="panel">
+          <h3 class="panel-title">Library user passwords</h3>
+          <p>Reset any cataloguer password from <a href="/admin/users">Users → Reset password</a>. That updates the stored hash and signs out their extension sessions immediately.</p>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Admin console password</h3>
+          <p>There is a single shared admin password (no per-admin accounts yet). Change it in the Render dashboard:</p>
+          <ol>
+            <li>Open the Domidexx_AutoCat service → Environment</li>
+            <li>Edit <code>ADMIN_PASSWORD</code></li>
+            <li>Save and redeploy / restart so the new value is loaded</li>
+          </ol>
+          <p class="muted">The value is never shown in this UI and is not stored in the database.</p>
+        </div>
+        <div class="panel">
+          <h3 class="panel-title">Brand logo</h3>
+          <p>The header uses the Domidexx AutoCat mark from <code>/logo/logo-64.png</code>.</p>
+          <img src="/logo/logo-128.png" width="96" height="96" alt="Domidexx AutoCat logo preview" style="border-radius:16px;background:#fff;border:1px solid var(--line)" />
+        </div>
+        <div class="notice">
+          The green “Add MARC record” screens with tabs 0–9 are <strong>Koha’s own cataloguing UI</strong>. AutoCat fills fields into Koha; it does not replace Koha’s chrome. UI refreshes here apply to the AutoCat admin console and extension.
+        </div>
+      `,
+    })
+  );
+});
 
 // ---------------------------------------------------------------------
 // Records
@@ -416,11 +508,13 @@ router.get(
         activeHref: '/admin/records',
         body: `
           <h2>Records</h2>
-          <p class="muted">${total} MARC record${total === 1 ? '' : 's'} total.</p>
+          <p class="lede">${total} MARC record${total === 1 ? '' : 's'} total.</p>
+          <div class="panel table-wrap">
           <table>
             <thead><tr><th>ISBN</th><th>Title</th><th>User</th><th>Status</th><th>Created</th></tr></thead>
             <tbody>${rows || '<tr><td colspan="5" class="muted">No records yet.</td></tr>'}</tbody>
           </table>
+          </div>
           ${pagination}
         `,
       })
@@ -519,11 +613,13 @@ router.get(
         activeHref: '/admin/usage',
         body: `
           <h2>API usage</h2>
-          <p class="muted">Estimated tokens are whatever each provider call logged to api_usage.tokens_used; not a billing figure.</p>
+          <p class="lede">Estimated tokens are whatever each provider call logged to api_usage.tokens_used; not a billing figure.</p>
+          <div class="panel table-wrap">
           <table>
             <thead><tr><th>Provider</th><th>Calls (7d)</th><th>Tokens (7d)</th><th>Calls (30d)</th><th>Tokens (30d)</th></tr></thead>
             <tbody>${tableRows || '<tr><td colspan="5" class="muted">No API usage recorded yet.</td></tr>'}</tbody>
           </table>
+          </div>
         `,
       })
     );
@@ -567,6 +663,7 @@ router.get(
         activeHref: '/admin/rules',
         body: `
           <h2>Cataloguing standard</h2>
+          <div class="panel table-wrap">
           <table>
             <tbody>
               <tr><th>Standard</th><td>${escapeHtml(ruleProfile.cataloguing_standard)}</td></tr>
@@ -575,11 +672,14 @@ router.get(
               <tr><th>Notes</th><td>${escapeHtml(ruleProfile.notes ?? '—')}</td></tr>
             </tbody>
           </table>
+          </div>
           <h2>MARC tags with rules defined (${fieldRules.length})</h2>
+          <div class="panel table-wrap">
           <table>
             <thead><tr><th>Tag</th><th>Field name</th></tr></thead>
             <tbody>${tagRows}</tbody>
           </table>
+          </div>
           <p class="muted">Rule content itself lives in backend/rules/ -- this is a read-only sanity-check view; editing rules via the UI is a future task.</p>
         `,
       })

@@ -10,6 +10,8 @@
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import {
   ensureSchema,
   checkDatabase,
@@ -22,6 +24,9 @@ import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
 import recordsRouter from './routes/records.js';
 import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.join(__dirname, '..', 'public');
 
 const app = express();
 const port = process.env.PORT || 10000;
@@ -51,6 +56,7 @@ const extensionCors = cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(publicDir));
 
 function classifyError(err) {
   if (!err) return 'internal_error';
