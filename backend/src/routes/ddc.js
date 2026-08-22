@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { asyncHandler } from '../lib/asyncHandler.js';
+import { requireSession } from '../middleware/requireSession.js';
+import { recommendDdc } from '../services/ddcClassificationService.js';
+import { searchDdc } from '../services/ddcKnowledgeBase.js';
+import { approveDdcDecision, getDdcDecision, saveDdcDecision, toMarc082Contract } from '../services/ddcApprovalService.js';
+const router=Router(); router.use(requireSession);
+router.get('/search', asyncHandler(async(req,res)=>res.json({results:await searchDdc(req.query.q, Number(req.query.limit)||20)})));
+router.post('/recommend', asyncHandler(async(req,res)=>{ const metadata=req.body?.metadata||req.body||{}; const decision=recommendDdc(metadata); const row=await saveDdcDecision({userId:req.user.userId,metadata,decision}); res.status(201).json({id:row.id,decision}); }));
+router.get('/:id', asyncHandler(async(req,res)=>{ const row=await getDdcDecision(req.params.id,req.user.userId); if(!row) return res.status(404).json({error:'DDC decision not found'}); res.json({id:row.id,decision:row.decision_json,marc082:toMarc082Contract(row)}); }));
+router.post('/:id/approve', asyncHandler(async(req,res)=>{ const row=await approveDdcDecision({id:req.params.id,userId:req.user.userId,action:req.body.action||'APPROVE',ddcNumber:req.body.ddc_number,approvedBy:req.body.approved_by||`user:${req.user.userId}`}); res.json({id:row.id,decision:row.decision_json,marc082:toMarc082Contract(row)}); }));
+export default router;

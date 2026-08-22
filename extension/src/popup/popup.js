@@ -173,6 +173,16 @@ function renderWorkspace(me) {
       </form>
       <div id="lookup-result"></div>
     </div>
+    <div class="panel">
+      <h2>DDC Classification</h2>
+      <p class="muted">Analyze the whole-book subject before approving 082$a.</p>
+      <form id="ddc-form">
+        <label><span>Title</span><input name="title" required /></label>
+        <label><span>Description / TOC</span><textarea name="description" rows="4" placeholder="Paste description, abstract, or table of contents"></textarea></label>
+        <button type="submit">Recommend DDC</button>
+      </form>
+      <div id="ddc-result"></div>
+    </div>
     <div class="panel row">
       <button type="button" class="secondary" id="logout">Log out</button>
     </div>
@@ -189,6 +199,19 @@ function renderWorkspace(me) {
   });
 
   const resultEl = app.querySelector('#lookup-result');
+  const ddcResultEl = app.querySelector('#ddc-result');
+  app.querySelector('#ddc-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    ddcResultEl.innerHTML = '<p class="muted">Analyzing whole-book subject…</p>';
+    try {
+      const response = await apiFetch('/api/ddc/recommend', { method: 'POST', body: JSON.stringify({ metadata: { title: form.get('title'), description: form.get('description') } }) });
+      const body = await readJson(response);
+      if (!response.ok) { ddcResultEl.innerHTML = `<div class="error">${escapeHtml(formatError(body, 'DDC recommendation failed.'))}</div>`; return; }
+      const d = body.decision;
+      ddcResultEl.innerHTML = `<div class="result ddc-panel"><strong>Primary subject:</strong> ${escapeHtml(d.primary_subject)}<br /><strong>Disciplinary domain:</strong> ${escapeHtml(d.disciplinary_domain)}<br /><strong>Main class:</strong> ${escapeHtml(d.main_class?.number)} — ${escapeHtml(d.main_class?.label)}<br /><strong>Classification path:</strong> ${escapeHtml((d.classification_path || []).join(' → '))}<br /><strong>Recommended DDC:</strong> ${escapeHtml(d.recommended_ddc?.number)} — ${escapeHtml(d.recommended_ddc?.label)}<br /><strong>Confidence:</strong> ${escapeHtml(d.recommended_ddc?.confidence)}<br /><strong>Why this number?</strong><p>${escapeHtml(d.justification)}</p><strong>Evidence:</strong><ul>${(d.evidence || []).map((e) => `<li>✓ ${escapeHtml(e.type)}</li>`).join('')}</ul><strong>Alternative candidates:</strong><ul>${(d.alternatives || []).map((a) => `<li>${escapeHtml(a.number)} — ${escapeHtml(a.label)}: ${escapeHtml(a.reason_rejected)}</li>`).join('') || '<li>None</li>'}</ul><strong>Provenance:</strong> ${escapeHtml((d.provenance || []).join(', '))}<br /><strong>Status:</strong> REQUIRES CATALOGUER APPROVAL</div>`;
+    } catch (error) { ddcResultEl.innerHTML = `<div class="error">${escapeHtml(error.message)}</div>`; }
+  });
   app.querySelector('#lookup-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const isbn = String(new FormData(event.currentTarget).get('isbn') || '').trim();

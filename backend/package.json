@@ -11,7 +11,9 @@
     "test:access": "node scripts/testUserAccess.js",
     "test:p1": "node scripts/testMarcRulesP1.js",
     "consistency:marc": "node scripts/marcConsistencyReport.js",
-    "test": "npm run test:p0 && npm run test:access && npm run test:p1"
+    "test": "npm run test:p0 && npm run test:access && npm run test:p1",
+    "seed:ddc": "node scripts/seedDdc.js",
+    "test:p2": "node scripts/testDdcP2.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

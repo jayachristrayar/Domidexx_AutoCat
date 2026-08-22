@@ -23,6 +23,7 @@ import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import meRouter from './routes/me.js';
 import recordsRouter from './routes/records.js';
+import ddcRouter from './routes/ddc.js';
 import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -108,6 +109,7 @@ app.use('/admin', adminRouter);
 app.use('/auth', extensionCors, authRouter);
 app.use('/me', extensionCors, meRouter);
 app.use('/records', extensionCors, recordsRouter);
+app.use('/api/ddc', extensionCors, ddcRouter);
 
 app.use((err, req, res, _next) => {
   if (err instanceof CorsOriginError) {

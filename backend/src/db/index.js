@@ -17,6 +17,9 @@ export const REQUIRED_TABLES = [
   'api_usage',
   'draft_state',
   'ddc_relative_index',
+  'ddc_classes',
+  'ddc_aliases',
+  'ddc_decisions',
 ];
 
 function buildPoolConfig() {
