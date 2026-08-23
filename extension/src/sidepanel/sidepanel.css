@@ -181,7 +181,8 @@ textarea {
 
 /* ---------- buttons ---------- */
 
-button {
+button,
+.button {
   appearance: none;
   border: none;
   border-radius: 7px;
@@ -193,19 +194,26 @@ button {
   background: var(--accent);
   color: var(--accent-ink);
   transition: background-color 0.15s ease, opacity 0.15s ease;
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+  box-sizing: border-box;
 }
 
-button:hover:not(:disabled) {
+button:hover:not(:disabled),
+.button:hover {
   background: var(--accent-dark);
 }
 
-button.secondary {
+button.secondary,
+.secondary {
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--line);
 }
 
-button.secondary:hover:not(:disabled) {
+button.secondary:hover:not(:disabled),
+.secondary:hover {
   background: var(--bg);
 }
 
@@ -226,8 +234,10 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button.full {
+button.full,
+.full {
   width: 100%;
+  margin-top: 8px;
 }
 
 /* ---------- status / feedback states ---------- */
@@ -449,6 +459,20 @@ button.full {
   background: transparent;
   color: var(--ink);
   border: 1px solid var(--line);
+}
+
+.contact-activation {
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.contact-activation a {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ---------- misc ---------- */

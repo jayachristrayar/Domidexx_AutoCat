@@ -67,6 +67,33 @@ async function boot() {
 // Login / sign up
 // ---------------------------------------------------------------------
 
+const ACTIVATION_CONTACT_EMAIL = 'team.domidexx@gmail.com';
+
+function contactActivationHtml(label = 'Need access? Contact us for activation') {
+  return `<p class="contact-activation">${escapeHtml(label)}: <a href="mailto:${ACTIVATION_CONTACT_EMAIL}">${ACTIVATION_CONTACT_EMAIL}</a></p>`;
+}
+
+// Shown after a successful signup (product spec section 2/10): the account
+// was created but is PENDING, and signup never issues a session -- there
+// is no workspace to move into, so this replaces the form rather than
+// logging the librarian in.
+function renderPendingActivation(data) {
+  app.innerHTML = `
+    <div class="card auth-card">
+      <div class="auth-logo">
+        <img src="../../assets/logo/icon48.png" alt="AutoCat logo" />
+        <h1>AutoCat</h1>
+        <p>MARC cataloguing assistant</p>
+      </div>
+      ${stateHtml('success', 'Account created successfully.')}
+      <p>${escapeHtml(data.message || 'Your account is currently pending activation by an administrator. Please contact the AutoCat team to request credential activation.')}</p>
+      <a class="button full" href="mailto:${ACTIVATION_CONTACT_EMAIL}">Contact us for activation</a>
+      <button type="button" class="secondary full" id="back-to-login">Back to log in</button>
+    </div>
+  `;
+  app.querySelector('#back-to-login').addEventListener('click', () => renderAuth());
+}
+
 function renderAuth(message = '') {
   app.innerHTML = `
     <div class="card auth-card">
@@ -85,6 +112,7 @@ function renderAuth(message = '') {
         <button type="submit" id="auth-submit" class="full">Log in</button>
       </form>
       <div id="auth-status"></div>
+      ${contactActivationHtml()}
     </div>
   `;
 
@@ -130,11 +158,15 @@ function renderAuth(message = '') {
     const password = String(form.get('password') || '');
 
     try {
-      const me =
-        mode === 'login'
-          ? await api.login(email, password)
-          : await api.signup(email, password, String(form.get('institution_slug') || '').trim());
-      renderWorkspace(me);
+      if (mode === 'login') {
+        const me = await api.login(email, password);
+        renderWorkspace(me);
+        return;
+      }
+      // Signup never logs the librarian in -- the account is created
+      // PENDING and stays that way until an administrator approves it.
+      const pending = await api.signup(email, password, String(form.get('institution_slug') || '').trim());
+      renderPendingActivation(pending);
     } catch (error) {
       submit.disabled = false;
       statusEl.innerHTML = stateHtml('error', error.message);

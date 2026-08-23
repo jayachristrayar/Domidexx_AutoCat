@@ -92,6 +92,18 @@ export function hasValidAdminSession(req) {
 
 export function requireAdminSession(req, res, next) {
   if (!hasValidAdminSession(req)) {
+    // A human admin who just isn't logged in yet gets sent to the login
+    // page (normal dashboard UX). A caller presenting a librarian bearer
+    // token, or explicitly asking for JSON, is an API-style request (e.g.
+    // a librarian session, or a security test, hitting an admin endpoint)
+    // -- it gets a hard 403, never a redirect a script would just follow
+    // into an HTML login page and treat as "success". Admin authorization
+    // is never satisfied by a librarian's session token: the two systems
+    // are entirely separate credentials (product spec section 6/14).
+    const looksLikeApiCaller = Boolean(req.headers.authorization) || /application\/json/i.test(req.headers.accept || '');
+    if (looksLikeApiCaller) {
+      return res.status(403).json({ error: 'Admin authorization required', error_class: 'authorization_error' });
+    }
     return res.redirect('/admin/login');
   }
   next();
