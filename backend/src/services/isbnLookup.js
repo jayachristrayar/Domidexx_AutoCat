@@ -1,6 +1,7 @@
 import pool from '../db/index.js';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
 import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
+import { recordUsage } from './usageService.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
 const FETCH_TIMEOUT_MS = 8000;
@@ -251,16 +252,8 @@ function emptyNormalizedRecord(isbn) {
   };
 }
 
-async function logApiUsage(userId, model, tokensUsed) {
-  try {
-    await pool.query('INSERT INTO api_usage (user_id, provider, tokens_used) VALUES ($1, $2, $3)', [
-      userId ?? null,
-      model,
-      tokensUsed ?? null,
-    ]);
-  } catch (error) {
-    console.error(`ISBN web-search fallback: failed to log api_usage: ${error.message}`);
-  }
+function logApiUsage(userId, model, tokensUsed) {
+  return recordUsage({ userId, provider: 'openai', model, requestType: 'ISBN', tokensUsed, status: 'success' });
 }
 
 function extractCitations(response) {

@@ -1,11 +1,45 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import pool from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { lookupIsbn } from '../services/isbnLookup.js';
 import { generateMarcRecord } from '../services/marcPipeline.js';
 
 const router = Router();
+
+// A librarian-readable plain-text rendering of the generated fields, stored
+// alongside marc_json purely for the admin Records detail page -- not a
+// formal ISO2709 export.
+function buildMarcText(preview) {
+  return (preview || [])
+    .map((row) => `${row.tag}  ${row.indicators || '  '}  ${(row.value || '').trim()}`.trimEnd())
+    .join('\n');
+}
+
+// Persists exactly one thing: an actual MARC record generation (product
+// spec section 7/8 -- an ISBN lookup on its own is an operational action,
+// never a stored record; the Records page must only ever show what this
+// saves). Never blocks/fails the actual generate-marc response over a save
+// error -- the librarian's workflow must not break because of an admin
+// reporting concern.
+async function saveMarcRecord({ userId, result }) {
+  try {
+    await pool.query(
+      `INSERT INTO marc_records (user_id, isbn, marc_json, marc_text, status)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        userId,
+        result.metadata?.isbn || null,
+        JSON.stringify(result.fields),
+        buildMarcText(result.preview),
+        result.validation.valid ? 'COMPLETED' : 'NEEDS_REVIEW',
+      ]
+    );
+  } catch (error) {
+    console.error(`generate-marc: failed to save marc_records row: ${error.message}`);
+  }
+}
 
 const isbnParamSchema = z.object({
   isbn: z
@@ -75,6 +109,7 @@ router.post(
   requireSession,
   asyncHandler(async (req, res) => {
     const result = generateMarcRecord(req.body ?? {});
+    await saveMarcRecord({ userId: req.user.userId, result });
     res.status(result.validation.valid ? 201 : 422).json(result);
   })
 );

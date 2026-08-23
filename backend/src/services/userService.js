@@ -6,6 +6,16 @@ const SALT_ROUNDS = 12;
 export class UserAlreadyExistsError extends Error {}
 export class UserNotFoundError extends Error {}
 
+// The admin-only FREE/PAID classification (never shown to the librarian
+// extension -- see modelAccess.js) always drives model_access, never the
+// other way around: FREE = NVIDIA only, PAID = NVIDIA + OpenAI, applied
+// automatically in the same statement/transaction as the tier change so
+// there is no second manual "also enable OpenAI" step and no way for the
+// two to drift apart in the database.
+function modelAccessForTier(tier) {
+  return tier === 'paid' ? ['NVIDIA', 'OPENAI'] : ['NVIDIA'];
+}
+
 function institutionNameFromSlug(slug) {
   return slug
     .split(/[-_]+/)
@@ -59,14 +69,18 @@ export async function createUser({
 
   const insertedUser = await pool.query(
     `INSERT INTO users (
-       email, password_hash, institution_id, subscription_tier,
+       email, password_hash, institution_id, subscription_tier, model_access,
        is_active, status, device_limit, expires_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     RETURNING id`,
-    [email, passwordHash, institutionId, subscriptionTier, isActive, status, deviceLimit, expiresAt]
+     ) VALUES ($1, $2, $3, $4, $5::text[], $6, $7, $8, $9)
+     RETURNING id, autocat_user_id`,
+    [email, passwordHash, institutionId, subscriptionTier, modelAccessForTier(subscriptionTier), isActive, status, deviceLimit, expiresAt]
   );
 
-  return { userId: insertedUser.rows[0].id, institutionId };
+  return {
+    userId: insertedUser.rows[0].id,
+    autocatUserId: insertedUser.rows[0].autocat_user_id,
+    institutionId,
+  };
 }
 
 // Admin-initiated password reset for a library user. Updates the hash and
@@ -155,6 +169,24 @@ export function enableOpenAiAccess(userId) {
 
 export function disableOpenAiAccess(userId) {
   return setModelAccess(userId, ['NVIDIA']);
+}
+
+// setSubscriptionTier -- the admin-only FREE/PAID toggle (admin.js's Users
+// page / Manage drawer). Changing the tier ALWAYS recomputes model_access
+// in the same UPDATE statement: FREE -> NVIDIA only, PAID -> NVIDIA +
+// OpenAI, automatically, with no separate "also enable OpenAI" step and no
+// window where the two columns could disagree. This is the only tier
+// write path -- there is no route that sets subscription_tier without
+// going through here.
+export async function setSubscriptionTier(userId, tier) {
+  const result = await pool.query(
+    'UPDATE users SET subscription_tier = $1, model_access = $2::text[] WHERE id = $3 RETURNING subscription_tier, model_access',
+    [tier, modelAccessForTier(tier), userId]
+  );
+  if (result.rows.length === 0) {
+    throw new UserNotFoundError('User not found');
+  }
+  return { userId, subscriptionTier: result.rows[0].subscription_tier, modelAccess: result.rows[0].model_access };
 }
 
 export async function updateUserAccess({ userId, deviceLimit, expiresAt }) {

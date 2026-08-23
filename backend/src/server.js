@@ -27,6 +27,7 @@ import ddcRouter from './routes/ddc.js';
 import marcFrameworksRouter from './routes/marcFrameworks.js';
 import chatRouter from './routes/chat.js';
 import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
+import { seedMarcFrameworks } from './services/marcFrameworkService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, '..', 'public');
@@ -171,6 +172,22 @@ async function start() {
     });
     // Still listen so /health can report the failure; request handlers that
     // touch the DB will keep returning errors until connectivity/schema is fixed.
+  }
+
+  try {
+    // seedMarcFrameworks() is an idempotent set of ON CONFLICT upserts (see
+    // marcFrameworkService.js) -- safe to run on every boot, the same way
+    // ensureSchema() is. Without this, a fresh deploy's marc_frameworks
+    // table stays empty forever unless someone manually runs
+    // `npm run seed:marc-frameworks`, which is not something the production
+    // Admin UI should ever have to tell an admin to do.
+    const seeded = await seedMarcFrameworks();
+    console.log(`MARC frameworks ensured: ${seeded.generalFields} General MARC21 fields, ${seeded.customFields} custom framework fields.`);
+  } catch (error) {
+    console.error('Failed to seed MARC frameworks on startup:', {
+      code: error.code || null,
+      message: error.message,
+    });
   }
 
   startModelRefreshSchedule();
