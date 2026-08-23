@@ -195,30 +195,33 @@ function kohaStatusHtml(state) {
 }
 
 // ---------------------------------------------------------------------
-// AI model selector -- shows only what this account is authorized for
-// (product spec section 5/20: never a tier/plan/pricing word, just the
-// model names). A single-model account gets a plain label (plus a locked
-// row for anything it isn't authorized for, so unavailability is visible
-// without naming why); an account authorized for more than one gets a
-// real dropdown.
+// AI model selector. The librarian must never learn which underlying
+// provider they're using -- only the backend's generic MODEL_1/MODEL_2
+// labels ever reach this file (see backend/src/services/modelLabels.js;
+// /me and /api/ddc/recommend both translate before responding). No
+// "NVIDIA"/"OpenAI"/tier/plan/API wording is ever rendered here -- the
+// Admin Panel is the only place that shows real provider configuration.
 // ---------------------------------------------------------------------
 
-const ALL_MODELS = ['NVIDIA', 'OPENAI'];
-const MODEL_LABELS = { NVIDIA: 'NVIDIA', OPENAI: 'OpenAI' };
+const ALL_MODELS = ['MODEL_1', 'MODEL_2'];
+const MODEL_DISPLAY_NAMES = { MODEL_1: 'Model 1', MODEL_2: 'Model 2' };
 
-function modelSelectorHtml(modelAccess) {
-  const access = Array.isArray(modelAccess) && modelAccess.length > 0 ? modelAccess : ['NVIDIA'];
-  if (access.length <= 1) {
-    return ALL_MODELS.map((model) =>
-      access.includes(model)
-        ? `<p class="model-current">${escapeHtml(MODEL_LABELS[model])}</p>`
-        : `<p class="model-locked">${escapeHtml(MODEL_LABELS[model])} <span class="lock">🔒 Access required</span></p>`
-    ).join('');
-  }
+// Two buttons, always both shown -- the active one carries a checkmark, an
+// unauthorized one carries a lock icon (still clickable: clicking it shows
+// the "not available" message rather than silently doing nothing).
+function modelButtonsHtml(modelAccess, selected) {
+  const access = Array.isArray(modelAccess) && modelAccess.length > 0 ? modelAccess : ['MODEL_1'];
   return `
-    <select id="model-select">
-      ${access.map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(MODEL_LABELS[model] || model)}</option>`).join('')}
-    </select>
+    <div class="model-buttons" id="model-buttons">
+      ${ALL_MODELS.map((model) => {
+        const available = access.includes(model);
+        const active = model === selected;
+        const classes = ['model-btn'];
+        if (active) classes.push('active');
+        if (!available) classes.push('locked');
+        return `<button type="button" class="${classes.join(' ')}" data-model="${model}">${escapeHtml(MODEL_DISPLAY_NAMES[model])}${active ? ' <span class="model-check">✓</span>' : ''}${!available ? ' <span class="model-lock">🔒</span>' : ''}</button>`;
+      }).join('')}
+    </div>
   `;
 }
 
@@ -360,8 +363,8 @@ function renderWorkspace(me) {
     <div class="card koha-status-card" id="koha-status">${kohaStatusHtml('DETECTING')}</div>
 
     <div class="card" id="model-card">
-      <label class="section-title" for="model-select">AI Model</label>
-      <div id="model-select-wrap">${modelSelectorHtml(me.model_access)}</div>
+      <p class="section-title">AI Model</p>
+      <div id="model-buttons-wrap">${modelButtonsHtml(me.model_access, (me.model_access && me.model_access[0]) || 'MODEL_1')}</div>
       <div id="model-status"></div>
     </div>
 
@@ -435,17 +438,39 @@ function renderWorkspace(me) {
     ddcDecision: null,
     ddcSource: 'ai', // 'ai' | 'cataloguer' -- section 41: keep these distinguishable
     marcResult: null,
-    // The account's own default -- whatever the backend put first in
-    // model_access (NVIDIA for every account unless an admin also granted
-    // OpenAI). Only ever changed by the librarian via the model dropdown
+    // modelAccess holds only the generic MODEL_1/MODEL_2 labels the backend
+    // sent -- never a real provider name. Defaults to whatever the account
+    // is granted (MODEL_1 for every account unless an admin also granted
+    // MODEL_2). Only ever changed by the librarian clicking a model button
     // below, never inferred or silently swapped by the extension itself.
-    selectedModel: (me.model_access && me.model_access[0]) || 'NVIDIA',
+    modelAccess: Array.isArray(me.model_access) && me.model_access.length > 0 ? me.model_access : ['MODEL_1'],
+    selectedModel: (me.model_access && me.model_access[0]) || 'MODEL_1',
   };
 
   const modelStatus = app.querySelector('#model-status');
-  app.querySelector('#model-select')?.addEventListener('change', (event) => {
-    state.selectedModel = event.target.value;
+  const modelButtonsWrap = app.querySelector('#model-buttons-wrap');
+
+  function renderModelButtons() {
+    modelButtonsWrap.innerHTML = modelButtonsHtml(state.modelAccess, state.selectedModel);
+  }
+
+  modelButtonsWrap.addEventListener('click', (event) => {
+    const button = event.target.closest('.model-btn');
+    if (!button) return;
+    const requested = button.dataset.model;
+    if (!state.modelAccess.includes(requested)) {
+      // Client-side only -- no backend call needed to know a model this
+      // account isn't authorized for is unavailable. Exact wording and
+      // contact link per spec: no "NVIDIA"/"OpenAI"/tier/plan/API mention.
+      modelStatus.innerHTML = `
+        ${stateHtml('error', `${escapeHtml(MODEL_DISPLAY_NAMES[requested] || requested)} is not available for your account. Please contact the administrator to upgrade access.`)}
+        <p class="hint">Contact: <a href="mailto:${ACTIVATION_CONTACT_EMAIL}">${ACTIVATION_CONTACT_EMAIL}</a></p>
+      `;
+      return;
+    }
+    state.selectedModel = requested;
     modelStatus.innerHTML = '';
+    renderModelButtons();
   });
 
   const bookCard = app.querySelector('#book-card');
@@ -527,9 +552,10 @@ function renderWorkspace(me) {
     // asked for. Exact wording and the clickable contact link per product
     // spec section 6/19 -- never "upgrade your plan" language.
     if (error.code === 'MODEL_NOT_AUTHORIZED') {
-      const email = error.contactEmail || 'team.domidexx@gmail.com';
+      const email = error.contactEmail || ACTIVATION_CONTACT_EMAIL;
+      const modelName = MODEL_DISPLAY_NAMES[error.requestedModel] || 'This model';
       targetEl.innerHTML = `
-        ${stateHtml('error', 'OpenAI access is not enabled for your account. Please contact the administrator to upgrade access.')}
+        ${stateHtml('error', `${escapeHtml(modelName)} is not available for your account. Please contact the administrator to upgrade access.`)}
         <p class="hint">Contact: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
       `;
       return;

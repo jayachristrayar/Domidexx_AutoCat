@@ -180,8 +180,9 @@ async function actionRecommendDdc({ metadata, model }) {
       // friendlyResultFor's generic 401/403 handling would otherwise
       // misroute this into "session expired, log in again", which is wrong
       // and would even sign a still-valid session out. Give it its own
-      // code so the Side Panel can show the actual "OpenAI access is not
-      // enabled" message instead.
+      // code so the Side Panel can show the "not available for your
+      // account" message instead (model is one of the generic MODEL_1/
+      // MODEL_2 labels -- never a real provider name, see modelLabels.js).
       if (response.status === 403 && body?.error_class === 'model_access_error') {
         return { ok: false, code: 'MODEL_NOT_AUTHORIZED', message: body.error, contactEmail: body.contact_email, requestedModel: model };
       }

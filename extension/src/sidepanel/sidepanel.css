@@ -552,20 +552,38 @@ button.full,
 
 /* ---------- AI model selector ---------- */
 
-.model-current {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 700;
+.model-buttons {
+  display: flex;
+  gap: 8px;
 }
 
-.model-locked {
-  margin: 4px 0 0;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.model-locked .lock {
+.model-btn {
+  flex: 1;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
   font-weight: 600;
+}
+
+.model-btn:hover:not(.locked) {
+  background: var(--bg);
+}
+
+.model-btn.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.model-btn.locked,
+.model-btn.locked:hover {
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.model-check,
+.model-lock {
+  margin-left: 2px;
 }
 
 /* ---------- book details ---------- */
