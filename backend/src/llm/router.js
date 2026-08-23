@@ -18,11 +18,28 @@ import { getAvailableOpenAiModel, getOpenAiClientForFallback } from '../services
 // plain env var instead, with a documented default.
 const DEFAULT_NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
 
+// See openaiModelSelector.js's CLIENT_TIMEOUT_MS for why this exists at
+// all: an unbounded provider call (the SDK's own default is 10 minutes)
+// risks being killed by the hosting platform's own request timeout before
+// this app ever gets to respond with a real, diagnosable error.
+const CLIENT_TIMEOUT_MS = 55_000;
+// callOpenAi/callNvidia below use a much tighter per-call timeout -- these
+// are single-shot text completions (no web_search tool), which normally
+// return in a few seconds; ddcClassificationService.js already retries a
+// rejected/invalid answer itself with corrective feedback, so a stuck SDK
+// call failing fast here matters more than the SDK's own retry behavior.
+const COMPLETION_TIMEOUT_MS = 20_000;
+
 let nvidiaClient = null;
 function getNvidiaClient() {
   if (!process.env.NVIDIA_API_KEY || !process.env.NVIDIA_BASE_URL) return null;
   if (!nvidiaClient) {
-    nvidiaClient = new OpenAI({ apiKey: process.env.NVIDIA_API_KEY, baseURL: process.env.NVIDIA_BASE_URL });
+    nvidiaClient = new OpenAI({
+      apiKey: process.env.NVIDIA_API_KEY,
+      baseURL: process.env.NVIDIA_BASE_URL,
+      timeout: CLIENT_TIMEOUT_MS,
+      maxRetries: 1,
+    });
   }
   return nvidiaClient;
 }
@@ -135,8 +152,18 @@ export async function callOpenAi(systemPrompt) {
   const client = getOpenAiClientForFallback();
   if (!client) throw new Error('OPENAI_API_KEY is not configured');
 
-  const response = await client.responses.create({ model, input: systemPrompt });
-  return { model, text: response.output_text ?? '' };
+  const startedAt = Date.now();
+  try {
+    const response = await client.responses.create(
+      { model, input: systemPrompt },
+      { timeout: COMPLETION_TIMEOUT_MS, maxRetries: 0 }
+    );
+    console.info(`llm/router: OpenAI completion (${model}) took ${Date.now() - startedAt}ms`);
+    return { model, text: response.output_text ?? '' };
+  } catch (error) {
+    console.error(`llm/router: OpenAI completion (${model}) failed after ${Date.now() - startedAt}ms: ${error.message}`);
+    throw error;
+  }
 }
 
 export async function callNvidia(systemPrompt) {
@@ -144,11 +171,21 @@ export async function callNvidia(systemPrompt) {
   if (!client) throw new Error('NVIDIA_API_KEY/NVIDIA_BASE_URL are not configured');
   const model = process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
 
-  const response = await client.chat.completions.create({
-    model,
-    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: 'Return the JSON now.' }],
-  });
-  return { model, text: response.choices?.[0]?.message?.content ?? '' };
+  const startedAt = Date.now();
+  try {
+    const response = await client.chat.completions.create(
+      {
+        model,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: 'Return the JSON now.' }],
+      },
+      { timeout: COMPLETION_TIMEOUT_MS, maxRetries: 0 }
+    );
+    console.info(`llm/router: NVIDIA completion (${model}) took ${Date.now() - startedAt}ms`);
+    return { model, text: response.choices?.[0]?.message?.content ?? '' };
+  } catch (error) {
+    console.error(`llm/router: NVIDIA completion (${model}) failed after ${Date.now() - startedAt}ms: ${error.message}`);
+    throw error;
+  }
 }
 
 // draftFields({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile,

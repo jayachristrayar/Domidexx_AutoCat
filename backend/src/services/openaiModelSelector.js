@@ -29,6 +29,19 @@ let cachedAt = 0;
 let refreshPromise = null;
 let refreshTimer = null;
 
+// The SDK's own default timeout is 10 minutes -- far longer than any
+// realistic HTTP request should stay open, and long enough to exceed most
+// hosting platforms' own proxy timeout before this app ever gets a chance
+// to respond with a real error. That silent platform-level cutoff -- not
+// this app's own error handling -- is what produces a bare, undiagnosable
+// "AutoCat service is temporarily unavailable" on the client: the request
+// just dies with no body for server.js's error handler to ever log. This is
+// a backstop; individual call sites pass their own (shorter) per-request
+// timeout for their specific latency budget (see llm/router.js,
+// isbnLookup.js) -- see product spec item 17, "separate time limits per
+// stage", not one timeout for everything.
+const CLIENT_TIMEOUT_MS = 55_000;
+
 function getOpenAiClient() {
   if (!process.env.OPENAI_API_KEY) {
     return null;
@@ -37,6 +50,8 @@ function getOpenAiClient() {
     client = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
       baseURL: process.env.OPENAI_BASE_URL || undefined,
+      timeout: CLIENT_TIMEOUT_MS,
+      maxRetries: 1,
     });
   }
   return client;
