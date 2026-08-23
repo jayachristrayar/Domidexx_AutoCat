@@ -373,9 +373,8 @@ button.full {
   white-space: nowrap;
 }
 
-.account-bar .tier {
-  font-size: 0.72rem;
-  color: var(--muted);
+.account-bar .who .section-title {
+  margin: 0 0 2px;
 }
 
 .connection-status {

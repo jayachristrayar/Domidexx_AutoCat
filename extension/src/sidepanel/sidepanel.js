@@ -34,6 +34,21 @@ function stateHtml(kind, message) {
 }
 
 // ---------------------------------------------------------------------
+// ISBN normalization/shape check -- client-side only, for deciding when to
+// auto-trigger a lookup (a barcode scanner is just a very fast keyboard, so
+// this is the same input a librarian could type by hand). The backend
+// remains the sole source of truth for real ISBN validation.
+// ---------------------------------------------------------------------
+
+function normalizeIsbnValue(value) {
+  return String(value ?? '').replace(/[-\s]/g, '').toUpperCase();
+}
+
+function looksLikeIsbn(value) {
+  return /^(?:\d{9}[\dX]|\d{13})$/.test(value);
+}
+
+// ---------------------------------------------------------------------
 // Boot: restore session if there is one, otherwise show the login screen.
 // ---------------------------------------------------------------------
 
@@ -266,8 +281,8 @@ function renderWorkspace(me) {
   app.innerHTML = `
     <div class="account-bar">
       <div class="who">
+        <div class="section-title">Account</div>
         <div class="email">${escapeHtml(me.email)}</div>
-        <div class="tier">${escapeHtml(me.institution_name || 'No institution')} · ${escapeHtml(me.subscription_tier)} tier</div>
       </div>
       <button type="button" class="secondary" id="logout">Log out</button>
     </div>
@@ -356,6 +371,35 @@ function renderWorkspace(me) {
   const fillStatus = app.querySelector('#fill-status');
   const lookupStatus = app.querySelector('#lookup-status');
   const lookupSubmit = app.querySelector('#lookup-submit');
+  const lookupForm = app.querySelector('#lookup-form');
+  const isbnInput = lookupForm.querySelector('input[name="isbn"]');
+
+  // A physical USB/Bluetooth barcode scanner is, to the browser, an
+  // ordinary (very fast) keyboard -- there is no special "scanner event" to
+  // listen for. The only way scanned characters land in the ISBN field is
+  // if that field already has keyboard focus when the scan happens, so the
+  // fix here is entirely about focus management: focus the ISBN field
+  // whenever it's safe to (panel open, after a scan cycle finishes), and
+  // never touch focus while the librarian is typing somewhere else (chat,
+  // or any other input/textarea) -- see item 8: scanner characters must
+  // never reach the chatbot, and the only way to guarantee that is to never
+  // steal focus into the ISBN field out from under an input the librarian
+  // is actively using.
+  function isTypingElsewhere() {
+    const active = document.activeElement;
+    if (!active || active === isbnInput) return false;
+    const tag = active.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || active.isContentEditable;
+  }
+
+  function focusIsbnInputIfIdle() {
+    if (isTypingElsewhere()) return;
+    isbnInput.focus();
+  }
+
+  // Ready for the next scan: open panel -> focus immediately, no click
+  // required (item 2).
+  focusIsbnInputIfIdle();
 
   function renderBook() {
     if (!state.metadata) { bookCard.hidden = true; return; }
@@ -440,23 +484,36 @@ function renderWorkspace(me) {
     }
   }
 
-  app.querySelector('#lookup-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const isbn = String(new FormData(event.currentTarget).get('isbn') || '').trim();
-    if (!isbn) return;
+  // Single entry point for starting a lookup, whatever triggered it (Look
+  // up click, Enter from manual typing or a scanner, Tab from a scanner).
+  // Guarded against re-entry so a scanner double-firing Enter+Tab, or a
+  // second scan landing mid-request, can't start two lookups at once.
+  let lookupInFlight = false;
+  async function runLookup(rawIsbn) {
+    if (lookupInFlight) return;
+    const normalized = normalizeIsbnValue(rawIsbn);
+    if (!normalized) return;
+    if (!looksLikeIsbn(normalized)) {
+      lookupStatus.innerHTML = stateHtml('error', 'Please scan a valid ISBN.');
+      return;
+    }
+
+    lookupInFlight = true;
     lookupSubmit.disabled = true;
+    // Clear immediately so a following scan never appends onto this one,
+    // and the field visibly reads as "ready" while this lookup runs.
+    isbnInput.value = '';
     bookCard.hidden = true;
     ddcCard.hidden = true;
     marcCard.hidden = true;
     lookupStatus.innerHTML = stateHtml('loading', 'Looking up this ISBN…');
     try {
-      const body = await api.lookupIsbn(isbn);
+      const body = await api.lookupIsbn(normalized);
       if (body.not_found) {
-        lookupStatus.innerHTML = stateHtml('error', 'This ISBN could not be found. Try another ISBN or edition.');
-        lookupSubmit.disabled = false;
+        lookupStatus.innerHTML = stateHtml('error', 'ISBN details could not be found.');
         return;
       }
-      state.isbn = isbn;
+      state.isbn = normalized;
       state.metadata = body;
       lookupStatus.innerHTML = '';
       renderBook();
@@ -464,8 +521,31 @@ function renderWorkspace(me) {
     } catch (error) {
       handleWorkflowError(error, lookupStatus);
     } finally {
+      lookupInFlight = false;
       lookupSubmit.disabled = false;
+      // Ready for the next scan (item 7) -- but never yank focus away from
+      // the chat panel or any other field the librarian is actively using.
+      focusIsbnInputIfIdle();
     }
+  }
+
+  lookupForm.addEventListener('submit', (event) => {
+    // Native form submission already fires on Enter with a single text
+    // input -- this is what makes "scan + Enter" work exactly like manual
+    // typing + Enter, with no scanner-specific code needed.
+    event.preventDefault();
+    runLookup(isbnInput.value);
+  });
+
+  // Scanners that terminate with Tab instead of Enter never fire `submit`
+  // (Tab just moves focus) -- capture it here, before focus actually
+  // changes, and start the lookup ourselves. `preventDefault` is
+  // deliberately NOT called: normal Tab navigation for the rest of the
+  // panel must keep working (item 5).
+  isbnInput.addEventListener('keydown', (event) => {
+    if (event.key !== 'Tab') return;
+    const normalized = normalizeIsbnValue(isbnInput.value);
+    if (normalized && looksLikeIsbn(normalized)) runLookup(normalized);
   });
 
   fillKohaButton.addEventListener('click', async () => {
@@ -565,7 +645,7 @@ function renderWorkspace(me) {
         bookCard.hidden = true;
         ddcCard.hidden = true;
         marcCard.hidden = true;
-        app.querySelector('#lookup-form input[name="isbn"]').focus();
+        isbnInput.focus();
         return;
       }
 
