@@ -53,11 +53,14 @@ assert.strictEqual(getRuleStatus('008'), 'PARTIAL');
 assert.strictEqual(getRuleStatus('040'), 'PARTIAL');
 assert.strictEqual(getRuleStatus('246'), 'PLANNED');
 assert.strictEqual(getRuleStatus('440'), 'PLANNED');
-assert.strictEqual(getRuleStatus('082'), 'PARTIAL');
+assert.strictEqual(getRuleStatus('082'), 'SUPPORTED');
 assert.strictEqual(getRuleStatus('942'), 'PROFILE_DEPENDENT');
 assert.ok(getMarcRule('082').ai_assisted);
 assert.ok(getMarcRule('082').evidence_required);
-assert.ok(getMarcRule('082').cataloguer_review_required);
+// No manual cataloguer-approval step exists anywhere in the pipeline --
+// a DDC recommendation auto-accepts server-side the moment it's generated
+// (ddcApprovalService.js) -- so 082 must NOT claim to need one.
+assert.strictEqual(getMarcRule('082').cataloguer_review_required, false);
 assert.strictEqual(isFieldSupported('020'), true);
 assert.strictEqual(isFieldSupported('246'), false);
 
@@ -172,7 +175,7 @@ const adminRows = getAllMarcRules().map((rule) => ({
   evidence: rule.evidence_required,
   koha: rule.koha_supported,
 }));
-assert.ok(adminRows.find((r) => r.tag === '082' && r.status === 'PARTIAL' && r.ai === true));
+assert.ok(adminRows.find((r) => r.tag === '082' && r.status === 'SUPPORTED' && r.ai === true));
 assert.ok(adminRows.find((r) => r.tag === '000' && r.label === 'Leader'));
 assert.ok(getBuilderEmittedTags().includes('000'));
 

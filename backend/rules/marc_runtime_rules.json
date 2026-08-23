@@ -200,8 +200,8 @@
     {
       "tag": "082",
       "label": "Dewey Decimal Classification Number",
-      "description": "DDC class number + Cutter. Whole-book subject analysis and approval workflow are P2.",
-      "status": "PARTIAL",
+      "description": "DDC 23 class number + Cutter, from whole-book AI classification with rule-validated evidence.",
+      "status": "SUPPORTED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
@@ -210,22 +210,20 @@
         "indicators": null,
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true, "notes": "Classification number" },
-          "b": { "repeatable": false, "required_when_present": false, "notes": "Item number / Cutter" },
+          "b": { "repeatable": false, "required_when_present": false, "notes": "Cutter mark -- first three capital letters of the primary author's surname" },
           "2": { "repeatable": false, "required_when_present": true, "notes": "DDC edition number" }
-        },
-        "incomplete": "Full DDC candidate ranking, evidence, justification, and approval are P2."
+        }
       },
       "ai_assisted": true,
       "evidence_required": true,
-      "cataloguer_review_required": true,
+      "cataloguer_review_required": false,
       "koha_supported": true,
       "koha_mapping": {
         "kind": "VARIABLE_FIELD",
-        "primary_subfield": "a",
-        "notes": "Runtime mapping exists as rule metadata only until Koha autofill (P4)."
+        "primary_subfield": "a"
       },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Rule ready for P2 DDC engine. Do not claim full DDC support in P1."
+      "notes": "DDC 23 classification, evidence, and justification come from the whole-book AI/rule-based classifier (ddcClassificationService.js/ddcAiClassifier.js), validated against the bundled DDC 23 knowledge base and auto-accepted as the current working classification the moment it's generated -- there is no manual cataloguer-approval step (see ddcApprovalService.js)."
     },
     {
       "tag": "100",
@@ -632,15 +630,16 @@
       "tag": "700",
       "label": "Added Entry — Personal Name",
       "description": "Access point for persons associated with the work who are not the 100 main entry.",
-      "status": "PLANNED",
+      "status": "PARTIAL",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "none",
+      "generation_method": "mechanical_when_evidenced",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
-          "e": { "repeatable": true, "required_when_present": false }
+          "e": { "repeatable": true, "required_when_present": false },
+          "4": { "repeatable": true, "required_when_present": false }
         }
       },
       "ai_assisted": false,
@@ -649,7 +648,7 @@
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Not yet generated -- the P3 MARC pipeline never emits 700 (personal-name added entries beyond the 100 main entry)."
+      "notes": "One 700 per co-author beyond the 100 main entry, and one per named editor/illustrator/translator (with $e relator term + $4 standard MARC relator code) already present in the retrieved metadata. Only these four contributor roles are covered -- no AI-derived added entries for a role this app doesn't already carry as structured evidence."
     },
     {
       "tag": "710",

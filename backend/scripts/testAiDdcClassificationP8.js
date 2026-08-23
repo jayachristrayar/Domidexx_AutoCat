@@ -185,7 +185,10 @@ decision = await recommendDdc(wutheringHeights, {
 const ddcApproval = { approval_status: 'APPROVED', approved_ddc: decision.recommended_ddc.number };
 const marc = generateMarcRecord({ metadata: wutheringHeights, ddc_approval: ddcApproval });
 const line082 = marc.preview.find((r) => r.tag === '082');
-assert.strictEqual(line082.value, '$a 823.8 $2 23');
+// $b is the Cutter mark: first three capital letters of the primary
+// author's surname (product spec item 29/33) -- wutheringHeights's author
+// is Emily Bronte.
+assert.strictEqual(line082.value, '$a 823.8 $b BRO $2 23');
 assert.strictEqual(marc.validation.valid, true);
 
 console.log('P8 AI-driven DDC classification tests passed');

@@ -116,6 +116,74 @@ function languageCode(language) {
   return map[value] ?? null;
 }
 
+// extractSurname/toSurnameFirst -- product spec item 30: a personal-name
+// 1xx/7xx $a must be "Surname, First name", never a trailing full stop
+// (unlike title/publication fields, which DO end in ISBD punctuation).
+// Source data (isbnLookup.js's authors/editors/etc arrays) is plain
+// "First Last" strings from every source this app queries, so this always
+// reformats rather than trusting a source to already be surname-first --
+// except when a name already contains a comma, which is treated as already
+// being in that form and left alone (just stripped of a trailing stop).
+function extractSurname(fullName) {
+  const name = cleanText(fullName);
+  if (!name) return null;
+  if (name.includes(',')) return cleanText(name.split(',')[0]);
+  const parts = name.split(/\s+/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : null;
+}
+
+function toSurnameFirst(fullName) {
+  const name = cleanText(fullName).replace(/\.\s*$/, '');
+  if (!name) return null;
+  if (name.includes(',')) return name;
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return name || null;
+  const surname = parts[parts.length - 1];
+  const given = parts.slice(0, -1).join(' ');
+  return `${surname}, ${given}`;
+}
+
+// cutterFromSurname -- product spec item 29/33: 082$b is the first three
+// CAPITAL letters of the author/editor/compiler surname.
+function cutterFromSurname(fullName) {
+  const surname = extractSurname(fullName);
+  if (!surname) return null;
+  const letters = surname.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3);
+  return letters || null;
+}
+
+// Contributors who are evidenced (isbnLookup.js's editors/illustrators/
+// translators arrays, plus any author beyond the single 100 main entry)
+// but were previously dropped entirely unless LOC's own MARC record
+// happened to already carry them -- product spec items 27/29/36: real
+// evidence must not be silently discarded just because no AI-drafting step
+// runs for 7xx. Relator terms/codes are the standard MARC relator list
+// (https://www.loc.gov/marc/relators/), not invented.
+const RELATOR_TERMS = {
+  editors: { term: 'editor', code: 'edt' },
+  illustrators: { term: 'illustrator', code: 'ill' },
+  translators: { term: 'translator', code: 'trl' },
+};
+
+function build700Fields(metadata) {
+  if (!hasMarcRule('700')) return [];
+  const fields = [];
+  for (const coAuthor of metadata.authors.slice(1)) {
+    const formatted = toSurnameFirst(coAuthor);
+    if (formatted) fields.push(dataField('700', [{ code: 'a', value: formatted }], ['1', ' ']));
+  }
+  for (const [key, { term, code }] of Object.entries(RELATOR_TERMS)) {
+    for (const name of metadata[key]) {
+      const formatted = toSurnameFirst(name);
+      if (!formatted) continue;
+      fields.push(
+        dataField('700', [{ code: 'a', value: formatted }, { code: 'e', value: term }, { code: '4', value: code }], ['1', ' '])
+      );
+    }
+  }
+  return fields;
+}
+
 function buildAdditionalFields(metadata, now) {
   const fields = [];
   if (hasMarcRule('005')) fields.push(controlField('005', build005(now)));
@@ -127,14 +195,18 @@ function buildAdditionalFields(metadata, now) {
   for (const award of metadata.awards) if (hasMarcRule('586')) fields.push(dataField('586', [{ code: 'a', value: award }]));
   for (const subject of metadata.subjects) if (hasMarcRule('650')) fields.push(dataField('650', [{ code: 'a', value: subject }], [' ', '0']));
   for (const url of metadata.urls) if (/^https?:\/\//i.test(url) && hasMarcRule('856')) fields.push(dataField('856', [{ code: 'u', value: url }], ['4', '0']));
-  const author = first(metadata.authors);
-  if (author && hasMarcRule('100')) fields.push(dataField('100', [{ code: 'a', value: author.endsWith('.') ? author : `${author}.` }], ['1', ' ']));
+  const mainAuthor = first(metadata.authors);
+  if (mainAuthor && hasMarcRule('100')) {
+    const formatted = toSurnameFirst(mainAuthor);
+    if (formatted) fields.push(dataField('100', [{ code: 'a', value: formatted }], ['1', ' ']));
+  }
+  fields.push(...build700Fields(metadata));
   return fields;
 }
 
 function ddcFailure(code, message) { return { ok: false, errors: [{ level: 'DDC_APPROVAL', code, tag: '082', message }], field: null }; }
 
-export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile()) {
+export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(), cutterSourceName = null) {
   if (!ddcApproval || ddcApproval.approval_status !== 'APPROVED') return ddcFailure('DDC_NOT_APPROVED', 'Final 082$a requires cataloguer-approved DDC.');
   const approved = cleanText(ddcApproval.approved_ddc);
   if (!approved) return ddcFailure('APPROVED_DDC_MISSING', 'Approved DDC number is missing.');
@@ -144,7 +216,11 @@ export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(
   const path = buildPath(approved);
   if (path.length === 0 || path[0] !== ddcClass.main_class) return ddcFailure('DDC_HIERARCHY_UNRESOLVED', `Approved DDC ${approved} hierarchy could not be resolved.`);
   const edition = ruleProfile?.ddc_edition_default || '23';
-  return { ok: true, errors: [], field: dataField('082', [{ code: 'a', value: approved }, { code: '2', value: String(edition).replace(/\D/g, '') || '23' }], ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
+  const subfields = [{ code: 'a', value: approved }];
+  const cutter = cutterFromSurname(cutterSourceName);
+  if (cutter) subfields.push({ code: 'b', value: cutter });
+  subfields.push({ code: '2', value: String(edition).replace(/\D/g, '') || '23' });
+  return { ok: true, errors: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
 }
 
 function toStructuredRecord(fields) {
@@ -181,7 +257,7 @@ export function generateMarcRecord(input = {}, options = {}) {
     });
   }
   const fields = [...skeleton, ...buildAdditionalFields(metadata, options.now ?? new Date())];
-  const ddc = buildApproved082(input.ddc_approval ?? input.ddcDecision ?? {}, ruleProfile);
+  const ddc = buildApproved082(input.ddc_approval ?? input.ddcDecision ?? {}, ruleProfile, first(metadata.authors));
   const ddcErrors = ddc.errors;
   if (ddc.ok) fields.push(ddc.field);
   const ddcApproval = input.ddc_approval ?? input.ddcDecision ?? {};
