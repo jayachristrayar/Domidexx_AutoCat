@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
+import { modelAccessToLabels } from '../services/modelLabels.js';
 
 const router = Router();
 
@@ -48,12 +49,14 @@ router.get(
 
     // Only safe, extension-facing fields -- never API keys, provider
     // credentials, internal subscription tier, or anything else a librarian
-    // isn't meant to see (product spec section 10/20).
+    // isn't meant to see (product spec section 10/20). model_access is
+    // translated to the generic MODEL_1/MODEL_2 labels here -- the real
+    // provider names (NVIDIA/OpenAI) never reach the extension at all.
     res.json({
       email: row.email,
       autocat_user_id: row.autocat_user_id,
       status: row.status,
-      model_access: row.model_access,
+      model_access: modelAccessToLabels(row.model_access),
       institution_name: row.institution_name,
       draft_state: draftState,
     });
