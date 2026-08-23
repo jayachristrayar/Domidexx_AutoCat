@@ -91,14 +91,14 @@ const GENRE_TO_FORM = { novel: 'fiction', fiction: 'fiction', 'short story': 'fi
 const NOT_DOMAIN_RE = /not a library (?:science|and information science)?\s*book|not (?:about|a) library (?:science|operations)|this is not (?:about )?(?:library science|library operations)/i;
 
 const FIELD_NEEDS_VALUE_PATTERNS = [
-  { field: 'authors', re: /^\s*(?:the )?author(?:'s name)? is wrong\.?\s*$/i },
-  { field: 'publisher', re: /^\s*(?:the )?publisher is wrong\.?\s*$/i },
+  { field: 'authors', re: /^\s*(?:the )?author(?:'s|s')?\s*(?:name)? is wrong\.?\s*$/i },
+  { field: 'publisher', re: /^\s*(?:the )?publisher(?:'s)?\s*(?:name)? is wrong\.?\s*$/i },
   { field: 'title', re: /^\s*(?:the )?title is wrong\.?\s*$/i },
   { field: 'edition', re: /^\s*(?:the )?edition is wrong\.?\s*$/i },
 ];
 
 const FIELD_PATTERNS = [
-  { field: 'authors', re: /\bauthor(?:'s name)?\s*(?:is|should be|:)\s*(?:wrong,?\s*)?(?:it'?s\s*)?([^.,\n]+)/i, arrayField: true },
+  { field: 'authors', re: /\bauthor(?:'s|s')?\s*(?:name)?\s*(?:is|should be|:)\s*(?:wrong,?\s*)?(?:it'?s\s*)?([^.,\n]+)/i, arrayField: true },
   { field: 'publisher', re: /\bpublisher\s*(?:is|should be|:)\s*(?:wrong,?\s*)?(?:it'?s\s*)?([^.,\n]+)/i },
   { field: 'title', re: /\btitle\s*(?:is|should be|:)\s*(?:wrong,?\s*)?(?:it'?s\s*)?([^.,\n]+)/i },
   { field: 'edition', re: /\bedition\s*(?:is|should be|:)\s*(?:wrong,?\s*)?(?:it'?s\s*)?([^.,\n]+)/i },
@@ -112,7 +112,13 @@ function extractDdcNumber(message) {
   return match ? match[0] : null;
 }
 
-function parseIntent(message) {
+// Fields whose value is stored as an array in metadata (see marcPipeline's
+// normalizeMarcMetadata) -- used both by the explicit FIELD_PATTERNS below
+// and by the pending-field fallback so a bare follow-up reply gets the
+// same shape as an explicit "author is ..." statement would.
+const ARRAY_FIELDS = new Set(['authors']);
+
+function parseIntent(message, context = {}) {
   const text = clean(message);
   if (!text) return { intent: 'unknown' };
 
@@ -162,6 +168,16 @@ function parseIntent(message) {
   if (REJECT_MARC_FIELD_RE.test(text)) return { intent: 'reanalyze' };
   if (REANALYZE_RE.test(text)) return { intent: 'reanalyze' };
 
+  // Nothing above matched a recognizable command -- if AutoCat just asked a
+  // clarifying question ("What is the correct author name?"), the whole
+  // message is the librarian's plain-text answer to that question, not a
+  // failed command (product spec: "author name is wrong" / "Emily Bronte"
+  // must be understood as one continuous correction, not two disconnected
+  // messages).
+  if (context.pending_field) {
+    return { intent: 'correct_metadata', field: context.pending_field, value: text, arrayField: ARRAY_FIELDS.has(context.pending_field) };
+  }
+
   return { intent: 'unknown' };
 }
 
@@ -174,7 +190,7 @@ function friendlyFieldLabel(field) {
 }
 
 export function handleChatMessage({ message, context = {} } = {}) {
-  const parsed = parseIntent(message);
+  const parsed = parseIntent(message, context);
   const ddc = context.ddc?.decision ?? null;
 
   switch (parsed.intent) {
@@ -283,16 +299,25 @@ export function handleChatMessage({ message, context = {} } = {}) {
 
     case 'correct_metadata_needs_value':
       return {
-        reply: `What is the correct ${friendlyFieldLabel(parsed.field)}? I won't guess -- tell me the value and I'll use it.`,
+        reply: `Sure -- what is the correct ${friendlyFieldLabel(parsed.field)}? I won't guess; tell me the value and I'll use it.`,
         intent: parsed.intent,
+        // Remembered so the librarian's next plain-text reply (no keyword
+        // needed) is understood as the answer -- see parseIntent's
+        // pending_field fallback.
+        pending_field: parsed.field,
       };
 
     case 'correct_metadata': {
       const value = parsed.arrayField ? [parsed.value] : parsed.value;
       return {
-        reply: `Got it -- I've recorded ${friendlyFieldLabel(parsed.field)} as "${parsed.value}" (your correction, not from a source lookup). MARC will be regenerated with this value.`,
+        reply: `Got it. I've updated the ${friendlyFieldLabel(parsed.field)} to ${parsed.value}. I'll use the corrected ${friendlyFieldLabel(parsed.field)} when rechecking the classification.`,
         intent: parsed.intent,
         metadata_patch: { [parsed.field]: value },
+        // A corrected author/title/etc. can change the correct DDC number,
+        // so re-run classification and MARC automatically rather than
+        // leaving a stale recommendation on screen (product spec section 4).
+        needs_reanalysis: true,
+        pending_field: null,
       };
     }
 

@@ -23,9 +23,9 @@ function arr(value) {
 }
 
 function summarizeBibliographicData(metadata) {
-  const { title, subtitle, authors, editors, publisher, publish_date, language, subjects, description, table_of_contents, series, physical_description } = metadata;
+  const { isbn, title, subtitle, authors, editors, publisher, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description } = metadata;
   return JSON.stringify(
-    { title, subtitle, authors, editors, publisher, publish_date, language, subjects, description, table_of_contents, series, physical_description },
+    { isbn, title, subtitle, authors, editors, publisher, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description },
     null,
     2
   );

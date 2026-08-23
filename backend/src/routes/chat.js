@@ -19,6 +19,7 @@ const chatSchema = z.object({
         })
         .optional(),
       marc_ready: z.boolean().optional(),
+      pending_field: z.string().nullish(),
     })
     .optional(),
 });
