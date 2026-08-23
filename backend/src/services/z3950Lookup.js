@@ -219,6 +219,17 @@ export function extractZ3950Fields(marcRecord) {
   const seriesField = [...getFields(fields, '490'), ...getFields(fields, '830')][0];
   const series = seriesField ? cleanPunctuation(getSubfieldValue(seriesField, 'a')) : null;
 
+  const field041 = getFields(fields, '041')[0];
+  const language = field041 ? getSubfieldValue(field041, 'a') : null;
+
+  // 505 (Formatted Contents Note) is MARC's table-of-contents field --
+  // real DDC-classification evidence when present (product spec item 4).
+  const tableOfContents =
+    getFields(fields, '505')
+      .map((field) => getSubfieldValue(field, 'a'))
+      .filter(Boolean)
+      .join(' ') || null;
+
   // Existing classification evidence (product spec: "external library
   // classifications are evidence" -- collect them, but the DDC pipeline
   // must never blindly copy them; see ddcClassificationService.js). 082 is
@@ -250,6 +261,8 @@ export function extractZ3950Fields(marcRecord) {
     description,
     subjects,
     series,
+    language,
+    table_of_contents: tableOfContents,
     existing_classifications: existingClassifications,
   };
 }

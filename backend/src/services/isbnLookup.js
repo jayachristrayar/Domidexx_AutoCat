@@ -97,6 +97,11 @@ function extractOpenLibraryFields(raw) {
     description: typeof raw.notes === 'string' ? raw.notes : (raw.notes?.value ?? null),
     subjects: (raw.subjects ?? []).map((subject) => subject.name),
     series: raw.series?.[0] ?? null,
+    // Open Library's "languages" entries are refs like "/languages/eng" --
+    // the trailing segment is already a MARC-shaped 3-letter code, same
+    // format languageCode() in marcPipeline.js expects.
+    language: raw.languages?.[0]?.key?.split('/').pop() ?? null,
+    table_of_contents: null,
   };
 }
 
@@ -123,6 +128,8 @@ function extractGoogleBooksFields(raw) {
     description: raw.description ?? null,
     subjects: raw.categories ?? [],
     series: null,
+    language: raw.language ?? null,
+    table_of_contents: null,
   };
 }
 
@@ -182,6 +189,8 @@ const TOP_LEVEL_FIELDS = [
   'description',
   'subjects',
   'series',
+  'language',
+  'table_of_contents',
 ];
 
 const ARRAY_FIELDS = new Set(['authors', 'editors', 'illustrators', 'translators', 'subjects']);
@@ -248,6 +257,8 @@ function emptyNormalizedRecord(isbn) {
     subjects: [],
     existing_classifications: [],
     series: null,
+    language: null,
+    table_of_contents: null,
     conflicts: [],
   };
 }
@@ -275,23 +286,30 @@ function extractJson(text) {
   return (fenced ? fenced[1] : text).trim();
 }
 
-const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null}`;
+const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}`;
 
-// Called whenever z3950 + LibraryThing + Open Library + Google Books all
-// came back with no usable title, regardless of subscription tier -- every
-// configured source is tried before giving up. Uses OpenAI's Responses API
-// with the built-in web_search tool via the auto-selected model from
-// openaiModelSelector.js -- never a hardcoded model name.
+// This is a normal, always-available research stage (item 1/2/15 of the
+// product spec) -- called whenever structured sources (z3950/Open
+// Library/Google Books/LibraryThing) either found no title at all, or
+// found a title but no real subject/content evidence (description or
+// subjects) to classify from. Uses OpenAI's Responses API with the
+// built-in web_search tool via the auto-selected model from
+// openaiModelSelector.js -- never a hardcoded model name. This is
+// deliberately independent of the librarian's selected DDC model
+// (NVIDIA/OpenAI, i.e. Model 1/Model 2): it's a backend-supported research
+// mechanism, not a DDC-reasoning provider choice, and NVIDIA's chat
+// completions API has no equivalent built-in web-search tool to route
+// this through even if it were selected.
 export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
   const model = await getAvailableOpenAiModel();
   if (!model) {
-    console.error(`ISBN web-search fallback skipped for ${isbn}: no usable OpenAI model available.`);
+    console.error(`ISBN web research skipped for ${isbn}: no usable OpenAI model available.`);
     return null;
   }
 
   const client = getOpenAiClientForFallback();
   if (!client) {
-    console.error(`ISBN web-search fallback skipped for ${isbn}: OPENAI_API_KEY is not configured.`);
+    console.error(`ISBN web research skipped for ${isbn}: OPENAI_API_KEY is not configured.`);
     return null;
   }
 
@@ -300,10 +318,10 @@ export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
     searchResponse = await client.responses.create({
       model,
       tools: [{ type: 'web_search' }],
-      input: `Find bibliographic data for the book with ISBN ${isbn}. Return title, subtitle, authors, publisher, publish date, edition, page count, and a short description. Cite the source(s) you found this from.`,
+      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title" -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
     });
   } catch (error) {
-    console.error(`ISBN web-search fallback: web_search call failed for ${isbn}: ${error.message}`);
+    console.error(`ISBN web research: web_search call failed for ${isbn}: ${error.message}`);
     return null;
   }
   await logApiUsage(userId, model, searchResponse.usage?.total_tokens);
@@ -315,7 +333,7 @@ export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
   try {
     structuredResponse = await client.responses.create({
       model,
-      input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences):
+      input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences). Resolve any conflicts the research noted by choosing the most credible value; put a short note on what conflicted and why you chose as you did in "conflicts_found" (or null if there were none):
 ${STRUCTURED_JSON_SHAPE}
 
 ISBN: ${isbn}
@@ -324,7 +342,7 @@ Research:
 ${searchText}`,
     });
   } catch (error) {
-    console.error(`ISBN web-search fallback: JSON formatting call failed for ${isbn}: ${error.message}`);
+    console.error(`ISBN web research: JSON formatting call failed for ${isbn}: ${error.message}`);
     return null;
   }
   await logApiUsage(userId, model, structuredResponse.usage?.total_tokens);
@@ -333,12 +351,16 @@ ${searchText}`,
   try {
     parsed = JSON.parse(extractJson(structuredResponse.output_text ?? ''));
   } catch (error) {
-    console.error(`ISBN web-search fallback: could not parse structured JSON for ${isbn}: ${error.message}`);
+    console.error(`ISBN web research: could not parse structured JSON for ${isbn}: ${error.message}`);
     return null;
   }
 
   if (!parsed.title) {
+    console.warn(`ISBN web research: no title found for ${isbn} after research -- treating as not found.`);
     return null;
+  }
+  if (parsed.conflicts_found) {
+    console.info(`ISBN web research: source conflict for ${isbn}: ${parsed.conflicts_found}`);
   }
 
   return {
@@ -359,11 +381,17 @@ ${searchText}`,
     description: parsed.description ?? null,
     subjects: parsed.subjects ?? [],
     series: parsed.series ?? null,
-    existing_classifications: [],
+    language: parsed.language ?? null,
+    table_of_contents: parsed.table_of_contents ?? null,
+    existing_classifications: Array.isArray(parsed.existing_classifications)
+      ? parsed.existing_classifications
+          .filter((c) => c?.number)
+          .map((c) => ({ source: c.source || 'web_research', number: String(c.number), edition: null }))
+      : [],
     conflicts: [],
     // Internal audit tag only -- the /records/lookup/:isbn route strips this
     // down to a bare "provenance": "unverified" before it ever reaches the
-    // client. citations/model never leave the server.
+    // client. citations/model/conflicts_found never leave the server.
     sources: {
       method: 'web_search',
       model,
@@ -371,6 +399,35 @@ ${searchText}`,
       note: 'verify carefully, not confirmed against a structured bibliographic database',
     },
   };
+}
+
+// mergeStructuredWithWeb(structured, web) -- supplements an already-vetted
+// structured result with whatever web research additionally found, without
+// ever overwriting a field the structured sources already populated
+// (structured bibliographic APIs remain the higher-trust source for
+// identity fields; web research fills gaps like description/subjects/TOC
+// that Open Library/Google Books commonly omit).
+function mergeStructuredWithWeb(structured, web) {
+  const merged = { ...structured };
+  for (const field of TOP_LEVEL_FIELDS) {
+    if (isEmptyValue(merged[field]) && !isEmptyValue(web[field])) {
+      merged[field] = web[field];
+    }
+  }
+  const physicalDescription = { ...merged.physical_description };
+  for (const field of PHYSICAL_FIELDS) {
+    if (isEmptyValue(physicalDescription[field]) && !isEmptyValue(web.physical_description?.[field])) {
+      physicalDescription[field] = web.physical_description[field];
+    }
+  }
+  merged.physical_description = physicalDescription;
+  merged.sources = {
+    ...merged.sources,
+    method: 'structured+web',
+    web_research: web.sources ?? null,
+  };
+  merged.partial = isPartial(merged);
+  return merged;
 }
 
 // A field counts toward "partial" coverage when it's the kind of thing a
@@ -392,8 +449,14 @@ function isPartial(merged) {
 export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
 
+  // A failed/not-found lookup must never become a permanent "successful"
+  // cache entry -- excluding source = 'not_found' here means a stale
+  // failure recorded before a bug fix (or before a source came back up)
+  // can never block a fresh, potentially-successful retry. Only a genuine
+  // result (structured or web-research) is ever served from cache.
   const cached = await pool.query(
-    `SELECT raw_json FROM isbn_cache WHERE isbn = $1 AND fetched_at > now() - interval '${CACHE_TTL_INTERVAL}'`,
+    `SELECT raw_json FROM isbn_cache
+     WHERE isbn = $1 AND fetched_at > now() - interval '${CACHE_TTL_INTERVAL}' AND source != 'not_found'`,
     [isbn]
   );
   if (cached.rows.length > 0) {
@@ -424,26 +487,56 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
 
   const merged = mergeSources(isbn, rawBySource);
   const hasStructuredTitle = Boolean(merged.title);
+  // DDC 23 classification needs actual subject/content evidence (product
+  // spec item 4), not just bare bibliographic identity -- a structured hit
+  // that found a title but no description/subjects is still too thin to
+  // classify confidently. Web research is a normal supplementary stage
+  // whenever that's the case, never only a last resort after every
+  // structured source has failed outright (item 1/2/15).
+  const hasContentEvidence = !isEmptyValue(merged.description) || !isEmptyValue(merged.subjects);
+  const needsWebResearch = !hasStructuredTitle || !hasContentEvidence;
 
   let result;
   let cacheSource;
 
-  if (hasStructuredTitle) {
+  if (!needsWebResearch) {
     result = { ...merged, sources: { ...merged.sources, method: 'structured' }, partial: isPartial(merged) };
     cacheSource = 'merged';
     console.info(`ISBN lookup: resolved ${isbn} from structured sources${result.partial ? ' (partial)' : ''}`);
   } else {
-    console.info(`ISBN lookup: no structured title for ${isbn}, falling back to web research`);
+    console.info(
+      `ISBN lookup: ${hasStructuredTitle ? 'structured sources lack content evidence for' : 'no structured title for'} ${isbn}, running web research`
+    );
     const webResult = await lookupIsbnWebFallback(isbn, { userId });
-    if (webResult) {
+    if (webResult && hasStructuredTitle) {
+      // Structured sources already vetted title/author/etc -- web research
+      // only supplements whatever they didn't cover (description, subjects,
+      // table of contents, ...), it never overwrites an already-known field.
+      result = mergeStructuredWithWeb(merged, webResult);
+      cacheSource = 'merged';
+      console.info(`ISBN lookup: supplemented ${isbn}'s structured result with web research${result.partial ? ' (still partial)' : ''}`);
+    } else if (webResult) {
       result = { ...webResult, partial: isPartial(webResult) };
       cacheSource = 'web_search';
-      console.info(`ISBN lookup: resolved ${isbn} via web-search fallback${result.partial ? ' (partial)' : ''}`);
+      console.info(`ISBN lookup: resolved ${isbn} via web research${result.partial ? ' (partial)' : ''}`);
+    } else if (hasStructuredTitle) {
+      // Structured gave a real (if thin) result and web research found
+      // nothing more to add -- still genuine data, better than nothing.
+      result = { ...merged, sources: { ...merged.sources, method: 'structured' }, partial: true };
+      cacheSource = 'merged';
+      console.warn(`ISBN lookup: web research found nothing to add for ${isbn}, keeping thin structured result`);
     } else {
       result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
       cacheSource = 'not_found';
-      console.warn(`ISBN lookup: all configured sources exhausted for ${isbn}, returning not_found`);
+      console.warn(`ISBN lookup: all configured sources (structured + web research) exhausted for ${isbn}, returning not_found`);
     }
+  }
+
+  // Never cache a not_found result (see the cache-read exclusion above) --
+  // writing one would just be dead weight, since it would never be read
+  // back anyway.
+  if (cacheSource === 'not_found') {
+    return result;
   }
 
   await pool.query(

@@ -71,6 +71,8 @@ function toClientResponse(result) {
     description: result.description,
     subjects: result.subjects,
     series: result.series,
+    language: result.language,
+    table_of_contents: result.table_of_contents,
     // Existing classification evidence (e.g. a Dewey number already on a
     // library catalogue record) -- supporting evidence for the DDC
     // pipeline and for the Side Panel's "evidence used" section, never a
