@@ -331,9 +331,9 @@ function renderWorkspace(me) {
     <div class="card koha-status-card" id="koha-status">${kohaStatusHtml('DETECTING')}</div>
 
     <div class="card">
-      <p class="section-title">ISBN</p>
+      <label class="section-title" for="isbn-input">ISBN</label>
       <form id="lookup-form" class="row">
-        <label><span>ISBN</span><input name="isbn" required placeholder="9780140328721" autocomplete="off" /></label>
+        <input id="isbn-input" name="isbn" required placeholder="9780140328721" autocomplete="off" />
         <button type="submit" id="lookup-submit">Look up</button>
       </form>
       <div id="lookup-status"></div>
@@ -413,7 +413,7 @@ function renderWorkspace(me) {
   const lookupStatus = app.querySelector('#lookup-status');
   const lookupSubmit = app.querySelector('#lookup-submit');
   const lookupForm = app.querySelector('#lookup-form');
-  const isbnInput = lookupForm.querySelector('input[name="isbn"]');
+  const isbnInput = app.querySelector('#isbn-input');
 
   // A physical USB/Bluetooth barcode scanner is, to the browser, an
   // ordinary (very fast) keyboard -- there is no special "scanner event" to
@@ -468,17 +468,19 @@ function renderWorkspace(me) {
     updateFillAvailability();
   }
 
-  function handleWorkflowError(error, targetEl) {
-    if (error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE') {
-      targetEl.innerHTML = stateHtml('error', 'AutoCat service is temporarily unavailable. Please try again.');
-      return;
-    }
+  const RETRY_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-lookup">Retry lookup</button>';
+
+  function handleWorkflowError(error, targetEl, { withRetry = false } = {}) {
     if (error.code === 'AUTH_EXPIRED') {
       stopKohaStatusWatch();
       renderAuth(error.message);
       return;
     }
-    targetEl.innerHTML = stateHtml('error', error.message);
+    const message =
+      error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE'
+        ? 'AutoCat service is temporarily unavailable. Please try again.'
+        : error.message;
+    targetEl.innerHTML = stateHtml('error', message) + (withRetry ? RETRY_BUTTON_HTML : '');
   }
 
   // -- The single automatic workflow: lookup -> analyze -> classify ------
@@ -541,9 +543,12 @@ function renderWorkspace(me) {
 
     lookupInFlight = true;
     lookupSubmit.disabled = true;
-    // Clear immediately so a following scan never appends onto this one,
-    // and the field visibly reads as "ready" while this lookup runs.
-    isbnInput.value = '';
+    // Show the normalized value (trimmed, hyphens stripped) but NEVER clear
+    // it -- the librarian needs it visible for retry, chat discussion, and
+    // MARC generation even if this lookup fails. Select it instead, so a
+    // following scanner burst naturally overwrites it rather than appending.
+    isbnInput.value = normalized;
+    isbnInput.select();
     bookCard.hidden = true;
     ddcCard.hidden = true;
     marcCard.hidden = true;
@@ -551,16 +556,20 @@ function renderWorkspace(me) {
     try {
       const body = await api.lookupIsbn(normalized);
       if (body.not_found) {
-        lookupStatus.innerHTML = stateHtml('error', 'ISBN details could not be found.');
+        lookupStatus.innerHTML = notFoundHtml();
+        bindRetry(normalized);
         return;
       }
       state.isbn = normalized;
       state.metadata = body;
-      lookupStatus.innerHTML = '';
+      lookupStatus.innerHTML = body.partial
+        ? stateHtml('info', 'Partial metadata found -- some fields could not be verified.')
+        : '';
       renderBook();
       await runDdcAndMarc();
     } catch (error) {
-      handleWorkflowError(error, lookupStatus);
+      handleWorkflowError(error, lookupStatus, { withRetry: true });
+      bindRetry(normalized);
     } finally {
       lookupInFlight = false;
       lookupSubmit.disabled = false;
@@ -568,6 +577,19 @@ function renderWorkspace(me) {
       // the chat panel or any other field the librarian is actively using.
       focusIsbnInputIfIdle();
     }
+  }
+
+  function notFoundHtml() {
+    return stateHtml('error', 'No reliable metadata found for this ISBN.') + RETRY_BUTTON_HTML;
+  }
+
+  // Wires up a "Retry lookup" button appended after an error, if one is
+  // present in the current lookup-status markup. The ISBN stays in the
+  // input the whole time (never cleared), so retry just re-runs with it.
+  function bindRetry(isbnForRetry) {
+    const retryButton = lookupStatus.querySelector('#retry-lookup');
+    if (!retryButton) return;
+    retryButton.addEventListener('click', () => runLookup(isbnForRetry));
   }
 
   lookupForm.addEventListener('submit', (event) => {
