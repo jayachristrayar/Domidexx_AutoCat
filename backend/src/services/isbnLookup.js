@@ -284,10 +284,11 @@ function extractJson(text) {
 
 const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null}`;
 
-// Only called for paid-tier users, and only when LibraryThing + Open
-// Library + Google Books all came back with no usable title. Uses OpenAI's
-// Responses API with the built-in web_search tool via the auto-selected
-// model from openaiModelSelector.js -- never a hardcoded model name.
+// Called whenever z3950 + LibraryThing + Open Library + Google Books all
+// came back with no usable title, regardless of subscription tier -- every
+// configured source is tried before giving up. Uses OpenAI's Responses API
+// with the built-in web_search tool via the auto-selected model from
+// openaiModelSelector.js -- never a hardcoded model name.
 export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
   const model = await getAvailableOpenAiModel();
   if (!model) {
@@ -379,7 +380,23 @@ ${searchText}`,
   };
 }
 
-export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
+// A field counts toward "partial" coverage when it's the kind of thing a
+// librarian actually wants to see beyond the bare title/author -- used only
+// to decide whether the client should say "Partial metadata found" instead
+// of showing a full result with no caveat.
+const ENRICHMENT_FIELDS = ['publisher', 'publish_date', 'description', 'subjects'];
+
+function isPartial(merged) {
+  return ENRICHMENT_FIELDS.filter((field) => isEmptyValue(merged[field])).length >= ENRICHMENT_FIELDS.length - 1;
+}
+
+// subscriptionTier is accepted for parity with the caller/session shape but
+// no longer gates the web-search fallback -- every configured lookup method
+// (structured sources, then AI-assisted web research) is attempted for
+// every user before giving up, per the "no source left untried" requirement.
+// Kept as a parameter (currently unused) in case a future cost-control
+// decision needs it again, rather than changing the call signature twice.
+export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
 
   const cached = await pool.query(
@@ -387,6 +404,7 @@ export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
     [isbn]
   );
   if (cached.rows.length > 0) {
+    console.info(`ISBN lookup: cache hit for ${isbn}`);
     return cached.rows[0].raw_json;
   }
 
@@ -404,6 +422,7 @@ export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
     const [source] = sourceCalls[index];
     if (result.status === 'fulfilled') {
       rawBySource[source] = result.value;
+      console.info(`ISBN lookup: ${source} ${result.value ? 'returned data' : 'had no match'} for ${isbn}`);
     } else {
       rawBySource[source] = null;
       console.warn(`ISBN lookup: ${source} failed for ${isbn}: ${result.reason?.message ?? result.reason}`);
@@ -417,20 +436,21 @@ export async function lookupIsbn(rawIsbn, subscriptionTier, { userId } = {}) {
   let cacheSource;
 
   if (hasStructuredTitle) {
-    result = { ...merged, sources: { ...merged.sources, method: 'structured' } };
+    result = { ...merged, sources: { ...merged.sources, method: 'structured' }, partial: isPartial(merged) };
     cacheSource = 'merged';
-  } else if (subscriptionTier === 'paid') {
+    console.info(`ISBN lookup: resolved ${isbn} from structured sources${result.partial ? ' (partial)' : ''}`);
+  } else {
+    console.info(`ISBN lookup: no structured title for ${isbn}, falling back to web research`);
     const webResult = await lookupIsbnWebFallback(isbn, { userId });
     if (webResult) {
-      result = webResult;
+      result = { ...webResult, partial: isPartial(webResult) };
       cacheSource = 'web_search';
+      console.info(`ISBN lookup: resolved ${isbn} via web-search fallback${result.partial ? ' (partial)' : ''}`);
     } else {
       result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
       cacheSource = 'not_found';
+      console.warn(`ISBN lookup: all configured sources exhausted for ${isbn}, returning not_found`);
     }
-  } else {
-    result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
-    cacheSource = 'not_found';
   }
 
   await pool.query(

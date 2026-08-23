@@ -48,6 +48,7 @@ function toClientResponse(result) {
     response.not_found = true;
   } else {
     response.provenance = result.sources?.method === 'web_search' ? 'unverified' : 'catalog_match';
+    response.partial = Boolean(result.partial);
   }
 
   return response;

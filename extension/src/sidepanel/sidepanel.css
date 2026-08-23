@@ -97,6 +97,7 @@ main {
 }
 
 .section-title {
+  display: block;
   margin: 0 0 4px;
   font-size: 0.68rem;
   font-weight: 700;
@@ -168,7 +169,8 @@ textarea {
   align-items: flex-end;
 }
 
-.row > label {
+.row > label,
+.row > input {
   flex: 1;
   min-width: 0;
 }
