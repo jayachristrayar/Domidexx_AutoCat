@@ -60,8 +60,25 @@ const DDC_INTENT_RE = /\b(ddc|classification|dewey|call number|082)\b|should be|
 
 const WHY_RE = /^\s*(why|explain|justif)/i;
 const WRONG_BOOK_RE = /wrong book|not the (?:right|correct) (?:book|edition)|different (?:book|edition)|look for another edition/i;
-const REANALYZE_RE = /reanaly[sz]e|re-?analy[sz]e|analy[sz]e (?:it |the book )?again|generate marc again|regenerate|redo|start over|try again|use the (?:table of contents|toc) more/i;
+const REANALYZE_RE = /reanaly[sz]e|re-?analy[sz]e|analy[sz]e (?:it |the book )?again|generate marc again|regenerate|redo|start over|try again|use the (?:table of contents|toc) more|reclassify/i;
 const REJECT_MARC_FIELD_RE = /do not use that metadata|ignore that (?:metadata|source)/i;
+
+// A rejection with NO proposed replacement ("025 is wrong", "this DDC is
+// wrong", "that's not right") -- distinct from override_ddc (which always
+// carries a specific number the librarian wants used instead). This must
+// force real reconsideration, not just redraw the displayed text: the
+// rejected number is excluded from the next classification pass (see
+// metadata.excluded_ddc, consumed by ddcCandidateService.js).
+const REJECT_DDC_RE = /\b(\d{2,3}(?:\.\d+)?)\s+is\s+wrong\b|\bthis\s+(?:ddc|classification|number)\s+is\s+wrong\b|\bthat'?s\s+(?:not\s+right|wrong)\b/i;
+
+// Explicit genre/form statements ("this is a novel", "this is poetry") are
+// strong, cataloguer-supplied evidence -- passed through as metadata.form_hint
+// so literaryDdc.js treats them as authoritative rather than re-deriving
+// form from incidental text.
+const GENRE_STATEMENT_RE = /\bthis\s+is\s+(?:a|an)?\s*(novel|fiction|short stor(?:y|ies)|poem|poetry|verse|play|drama)\b/i;
+const GENRE_TO_FORM = { novel: 'fiction', fiction: 'fiction', 'short story': 'fiction', 'short stories': 'fiction', poem: 'poetry', poetry: 'poetry', verse: 'poetry', play: 'drama', drama: 'drama' };
+
+const NOT_DOMAIN_RE = /not a library (?:science|and information science)?\s*book|not (?:about|a) library (?:science|operations)|this is not (?:about )?(?:library science|library operations)/i;
 
 const FIELD_NEEDS_VALUE_PATTERNS = [
   { field: 'authors', re: /^\s*(?:the )?author(?:'s name)? is wrong\.?\s*$/i },
@@ -93,9 +110,23 @@ function parseIntent(message) {
 
   if (WRONG_BOOK_RE.test(text)) return { intent: 'wrong_book' };
 
+  // A message that both rejects the current number AND proposes a specific
+  // replacement ("this DDC is wrong, use 025 instead") is an override, not
+  // a bare rejection -- checked first so the proposed number isn't lost.
   if (DDC_INTENT_RE.test(text) && DDC_NUMBER_RE.test(text)) {
     return { intent: 'override_ddc', number: extractDdcNumber(text) };
   }
+
+  const rejectMatch = text.match(REJECT_DDC_RE);
+  if (rejectMatch) return { intent: 'reject_ddc', rejectedNumber: rejectMatch[1] || null };
+
+  const genreMatch = text.match(GENRE_STATEMENT_RE);
+  if (genreMatch) {
+    const form = GENRE_TO_FORM[genreMatch[1].toLowerCase()] ?? GENRE_TO_FORM[genreMatch[1].toLowerCase().replace(/s$/, '')];
+    if (form) return { intent: 'genre_hint', form, label: genreMatch[1] };
+  }
+
+  if (NOT_DOMAIN_RE.test(text)) return { intent: 'reject_domain' };
 
   for (const pattern of FIELD_NEEDS_VALUE_PATTERNS) {
     if (pattern.re.test(text)) return { intent: 'correct_metadata_needs_value', field: pattern.field };
@@ -181,6 +212,36 @@ export function handleChatMessage({ message, context = {} } = {}) {
       };
     }
 
+    case 'reject_ddc': {
+      const rejected = parsed.rejectedNumber || ddc?.recommended_ddc?.number || null;
+      return {
+        reply: rejected
+          ? `Understood -- ${rejected} is rejected. I'm reconsidering the classification from the book's actual content, not just changing the displayed text.`
+          : "Understood -- reconsidering the classification from the book's actual content.",
+        intent: parsed.intent,
+        metadata_patch: rejected ? { excluded_ddc_add: [rejected] } : undefined,
+        needs_reanalysis: true,
+      };
+    }
+
+    case 'genre_hint':
+      return {
+        reply: `Thanks -- I'll treat this as ${parsed.label} and reclassify it under DDC 23's Literature class accordingly, rather than a subject-domain guess.`,
+        intent: parsed.intent,
+        // Authoritative cataloguer-supplied evidence -- literaryDdc.js
+        // trusts an explicit form_hint over its own text-based detection.
+        metadata_patch: { form_hint: parsed.form },
+        needs_reanalysis: true,
+      };
+
+    case 'reject_domain':
+      return {
+        reply: "Understood -- I won't classify this as library science. Re-analysing based on the book's actual content.",
+        intent: parsed.intent,
+        metadata_patch: ddc?.recommended_ddc?.number ? { excluded_ddc_add: [ddc.recommended_ddc.number] } : undefined,
+        needs_reanalysis: true,
+      };
+
     case 'correct_metadata_needs_value':
       return {
         reply: `What is the correct ${friendlyFieldLabel(parsed.field)}? I won't guess -- tell me the value and I'll use it.`,
@@ -217,7 +278,7 @@ export function handleChatMessage({ message, context = {} } = {}) {
 
     default:
       return {
-        reply: "I can help with things like: \"this DDC is wrong, use 332.6\", \"this is mainly about investment\", \"the author is wrong, it's Jane Doe\", \"this is the wrong book\", \"why this number?\", or \"reanalyse the book\". What would you like to change?",
+        reply: "I can help with things like: \"025 is wrong\", \"this DDC is wrong, use 332.6\", \"this is a novel\", \"this is mainly about investment\", \"the author is wrong, it's Jane Doe\", \"this is the wrong book\", \"why this number?\", or \"reclassify this book\". What would you like to change?",
         intent: 'unknown',
       };
   }

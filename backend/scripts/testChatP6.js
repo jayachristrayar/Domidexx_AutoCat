@@ -56,6 +56,39 @@ assert.ok(r.reply.includes('Because it is about libraries.'));
 assert.ok(r.reply.includes('000'));
 assert.ok(r.reply.includes('HIGH'));
 
+// "025 is wrong" (bare rejection, no replacement number given) must force
+// real reconsideration -- excluding the rejected number from the next
+// classification pass -- not just redraw the displayed text.
+r = handleChatMessage({ message: '025 is wrong', context: { ddc: { decision: { recommended_ddc: { number: '025', label: 'Library operations' } } } } });
+assert.strictEqual(r.intent, 'reject_ddc');
+assert.strictEqual(r.needs_reanalysis, true);
+assert.deepStrictEqual(r.metadata_patch, { excluded_ddc_add: ['025'] });
+
+r = handleChatMessage({ message: 'This DDC is wrong.' });
+assert.strictEqual(r.intent, 'reject_ddc');
+assert.strictEqual(r.needs_reanalysis, true);
+
+// "This is a novel" is authoritative genre evidence fed back as form_hint.
+r = handleChatMessage({ message: 'This is a novel.' });
+assert.strictEqual(r.intent, 'genre_hint');
+assert.strictEqual(r.needs_reanalysis, true);
+assert.deepStrictEqual(r.metadata_patch, { form_hint: 'fiction' });
+
+r = handleChatMessage({ message: 'This is poetry.' });
+assert.strictEqual(r.intent, 'genre_hint');
+assert.deepStrictEqual(r.metadata_patch, { form_hint: 'poetry' });
+
+// "This is not a library science book" excludes the current (wrong) number
+// and forces reanalysis.
+r = handleChatMessage({ message: 'This is not a library science book.', context: { ddc: { decision: { recommended_ddc: { number: '025', label: 'Library operations' } } } } });
+assert.strictEqual(r.intent, 'reject_domain');
+assert.strictEqual(r.needs_reanalysis, true);
+assert.deepStrictEqual(r.metadata_patch, { excluded_ddc_add: ['025'] });
+
+// "Reclassify this book" is a recognized reanalysis trigger.
+r = handleChatMessage({ message: 'Reclassify this book.' });
+assert.strictEqual(r.needs_reanalysis, true);
+
 // Unrecognized input never fabricates an action.
 r = handleChatMessage({ message: 'asdkjaslkdj random text' });
 assert.strictEqual(r.intent, 'unknown');

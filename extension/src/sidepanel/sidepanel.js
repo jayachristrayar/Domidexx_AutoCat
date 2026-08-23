@@ -595,6 +595,13 @@ function renderWorkspace(me) {
         next.keywords = [...new Set([...(next.keywords || []), ...value])];
         continue;
       }
+      if (key === 'excluded_ddc_add') {
+        // A rejected DDC number (e.g. "025 is wrong") is excluded from the
+        // next classification pass -- forces real reconsideration rather
+        // than just repainting the same number under new text.
+        next.excluded_ddc = [...new Set([...(next.excluded_ddc || []), ...value])];
+        continue;
+      }
       next[key] = value;
       // A cataloguer-entered correction always wins over a source lookup --
       // never silently re-overwritten by a later API result (section 16).
