@@ -3,7 +3,7 @@ import { z } from 'zod';
 import pool from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
-import { lookupIsbn } from '../services/isbnLookup.js';
+import { lookupIsbn, researchIsbnOnWeb } from '../services/isbnLookup.js';
 import { generateMarcRecord } from '../services/marcPipeline.js';
 
 const router = Router();
@@ -103,6 +103,63 @@ router.get(
       userId: req.user.userId,
     });
     res.json(toClientResponse(result));
+  })
+);
+
+// citationLabel(citation) -- a librarian-facing "source" label: the page
+// title when the search returned one, otherwise the bare hostname. Never
+// the provider/model name -- that stays server-side regardless.
+function citationLabel(citation) {
+  if (citation.title) return citation.title;
+  try {
+    return new URL(citation.url).hostname.replace(/^www\./, '');
+  } catch {
+    return citation.url;
+  }
+}
+
+// evidenceStatus -- a plain High/Medium/Low signal for the chat "check the
+// web" result (product spec: "EVIDENCE STATUS"), derived from how many
+// substantive fields were actually found and how many sources back them,
+// never fabricated.
+function evidenceStatus(result, sourceCount) {
+  const richFieldCount = ['title', 'authors', 'publisher', 'publish_date', 'description'].filter(
+    (field) => !(result[field] == null || result[field] === '' || (Array.isArray(result[field]) && result[field].length === 0))
+  ).length;
+  if (richFieldCount >= 4 && sourceCount >= 2) return 'High';
+  if (richFieldCount >= 2) return 'Medium';
+  return 'Low';
+}
+
+// toResearchClientResponse -- like toClientResponse, but for the chat
+// "check the web" / "check complete web" action specifically: this is the
+// one place citation sources ARE deliberately shown to the librarian (as
+// plain title/hostname labels, via citationLabel), per that feature's own
+// requirement to display "Sources found". Provider/model names are still
+// never included, here or anywhere else.
+function toResearchClientResponse(result) {
+  if (result.not_found) {
+    return { isbn: result.isbn, not_found: true };
+  }
+  const citations = result.sources?.citations ?? [];
+  return {
+    ...toClientResponse(result),
+    sources_found: citations.map(citationLabel),
+    evidence_status: evidenceStatus(result, citations.length),
+  };
+}
+
+router.post(
+  '/research/:isbn',
+  requireSession,
+  asyncHandler(async (req, res) => {
+    const parsed = isbnParamSchema.safeParse(req.params);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.flatten() });
+    }
+    const deep = Boolean(req.body?.deep);
+    const result = await researchIsbnOnWeb(parsed.data.isbn, { userId: req.user.userId, deep });
+    res.json(toResearchClientResponse(result));
   })
 );
 

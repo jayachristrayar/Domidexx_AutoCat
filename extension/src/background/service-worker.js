@@ -171,6 +171,23 @@ async function actionLookupIsbn({ isbn }) {
   }
 }
 
+// Backs the Ask AutoCat "check the web" / "check complete web" chat
+// actions (see chatService.js's web_lookup/deep_web_lookup intents) --
+// calls the real backend web-research endpoint, never a fabricated result.
+async function actionResearchIsbnWeb({ isbn, deep }) {
+  try {
+    const response = await apiFetch(`/records/research/${encodeURIComponent(isbn)}`, {
+      method: 'POST',
+      body: JSON.stringify({ deep: Boolean(deep) }),
+    });
+    const body = await readJson(response);
+    if (!response.ok) return friendlyResultFor(response, body);
+    return { ok: true, data: body };
+  } catch (error) {
+    return networkErrorResult(error);
+  }
+}
+
 async function actionRecommendDdc({ metadata, model }) {
   try {
     const response = await apiFetch('/api/ddc/recommend', { method: 'POST', body: JSON.stringify({ metadata, model }) });
@@ -265,6 +282,7 @@ const API_ACTIONS = {
   logout: actionLogout,
   getMe: actionGetMe,
   lookupIsbn: actionLookupIsbn,
+  researchIsbnWeb: actionResearchIsbnWeb,
   recommendDdc: actionRecommendDdc,
   approveDdc: actionApproveDdc,
   generateMarc: actionGenerateMarc,

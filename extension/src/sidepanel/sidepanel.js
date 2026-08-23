@@ -759,6 +759,60 @@ function renderWorkspace(me) {
     renderBook();
   }
 
+  // Plain-text summary for the chat bubble -- never fabricated, built only
+  // from whatever the real backend research call actually returned.
+  function formatWebResearchSummary(result) {
+    const authors = (result.authors || []).join(', ');
+    const lines = [
+      'WEB RESEARCH COMPLETED',
+      '',
+      `ISBN: ${result.isbn}`,
+      result.title ? `Title: ${result.title}` : null,
+      authors ? `Author: ${authors}` : null,
+      result.publisher ? `Publisher: ${result.publisher}` : null,
+      result.publish_date ? `Publication year: ${result.publish_date}` : null,
+      result.edition ? `Edition: ${result.edition}` : null,
+      result.physical_description?.pages ? `Pages: ${result.physical_description.pages}` : null,
+      result.description ? `Description: ${result.description}` : null,
+    ].filter((line) => line !== null);
+
+    if (result.sources_found?.length) {
+      lines.push('', 'SOURCES FOUND', ...result.sources_found.map((s) => `• ${s}`));
+    }
+    if (result.evidence_status) {
+      lines.push('', 'EVIDENCE STATUS', result.evidence_status);
+    }
+    return lines.join('\n');
+  }
+
+  // Ask AutoCat's "check the web" / "check complete web" action (see
+  // chatService.js's web_lookup/deep_web_lookup intents): calls the real
+  // backend web-research endpoint for the current ISBN, reports the result
+  // in the chat log, updates the current book context with whatever was
+  // found, and continues straight into DDC/MARC analysis -- the same
+  // single automatic workflow a fresh lookup triggers (product spec
+  // section 33), not a dead end that just shows text.
+  async function runWebResearch({ isbn, deep }) {
+    chatStatus.innerHTML = stateHtml('loading', deep ? 'Researching the web…' : 'Checking the web…');
+    try {
+      const researched = await api.researchIsbnWeb(isbn, deep);
+      chatStatus.innerHTML = '';
+      if (researched.not_found) {
+        appendChatMessage('assistant', 'I could not find reliable metadata for this ISBN.');
+        return;
+      }
+      appendChatMessage('assistant', formatWebResearchSummary(researched));
+      state.isbn = researched.isbn;
+      state.metadata = researched;
+      renderBook();
+      await runDdcAndMarc();
+    } catch (error) {
+      chatStatus.innerHTML = '';
+      if (error.code === 'AUTH_EXPIRED') { stopKohaStatusWatch(); renderAuth(error.message); return; }
+      appendChatMessage('assistant', 'Sorry, the web research could not be completed just now. Please try again.');
+    }
+  }
+
   async function applyDdcOverride(override) {
     state.ddcSource = 'cataloguer';
     marcStatus.innerHTML = stateHtml('loading', 'Applying your DDC correction…');
@@ -801,6 +855,11 @@ function renderWorkspace(me) {
         ddcCard.hidden = true;
         marcCard.hidden = true;
         isbnInput.focus();
+        return;
+      }
+
+      if (response.web_research) {
+        await runWebResearch(response.web_research);
         return;
       }
 

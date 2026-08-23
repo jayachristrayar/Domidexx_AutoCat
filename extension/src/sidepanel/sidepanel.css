@@ -758,6 +758,9 @@ button.full,
   border-radius: 10px;
   font-size: 0.82rem;
   line-height: 1.4;
+  /* A structured multi-line reply (e.g. the "check the web" research
+     summary) uses \n line breaks in its plain textContent -- render them. */
+  white-space: pre-line;
 }
 
 .chat-bubble.user {
