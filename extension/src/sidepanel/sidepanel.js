@@ -374,6 +374,8 @@ function renderWorkspace(me) {
       <form id="lookup-form" class="row">
         <input id="isbn-input" name="isbn" required placeholder="9780140328721" autocomplete="off" />
         <button type="submit" id="lookup-submit">Look up</button>
+        <button type="button" id="cancel-lookup" class="secondary" hidden>Cancel lookup</button>
+        <button type="button" id="new-lookup" class="secondary" hidden>New lookup</button>
       </form>
       <div id="lookup-status"></div>
     </div>
@@ -434,6 +436,13 @@ function renderWorkspace(me) {
 
   // -- Shared workspace state --------------------------------------------
   const state = {
+    // Bumped at the start of every new ISBN lookup, and by Cancel lookup.
+    // Any in-flight async step (ISBN fetch, DDC recommend, MARC generate)
+    // checks this against the id it captured when it started -- if they no
+    // longer match, its result is stale (superseded by a newer lookup, or
+    // cancelled) and must never touch state/UI (product spec item 13:
+    // "lookup A finishing after lookup B must never overwrite B's result").
+    lookupId: 0,
     isbn: null,
     metadata: null,
     ddcId: null,
@@ -493,6 +502,8 @@ function renderWorkspace(me) {
   const lookupSubmit = app.querySelector('#lookup-submit');
   const lookupForm = app.querySelector('#lookup-form');
   const isbnInput = app.querySelector('#isbn-input');
+  const cancelLookupButton = app.querySelector('#cancel-lookup');
+  const newLookupButton = app.querySelector('#new-lookup');
 
   // A physical USB/Bluetooth barcode scanner is, to the browser, an
   // ordinary (very fast) keyboard -- there is no special "scanner event" to
@@ -548,8 +559,14 @@ function renderWorkspace(me) {
   }
 
   const RETRY_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-lookup">Retry lookup</button>';
+  const RETRY_ANALYSIS_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-analysis">Retry analysis</button>';
 
-  function handleWorkflowError(error, targetEl, { withRetry = false } = {}) {
+  // retryFn, when given, gets its own "Retry analysis" button wired up
+  // instead of (or alongside) the plain "Retry lookup" one -- used for a
+  // DDC/MARC failure, where the book evidence already collected must never
+  // be thrown away and re-scraped just to try the AI step again (product
+  // spec items 10/17/21).
+  function handleWorkflowError(error, targetEl, { withRetry = false, retryFn = null } = {}) {
     if (error.code === 'AUTH_EXPIRED') {
       stopKohaStatusWatch();
       renderAuth(error.message);
@@ -566,23 +583,40 @@ function renderWorkspace(me) {
         ${stateHtml('error', `${escapeHtml(modelName)} is not available for your account. Please contact the administrator to upgrade access.`)}
         <p class="hint">Contact: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
       `;
+      newLookupButton.hidden = false;
       return;
     }
-    const message =
-      error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE'
-        ? 'AutoCat service is temporarily unavailable. Please try again.'
-        : error.message;
-    targetEl.innerHTML = stateHtml('error', message) + (withRetry ? RETRY_BUTTON_HTML : '');
+    // A bare "temporarily unavailable" with no way forward is exactly the
+    // dead end product spec item 9 calls out -- this is almost always a
+    // slow/stalled AI provider call (see the bounded per-call timeouts in
+    // llm/router.js / isbnLookup.js), which fails within tens of seconds
+    // rather than hanging, so a retry using the SAME already-collected
+    // evidence is normally the right next step.
+    const timedOut = error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE';
+    const message = timedOut ? 'AutoCat is taking longer than expected to respond. Your book evidence is still here.' : error.message;
+    const retryButtonsHtml = (retryFn ? RETRY_ANALYSIS_BUTTON_HTML : '') + (withRetry ? RETRY_BUTTON_HTML : '');
+    targetEl.innerHTML = stateHtml('error', message) + retryButtonsHtml;
+    if (retryFn) targetEl.querySelector('#retry-analysis')?.addEventListener('click', retryFn);
+    newLookupButton.hidden = false;
   }
 
-  // -- The single automatic workflow: lookup -> analyze -> classify ------
-  // -> generate MARC (product spec section 33). There is no separate
-  // "approve DDC" step here or anywhere in the UI: the backend already
-  // returns the recommendation auto-accepted as the current working
-  // classification (see ddcApprovalService.saveDdcDecision), so MARC
-  // generation follows immediately. Re-entrant: also used by the chat
-  // panel to re-run analysis/MARC after a correction.
-  async function runDdcAndMarc() {
+  // -- The single automatic workflow: analyze -> classify -> generate MARC
+  // (product spec section 33). There is no separate "approve DDC" step here
+  // or anywhere in the UI: the backend already returns the recommendation
+  // auto-accepted as the current working classification (see
+  // ddcApprovalService.saveDdcDecision), so MARC generation follows
+  // immediately. Re-entrant: used by a fresh lookup, the chat panel (after
+  // a correction), and the "Retry analysis" button -- always against
+  // whatever state.metadata already holds, never re-running web research.
+  //
+  // myLookupId is the lookupId this call belongs to (captured by the
+  // caller); if state.lookupId has moved on by the time an awaited step
+  // resolves -- a newer ISBN lookup started, or Cancel was clicked -- this
+  // stale result is discarded rather than overwriting a newer lookup's UI
+  // (product spec item 13).
+  async function runDdcAndMarc(myLookupId) {
+    cancelLookupButton.hidden = false;
+    newLookupButton.hidden = true;
     ddcCard.hidden = false;
     ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
     marcCard.hidden = true;
@@ -591,9 +625,12 @@ function renderWorkspace(me) {
     try {
       recommendation = await api.recommendDdc(state.metadata, state.selectedModel);
     } catch (error) {
-      handleWorkflowError(error, ddcStatus);
+      if (myLookupId !== state.lookupId) return;
+      handleWorkflowError(error, ddcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
+      cancelLookupButton.hidden = true;
       return;
     }
+    if (myLookupId !== state.lookupId) return;
     state.ddcId = recommendation.id;
     state.ddcDecision = recommendation.decision;
     state.ddcSource = 'ai';
@@ -603,17 +640,25 @@ function renderWorkspace(me) {
     marcStatus.innerHTML = stateHtml('loading', 'Preparing MARC…');
     try {
       const marc = await api.generateMarc(state.metadata, state.ddcDecision);
+      if (myLookupId !== state.lookupId) return;
       state.marcResult = marc;
       renderMarcSection();
     } catch (error) {
-      handleWorkflowError(error, marcStatus);
+      if (myLookupId !== state.lookupId) return;
+      handleWorkflowError(error, marcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
+    } finally {
+      if (myLookupId === state.lookupId) cancelLookupButton.hidden = true;
     }
+    if (myLookupId === state.lookupId) newLookupButton.hidden = false;
   }
 
   // Single entry point for starting a lookup, whatever triggered it (Look
   // up click, Enter from manual typing or a scanner, Tab from a scanner).
   // Guarded against re-entry so a scanner double-firing Enter+Tab, or a
-  // second scan landing mid-request, can't start two lookups at once.
+  // second scan landing mid-request, can't start two lookups at once --
+  // Cancel lookup (below) resets lookupInFlight immediately rather than
+  // waiting for the superseded request to actually settle, so a librarian
+  // can always start scanning the next book right away (product spec item 12).
   let lookupInFlight = false;
   async function runLookup(rawIsbn) {
     if (lookupInFlight) return;
@@ -624,8 +669,11 @@ function renderWorkspace(me) {
       return;
     }
 
+    const myLookupId = ++state.lookupId;
     lookupInFlight = true;
     lookupSubmit.disabled = true;
+    cancelLookupButton.hidden = false;
+    newLookupButton.hidden = true;
     // Show the normalized value (trimmed, hyphens stripped) but NEVER clear
     // it -- the librarian needs it visible for retry, chat discussion, and
     // MARC generation even if this lookup fails. Select it instead, so a
@@ -638,9 +686,11 @@ function renderWorkspace(me) {
     lookupStatus.innerHTML = stateHtml('loading', 'Looking up this ISBN…');
     try {
       const body = await api.lookupIsbn(normalized);
+      if (myLookupId !== state.lookupId) return; // superseded or cancelled
       if (body.not_found) {
         lookupStatus.innerHTML = notFoundHtml();
         bindRetry(normalized);
+        newLookupButton.hidden = false;
         return;
       }
       state.isbn = normalized;
@@ -649,16 +699,23 @@ function renderWorkspace(me) {
         ? stateHtml('info', 'Partial metadata found -- some fields could not be verified.')
         : '';
       renderBook();
-      await runDdcAndMarc();
+      await runDdcAndMarc(myLookupId);
     } catch (error) {
+      if (myLookupId !== state.lookupId) return; // superseded or cancelled
       handleWorkflowError(error, lookupStatus, { withRetry: true });
       bindRetry(normalized);
     } finally {
-      lookupInFlight = false;
-      lookupSubmit.disabled = false;
-      // Ready for the next scan (item 7) -- but never yank focus away from
-      // the chat panel or any other field the librarian is actively using.
-      focusIsbnInputIfIdle();
+      // Only the lookup that's still current gets to touch the shared
+      // in-flight flag/buttons -- a stale call's finally block must not
+      // clobber whatever a newer lookup (or Cancel) already set.
+      if (myLookupId === state.lookupId) {
+        lookupInFlight = false;
+        lookupSubmit.disabled = false;
+        cancelLookupButton.hidden = true;
+        // Ready for the next scan (item 7) -- but never yank focus away from
+        // the chat panel or any other field the librarian is actively using.
+        focusIsbnInputIfIdle();
+      }
     }
   }
 
@@ -674,6 +731,48 @@ function renderWorkspace(me) {
     if (!retryButton) return;
     retryButton.addEventListener('click', () => runLookup(isbnForRetry));
   }
+
+  // Cancel lookup (product spec item 12): bumping lookupId is what actually
+  // "cancels" anything already in flight -- every awaited step across
+  // runLookup/runDdcAndMarc checks it and silently discards a stale result,
+  // which is the documented fallback for a request that can't technically
+  // be aborted mid-flight. The extension itself becomes idle again
+  // immediately, without waiting for the superseded request to resolve.
+  cancelLookupButton.addEventListener('click', () => {
+    state.lookupId += 1;
+    lookupInFlight = false;
+    lookupSubmit.disabled = false;
+    cancelLookupButton.hidden = true;
+    newLookupButton.hidden = false;
+    lookupStatus.innerHTML = stateHtml('info', 'Lookup cancelled.');
+    ddcCard.hidden = true;
+    marcCard.hidden = true;
+    focusIsbnInputIfIdle();
+  });
+
+  // New lookup (product spec item 14): clears the book/DDC/MARC result and
+  // any error so the librarian can start clean -- but never the session,
+  // the selected AI model, or (per item 15) forces the librarian to retype
+  // an ISBN that's still sitting right there if they just want to correct it.
+  newLookupButton.addEventListener('click', () => {
+    state.lookupId += 1; // invalidate anything still in flight
+    lookupInFlight = false;
+    state.isbn = null;
+    state.metadata = null;
+    state.ddcId = null;
+    state.ddcDecision = null;
+    state.marcResult = null;
+    state.chatPendingField = null;
+    bookCard.hidden = true;
+    ddcCard.hidden = true;
+    marcCard.hidden = true;
+    lookupStatus.innerHTML = '';
+    cancelLookupButton.hidden = true;
+    newLookupButton.hidden = true;
+    lookupSubmit.disabled = false;
+    isbnInput.value = '';
+    isbnInput.focus();
+  });
 
   lookupForm.addEventListener('submit', (event) => {
     // Native form submission already fires on Enter with a single text
@@ -804,9 +903,11 @@ function renderWorkspace(me) {
   // single automatic workflow a fresh lookup triggers (product spec
   // section 33), not a dead end that just shows text.
   async function runWebResearch({ isbn, deep }) {
+    const myLookupId = state.lookupId; // guard against a lookup started/cancelled meanwhile
     chatStatus.innerHTML = stateHtml('loading', deep ? 'Researching the web…' : 'Checking the web…');
     try {
       const researched = await api.researchIsbnWeb(isbn, deep);
+      if (myLookupId !== state.lookupId) return;
       chatStatus.innerHTML = '';
       if (researched.not_found) {
         appendChatMessage('assistant', 'I could not find reliable metadata for this ISBN.');
@@ -816,8 +917,9 @@ function renderWorkspace(me) {
       state.isbn = researched.isbn;
       state.metadata = researched;
       renderBook();
-      await runDdcAndMarc();
+      await runDdcAndMarc(myLookupId);
     } catch (error) {
+      if (myLookupId !== state.lookupId) return;
       chatStatus.innerHTML = '';
       if (error.code === 'AUTH_EXPIRED') { stopKohaStatusWatch(); renderAuth(error.message); return; }
       appendChatMessage('assistant', 'Sorry, the web research could not be completed just now. Please try again.');
@@ -825,17 +927,21 @@ function renderWorkspace(me) {
   }
 
   async function applyDdcOverride(override) {
+    const myLookupId = state.lookupId; // guard against a lookup started/cancelled meanwhile
     state.ddcSource = 'cataloguer';
     marcStatus.innerHTML = stateHtml('loading', 'Applying your DDC correction…');
     try {
       const approved = await api.approveDdc(state.ddcId, override.number);
+      if (myLookupId !== state.lookupId) return;
       state.ddcDecision = { ...approved.decision, ai_recommendation_overridden: true };
       renderDdcSection();
       const marc = await api.generateMarc(state.metadata, state.ddcDecision);
+      if (myLookupId !== state.lookupId) return;
       state.marcResult = marc;
       renderMarcSection();
     } catch (error) {
-      handleWorkflowError(error, marcStatus);
+      if (myLookupId !== state.lookupId) return;
+      handleWorkflowError(error, marcStatus, { retryFn: () => applyDdcOverride(override) });
     }
   }
 
@@ -887,7 +993,7 @@ function renderWorkspace(me) {
       }
 
       if (response.needs_reanalysis && state.metadata) {
-        await runDdcAndMarc();
+        await runDdcAndMarc(state.lookupId);
       }
     } catch (error) {
       chatStatus.innerHTML = '';

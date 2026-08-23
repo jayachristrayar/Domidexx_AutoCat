@@ -351,6 +351,15 @@ function extractJson(text) {
 
 const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}`;
 
+// A web_search call genuinely needs more time than a plain completion (the
+// model runs multiple real searches before answering), but it must still
+// fail well inside any hosting platform's own request timeout rather than
+// approach the SDK's unbounded default -- see openaiModelSelector.js's
+// CLIENT_TIMEOUT_MS docstring. The final JSON-formatting pass does no
+// searching (plain text-to-JSON), so it gets the tighter completion budget.
+const WEB_SEARCH_TIMEOUT_MS = 35_000;
+const STRUCTURING_TIMEOUT_MS = 20_000;
+
 // This is a normal, always-available research stage (item 1/2/15 of the
 // product spec) -- called whenever structured sources (z3950/Open
 // Library/Google Books/LibraryThing) either found no title at all, or
@@ -364,6 +373,7 @@ const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle"
 // completions API has no equivalent built-in web-search tool to route
 // this through even if it were selected.
 export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {}) {
+  const pipelineStartedAt = Date.now();
   const model = await getAvailableOpenAiModel();
   if (!model) {
     console.error(`ISBN web research skipped for ${isbn}: no usable OpenAI model available.`);
@@ -382,16 +392,21 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
   const isbnFormVariation = otherForm ? `, "ISBN ${otherForm}", "${otherForm} book"` : '';
   const deepVariations = deep ? `, "${isbn} author", "${isbn} publisher", "${isbn} catalog", "${isbn} library"` : '';
   let searchResponse;
+  const searchStartedAt = Date.now();
   try {
-    searchResponse = await client.responses.create({
-      model,
-      tools: [{ type: 'web_search' }],
-      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
-    });
+    searchResponse = await client.responses.create(
+      {
+        model,
+        tools: [{ type: 'web_search' }],
+        input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
+      },
+      { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
+    );
   } catch (error) {
-    console.error(`ISBN web research: web_search call failed for ${isbn}: ${error.message}`);
+    console.error(`ISBN web research: web_search call failed for ${isbn} after ${Date.now() - searchStartedAt}ms: ${error.message}`);
     return null;
   }
+  console.info(`ISBN web research: primary search pass for ${isbn} took ${Date.now() - searchStartedAt}ms`);
   await logApiUsage(userId, model, searchResponse.usage?.total_tokens);
 
   let searchText = searchResponse.output_text ?? '';
@@ -405,39 +420,48 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
     // "aggregate the available evidence" actually means here: real
     // additional search coverage, not two calls that just produce the same
     // single result twice.
+    const crossCheckStartedAt = Date.now();
     try {
-      const crossCheckResponse = await client.responses.create({
-        model,
-        tools: [{ type: 'web_search' }],
-        input: `Specifically search library catalogs, WorldCat, national/university library records, and publisher or bookseller listings for ISBN ${isbn} to cross-check the research below. Report anything that confirms, adds new detail to, or conflicts with it, and cite sources.\n\nPrevious research:\n${searchText}`,
-      });
+      const crossCheckResponse = await client.responses.create(
+        {
+          model,
+          tools: [{ type: 'web_search' }],
+          input: `Specifically search library catalogs, WorldCat, national/university library records, and publisher or bookseller listings for ISBN ${isbn} to cross-check the research below. Report anything that confirms, adds new detail to, or conflicts with it, and cite sources.\n\nPrevious research:\n${searchText}`,
+        },
+        { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
+      );
       await logApiUsage(userId, model, crossCheckResponse.usage?.total_tokens);
       searchText = `${searchText}\n\nAdditional cross-check research:\n${crossCheckResponse.output_text ?? ''}`;
       citations = citations.concat(extractCitations(crossCheckResponse));
-      console.info(`ISBN web research: deep cross-check pass completed for ${isbn}`);
+      console.info(`ISBN web research: deep cross-check pass for ${isbn} took ${Date.now() - crossCheckStartedAt}ms`);
     } catch (error) {
       // Not fatal -- the primary research pass already succeeded; deep mode
       // just doesn't get its extra coverage this time.
-      console.warn(`ISBN web research: deep cross-check pass failed for ${isbn}, continuing with primary research only: ${error.message}`);
+      console.warn(`ISBN web research: deep cross-check pass failed for ${isbn} after ${Date.now() - crossCheckStartedAt}ms, continuing with primary research only: ${error.message}`);
     }
   }
 
   let structuredResponse;
+  const structuringStartedAt = Date.now();
   try {
-    structuredResponse = await client.responses.create({
-      model,
-      input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences). Resolve any conflicts the research noted by choosing the most credible value; put a short note on what conflicted and why you chose as you did in "conflicts_found" (or null if there were none):
+    structuredResponse = await client.responses.create(
+      {
+        model,
+        input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences). Resolve any conflicts the research noted by choosing the most credible value; put a short note on what conflicted and why you chose as you did in "conflicts_found" (or null if there were none):
 ${STRUCTURED_JSON_SHAPE}
 
 ISBN: ${isbn}
 
 Research:
 ${searchText}`,
-    });
+      },
+      { timeout: STRUCTURING_TIMEOUT_MS, maxRetries: 0 }
+    );
   } catch (error) {
-    console.error(`ISBN web research: JSON formatting call failed for ${isbn}: ${error.message}`);
+    console.error(`ISBN web research: JSON formatting call failed for ${isbn} after ${Date.now() - structuringStartedAt}ms: ${error.message}`);
     return null;
   }
+  console.info(`ISBN web research: JSON formatting pass for ${isbn} took ${Date.now() - structuringStartedAt}ms`);
   await logApiUsage(userId, model, structuredResponse.usage?.total_tokens);
 
   let parsed;
@@ -455,6 +479,7 @@ ${searchText}`,
   if (parsed.conflicts_found) {
     console.info(`ISBN web research: source conflict for ${isbn}: ${parsed.conflicts_found}`);
   }
+  console.info(`ISBN web research: full pipeline for ${isbn} (deep=${deep}) took ${Date.now() - pipelineStartedAt}ms`);
 
   return {
     isbn,
@@ -570,7 +595,12 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     ['googleBooks', fetchGoogleBooks],
   ];
 
+  // Timed and run concurrently (product spec item 2/6/23) -- structured
+  // sources never wait on each other, and the total time here is bounded by
+  // the single slowest of them, not their sum.
+  const structuredStartedAt = Date.now();
   const settled = await Promise.allSettled(sourceCalls.map(([, fn]) => tryVariants(variants, fn)));
+  console.info(`ISBN lookup: structured sources for ${isbn} took ${Date.now() - structuredStartedAt}ms (parallel)`);
 
   const rawBySource = {};
   settled.forEach((result, index) => {

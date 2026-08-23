@@ -29,7 +29,9 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
     throw error;
   }
   const provider = toProviderId(model);
+  const ddcStartedAt = Date.now();
   const decision=await recommendDdc(metadata, { provider });
+  console.info(`ddc/recommend: classification for user ${req.user.userId} via ${provider} took ${Date.now() - ddcStartedAt}ms (source=${decision.classification_source})`);
   // Only log a usage row when the provider was actually called (ai_attempted)
   // -- when no AI provider is configured at all, recommendDdc silently falls
   // back to the rule-based engine with no request ever sent anywhere, and
