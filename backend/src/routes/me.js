@@ -10,7 +10,7 @@ router.get(
   requireSession,
   asyncHandler(async (req, res) => {
     const result = await pool.query(
-      `SELECT u.email, i.name AS institution_name, u.subscription_tier,
+      `SELECT u.email, u.autocat_user_id, u.status, u.model_access, i.name AS institution_name,
               ds.ui_state_json, ds.updated_at AS draft_state_updated_at,
               mr.id AS marc_record_id, mr.isbn, mr.marc_json, mr.marc_text,
               mr.status AS marc_record_status,
@@ -46,10 +46,15 @@ router.get(
         }
       : null;
 
+    // Only safe, extension-facing fields -- never API keys, provider
+    // credentials, internal subscription tier, or anything else a librarian
+    // isn't meant to see (product spec section 10/20).
     res.json({
       email: row.email,
+      autocat_user_id: row.autocat_user_id,
+      status: row.status,
+      model_access: row.model_access,
       institution_name: row.institution_name,
-      subscription_tier: row.subscription_tier,
       draft_state: draftState,
     });
   })

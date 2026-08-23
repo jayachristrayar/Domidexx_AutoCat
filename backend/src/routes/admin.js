@@ -16,6 +16,8 @@ import {
   setUserStatus,
   updateUserAccess,
   deleteUser,
+  enableOpenAiAccess,
+  disableOpenAiAccess,
   UserAlreadyExistsError,
   UserNotFoundError,
 } from '../services/userService.js';
@@ -323,14 +325,17 @@ function renderUsersPage({ users, formError, notice }) {
       const expiryValue = user.expires_at
         ? new Date(user.expires_at).toISOString().slice(0, 16)
         : '';
+      const modelAccess = user.model_access ?? ['NVIDIA'];
+      const hasOpenAi = modelAccess.includes('OPENAI');
       return `<tr>
         <td>
           <strong>${escapeHtml(user.email)}</strong>
-          <div class="muted" style="font-size:0.8rem">#${user.id} · ${escapeHtml(formatExpiry(user.expires_at))}</div>
+          <div class="muted" style="font-size:0.8rem">${escapeHtml(user.autocat_user_id ?? '—')} · ${escapeHtml(formatExpiry(user.expires_at))}</div>
           <div style="margin-top:6px"><span class="badge ${status.className}">${status.label}</span></div>
         </td>
         <td>${escapeHtml(user.institution_name ?? '—')}</td>
         <td><span class="badge">${escapeHtml(user.subscription_tier)}</span></td>
+        <td>${modelAccess.map((m) => `<span class="badge">${escapeHtml(m)}</span>`).join(' ')}</td>
         <td>${user.device_limit}</td>
         <td>${new Date(user.created_at).toLocaleDateString()}</td>
         <td>${lastSeen}</td>
@@ -342,6 +347,9 @@ function renderUsersPage({ users, formError, notice }) {
                 <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>paid</option>
               </select>
               <button type="submit" class="btn">Save tier</button>
+            </form>
+            <form class="inline" method="POST" action="/admin/users/${user.id}/model-access/${hasOpenAi ? 'disable-openai' : 'enable-openai'}">
+              <button type="submit" class="btn ${hasOpenAi ? 'btn-gold' : ''}">${hasOpenAi ? 'Disable OpenAI' : 'Enable OpenAI'}</button>
             </form>
             <form class="inline" method="POST" action="/admin/users/${user.id}/access">
               <input type="number" name="device_limit" min="1" max="50" value="${user.device_limit}" title="Device limit" required />
@@ -372,8 +380,8 @@ function renderUsersPage({ users, formError, notice }) {
       ${notice ? `<div class="success">${escapeHtml(notice)}</div>` : ''}
       <div class="panel table-wrap">
         <table>
-          <thead><tr><th>Email / status</th><th>Institution</th><th>Tier</th><th>Devices</th><th>Created</th><th>Last active</th><th>Actions</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="7" class="muted">No users yet.</td></tr>'}</tbody>
+          <thead><tr><th>Email / status</th><th>Institution</th><th>Tier</th><th>Model access</th><th>Devices</th><th>Created</th><th>Last active</th><th>Actions</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="8" class="muted">No users yet.</td></tr>'}</tbody>
         </table>
       </div>
       <div class="panel">
@@ -401,7 +409,8 @@ router.get(
   '/users',
   asyncHandler(async (req, res) => {
     const { rows: users } = await pool.query(
-      `SELECT u.id, u.email, u.subscription_tier, u.created_at, u.is_active, u.status, u.device_limit, u.expires_at,
+      `SELECT u.id, u.email, u.subscription_tier, u.autocat_user_id, u.model_access,
+              u.created_at, u.is_active, u.status, u.device_limit, u.expires_at,
               i.name AS institution_name,
               MAX(s.last_seen_at) AS last_seen_at
        FROM users u
@@ -427,7 +436,11 @@ router.get(
                   ? 'Device limit / expiry updated.'
                   : req.query.deleted
                     ? 'Account deleted.'
-                    : null;
+                    : req.query.openai_enabled
+                      ? 'OpenAI access enabled for this account.'
+                      : req.query.openai_disabled
+                        ? 'OpenAI access disabled for this account.'
+                        : null;
 
     res.send(
       renderUsersPage({
@@ -486,6 +499,47 @@ router.post(
 
     await pool.query('UPDATE users SET subscription_tier = $1 WHERE id = $2', [parsed.data.tier, userId]);
     res.redirect('/admin/users');
+  })
+);
+
+// Model access -- only reachable by an admin (this whole router is behind
+// requireAdminSession above); a normal user has no route that can reach
+// users.model_access at all (product spec section 8/18).
+router.post(
+  '/users/:id/model-access/enable-openai',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await enableOpenAiAccess(userId);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?openai_enabled=1');
+  })
+);
+
+router.post(
+  '/users/:id/model-access/disable-openai',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await disableOpenAiAccess(userId);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?openai_disabled=1');
   })
 );
 

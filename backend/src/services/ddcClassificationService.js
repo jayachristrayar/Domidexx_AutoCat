@@ -15,7 +15,7 @@ const MAX_AI_ATTEMPTS = 2;
 // success" possible: a request never has to choose between "trust an
 // unvalidated AI answer" and "show nothing" -- there's always a real,
 // evidence-grounded answer to fall back to, honestly labeled as such.
-async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn) {
+async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn, provider) {
   let candidates = [];
   try {
     // Dynamic import: ddcLookup.js touches the Postgres pool at module
@@ -36,7 +36,7 @@ async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn) {
   for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt += 1) {
     let ai;
     try {
-      ai = await classifyWithAiFn({ metadata, candidates, correction });
+      ai = await classifyWithAiFn({ metadata, candidates, correction, provider });
     } catch (error) {
       console.error(`DDC AI classification attempt ${attempt} failed:`, error.message);
       return { ai: null, attempted: true };
@@ -105,10 +105,14 @@ function fromRuleBased(ruleBased) {
 
 // The `classifyWithAiFn` override exists for tests only (see
 // testAiDdcClassificationP8.js) -- production callers always get the real
-// AI classifier.
-export async function recommendDdc(metadata = {}, { classifyWithAiFn = classifyWithAi } = {}) {
+// AI classifier. `provider` ('nvidia' | 'openai') is decided by the caller
+// (ddc.js's /recommend route, via modelAccess.resolveAuthorizedModel against
+// the requesting account's server-side grant) -- never invented here, and
+// never silently substituted for a different provider than what was
+// authorized.
+export async function recommendDdc(metadata = {}, { classifyWithAiFn = classifyWithAi, provider = 'nvidia' } = {}) {
   const ruleBased = buildRecommendation(metadata);
-  const { ai, attempted, rejected } = await attemptAiClassification(metadata, ruleBased, classifyWithAiFn);
+  const { ai, attempted, rejected } = await attemptAiClassification(metadata, ruleBased, classifyWithAiFn, provider);
 
   if (!ai && !ruleBased.recommended && !rejected) {
     // Neither AI nor the rule-based engine could produce anything -- honest

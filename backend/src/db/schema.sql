@@ -99,6 +99,27 @@ ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_id TEXT;
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_user_device_idx ON sessions (user_id, device_id);
 
+-- AutoCat User ID (DOAC001, DOAC002, ...) -- generated server-side only, via
+-- a Postgres sequence so concurrent signups can never collide (never
+-- Math.random()/timestamp/localStorage -- the extension never generates or
+-- chooses this). A plain column DEFAULT expression covers both cases at
+-- once: for a fresh row, Postgres evaluates nextval() at INSERT time same
+-- as any other column default; for databases that already had users before
+-- this column existed, the ALTER TABLE itself evaluates the (volatile)
+-- default once per existing row, backfilling every account with a unique
+-- ID in the same statement. Either way the ID never changes after that.
+CREATE SEQUENCE IF NOT EXISTS autocat_user_id_seq;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS autocat_user_id TEXT UNIQUE
+  DEFAULT ('DOAC' || LPAD(nextval('autocat_user_id_seq')::text, 3, '0'));
+
+-- Which AI providers this account may use (subset of {'NVIDIA','OPENAI'}).
+-- New/activated accounts default to NVIDIA only -- OpenAI is opt-in,
+-- granted only via the admin dashboard (userService.enableOpenAiAccess),
+-- never automatically and never settable by the account itself.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS model_access TEXT[] NOT NULL DEFAULT ARRAY['NVIDIA'];
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+
 CREATE TABLE IF NOT EXISTS ddc_classes (
   number TEXT PRIMARY KEY,
   label TEXT NOT NULL,
