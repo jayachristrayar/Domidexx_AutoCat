@@ -5,6 +5,7 @@ import { recommendDdc } from '../services/ddcClassificationService.js';
 import { searchDdc } from '../services/ddcKnowledgeBase.js';
 import { approveDdcDecision, getDdcDecision, saveDdcDecision, toMarc082Contract } from '../services/ddcApprovalService.js';
 import { resolveAuthorizedModel, toProviderId, ModelNotAuthorizedError, CONTACT_EMAIL } from '../services/modelAccess.js';
+import { recordUsage } from '../services/usageService.js';
 const router=Router(); router.use(requireSession);
 router.get('/search', asyncHandler(async(req,res)=>res.json({results:await searchDdc(req.query.q, Number(req.query.limit)||20)})));
 router.post('/recommend', asyncHandler(async(req,res)=>{
@@ -22,7 +23,21 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
     }
     throw error;
   }
-  const decision=await recommendDdc(metadata, { provider: toProviderId(model) });
+  const provider = toProviderId(model);
+  const decision=await recommendDdc(metadata, { provider });
+  // Only log a usage row when the provider was actually called (ai_attempted)
+  // -- when no AI provider is configured at all, recommendDdc silently falls
+  // back to the rule-based engine with no request ever sent anywhere, and
+  // logging a row for that would be fake usage data, not real activity.
+  if (decision.ai_attempted) {
+    recordUsage({
+      userId: req.user.userId,
+      provider,
+      model: decision.ai_model,
+      requestType: 'DDC',
+      status: decision.classification_source === 'AI_ANALYZED' ? 'success' : 'failure',
+    });
+  }
   const row=await saveDdcDecision({userId:req.user.userId,metadata,decision});
   res.status(201).json({id:row.id,decision,model});
 }));

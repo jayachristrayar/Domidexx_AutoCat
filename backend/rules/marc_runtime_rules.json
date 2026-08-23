@@ -235,7 +235,7 @@
       "field_type": "VARIABLE_FIELD",
       "repeatable": false,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "mechanical_when_evidenced",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
@@ -246,23 +246,23 @@
           "q": { "repeatable": false, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Choice of 100 vs 110/111/title main entry requires cataloguing judgment."
+      "notes": "P3 emits 100$a mechanically from the first supplied author name -- no AI call, no AACR2 main-entry-choice logic (100 vs 110/111) yet. Choice of main entry ultimately requires cataloguing judgment; mark ai_assisted true only once that judgment is actually AI-assisted."
     },
     {
       "tag": "110",
       "label": "Main Entry — Corporate Body",
       "description": "Principal access point when AACR2 corporate-responsibility test is met.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": false,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
@@ -270,23 +270,23 @@
           "e": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 110; only a personal-name (100) main entry is currently built."
     },
     {
       "tag": "111",
       "label": "Main Entry — Meeting/Conference",
       "description": "Principal access point for proceedings/reports of a named meeting.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": false,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
@@ -294,13 +294,13 @@
           "d": { "repeatable": false, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 111; only a personal-name (100) main entry is currently built."
     },
     {
       "tag": "245",
@@ -353,13 +353,13 @@
           "other title access point"
         ]
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Generate only when reliable evidence exists. Builder does not emit 246 in P1."
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 246. Generate only when reliable evidence exists once implemented."
     },
     {
       "tag": "250",
@@ -518,20 +518,20 @@
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "mechanical_when_evidenced",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
           "u": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": false,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "P3 emits 520$a as a verbatim copy of the retrieved metadata description -- no AI summarization/rewriting happens."
     },
     {
       "tag": "586",
@@ -559,11 +559,11 @@
       "tag": "600",
       "label": "Subject Added Entry — Personal Name",
       "description": "Subject access when the work is about a person.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
@@ -572,36 +572,36 @@
           "x": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 600 (personal-name subject headings)."
     },
     {
       "tag": "610",
       "label": "Subject Added Entry — Corporate Name",
       "description": "Subject access when the work is about a corporate body.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
           "x": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 610 (corporate-name subject headings)."
     },
     {
       "tag": "650",
@@ -611,7 +611,7 @@
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "mechanical_when_evidenced",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
@@ -620,82 +620,82 @@
           "2": { "repeatable": false, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "P3 emits one 650$a per subject string already present in the retrieved metadata -- no AI subject-heading normalization happens."
     },
     {
       "tag": "700",
       "label": "Added Entry — Personal Name",
       "description": "Access point for persons associated with the work who are not the 100 main entry.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
           "e": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 700 (personal-name added entries beyond the 100 main entry)."
     },
     {
       "tag": "710",
       "label": "Added Entry — Corporate Name",
       "description": "Access point for a corporate body associated with the work that is not the main entry.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
           "e": { "repeatable": true, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 710."
     },
     {
       "tag": "711",
       "label": "Added Entry — Meeting Name",
       "description": "Access point for a meeting associated with the work that is not the 111 main entry.",
-      "status": "PARTIAL",
+      "status": "PLANNED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
-      "generation_method": "ai_assisted",
+      "generation_method": "none",
       "validation": {
         "subfields": {
           "a": { "repeatable": false, "required_when_present": true },
           "d": { "repeatable": false, "required_when_present": false }
         }
       },
-      "ai_assisted": true,
+      "ai_assisted": false,
       "evidence_required": true,
       "cataloguer_review_required": true,
       "koha_supported": true,
       "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": null
+      "notes": "Not yet generated -- the P3 MARC pipeline never emits 711."
     },
     {
       "tag": "800",

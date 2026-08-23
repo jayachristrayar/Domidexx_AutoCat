@@ -1,6 +1,6 @@
 {
   "cataloguing_standard": "AACR2 (2nd ed.) + ISBD Consolidated Edition (2011, with 2021 Update) + MARC 21 Bibliographic",
-  "ddc_edition_default": null,
+  "ddc_edition_default": "23",
   "ils": "Koha",
   "knowledge_base_files": [
     "marc_runtime_rules.json",
@@ -14,5 +14,5 @@
     "description_conventions": "aacr2",
     "notes": "040 is configuration-driven. Set agency codes per institution; null values are not emitted."
   },
-  "notes": "Manual mentions multiple DDC editions (22nd, 23rd); confirm which edition is current before setting ddc_edition_default. Series policy for the target Koha framework is field 440 (not silent 490 replacement)."
+  "notes": "DDC 23 is the required edition for all classification (082$2 and the AI classifier's prompt both target it). Series policy for the target Koha framework is field 440 (not silent 490 replacement)."
 }

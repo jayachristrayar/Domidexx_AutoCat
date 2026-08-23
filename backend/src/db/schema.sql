@@ -63,6 +63,20 @@ CREATE TABLE IF NOT EXISTS api_usage (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Additive: originally this table only ever recorded ISBN web-search-fallback
+-- calls, under the (mislabeled) `provider` column actually holding a model
+-- name. The admin Usage page needs real per-request visibility -- which
+-- account, which AI provider (NVIDIA/OpenAI), which model, what kind of
+-- request (DDC/MARC/ISBN/CHAT), and whether it succeeded -- so every AI call
+-- site now goes through usageService.recordUsage(), which populates all of
+-- these. `provider` keeps its existing meaning for old rows (a model name);
+-- new rows always set it to 'nvidia' | 'openai'.
+ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS request_type TEXT NOT NULL DEFAULT 'ISBN';
+ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'success';
+CREATE INDEX IF NOT EXISTS api_usage_created_at_idx ON api_usage (created_at DESC);
+CREATE INDEX IF NOT EXISTS api_usage_user_id_idx ON api_usage (user_id);
+
 CREATE TABLE IF NOT EXISTS draft_state (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) UNIQUE,

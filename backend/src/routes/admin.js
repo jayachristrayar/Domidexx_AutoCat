@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Router } from 'express';
 import { z } from 'zod';
-import pool from '../db/index.js';
+import pool, { checkDatabase, getConfigStatus } from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import {
   requireAdminSession,
@@ -14,6 +14,7 @@ import {
   resetUserPassword,
   setUserActive,
   setUserStatus,
+  setSubscriptionTier,
   updateUserAccess,
   deleteUser,
   enableOpenAiAccess,
@@ -32,6 +33,7 @@ import {
   setFieldSetting,
   setSubfieldSetting,
 } from '../services/marcFrameworkService.js';
+import { usageSummary, listUsage, listUsageUsers } from '../services/usageService.js';
 
 const router = Router();
 
@@ -215,18 +217,28 @@ router.use(requireAdminSession);
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    let userCount;
-    let recordCount;
+    let userStatusRows, marcRecordRows, ddcRows, ddcCount, usage, dbUp;
     try {
-      [{ rows: userCount }, { rows: recordCount }] = await Promise.all([
-        pool.query('SELECT count(*) FROM users'),
-        pool.query('SELECT count(*) FROM marc_records'),
+      [{ rows: userStatusRows }, { rows: marcRecordRows }, { rows: ddcRows }, usage, dbUp] = await Promise.all([
+        pool.query(`SELECT status, count(*) FROM users GROUP BY status`),
+        pool.query(`SELECT status, count(*) FROM marc_records GROUP BY status`),
+        pool.query(`SELECT count(*) FROM ddc_decisions`),
+        usageSummary(),
+        checkDatabase().catch(() => false),
       ]);
+      ddcCount = Number(ddcRows[0]?.count ?? 0);
     } catch (error) {
-      // Surface undefined_table etc. through the HTML error page with a class.
       error.message = `Dashboard query failed: ${error.message}`;
       throw error;
     }
+
+    const byStatus = Object.fromEntries(userStatusRows.map((r) => [r.status, Number(r.count)]));
+    const totalUsers = userStatusRows.reduce((sum, r) => sum + Number(r.count), 0);
+    const totalMarcRecords = marcRecordRows.reduce((sum, r) => sum + Number(r.count), 0);
+    const config = getConfigStatus();
+
+    const statTile = (label, value) => `<div class="panel stat-panel"><span class="stat-label">${escapeHtml(label)}</span><span class="stat-value">${value}</span></div>`;
+    const statusRow = (label, ok, detail) => `<div class="status-row"><span class="status-dot ${ok ? '' : 'off'}"></span><span>${escapeHtml(label)}</span><span class="muted">${escapeHtml(detail)}</span></div>`;
 
     res.send(
       layout({
@@ -234,22 +246,43 @@ router.get(
         activeHref: '/admin',
         body: `
           <h2>Overview</h2>
-          <p class="lede">Monitor cataloguers, drafted MARC records, and system health. Library user passwords can be reset on the Users page.</p>
-          <div class="grid-2">
-            <div class="panel">
-              <h3 class="panel-title">Library users</h3>
-              <p style="font-size:2rem;margin:0;font-family:var(--font-display)">${userCount[0].count}</p>
-              <p class="muted">Accounts that sign in through the AutoCat extension.</p>
-            </div>
-            <div class="panel">
-              <h3 class="panel-title">MARC records</h3>
-              <p style="font-size:2rem;margin:0;font-family:var(--font-display)">${recordCount[0].count}</p>
-              <p class="muted">Draft and completed records stored in Postgres.</p>
-            </div>
+          <p class="lede">Real counts from Postgres -- no placeholder numbers.</p>
+
+          <h3 class="panel-title">Users</h3>
+          <div class="grid-4">
+            ${statTile('Total', totalUsers)}
+            ${statTile('Active', byStatus.ACTIVE ?? 0)}
+            ${statTile('Pending', byStatus.PENDING ?? 0)}
+            ${statTile('Disabled', (byStatus.DISABLED ?? 0) + (byStatus.REJECTED ?? 0))}
           </div>
+
+          <h3 class="panel-title">Cataloguing</h3>
+          <div class="grid-4">
+            ${statTile('MARC records completed', marcRecordRows.find((r) => r.status === 'COMPLETED')?.count ?? 0)}
+            ${statTile('MARC generations (total)', totalMarcRecords)}
+            ${statTile('DDC analyses', ddcCount)}
+            ${statTile('Needs review', marcRecordRows.find((r) => r.status === 'NEEDS_REVIEW')?.count ?? 0)}
+          </div>
+
+          <h3 class="panel-title">AI requests</h3>
+          <div class="grid-4">
+            ${statTile('Total', usage.totalRequests)}
+            ${statTile('NVIDIA', usage.nvidiaRequests)}
+            ${statTile('OpenAI', usage.openaiRequests)}
+            ${statTile('Active users', usage.activeUsers)}
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">System</h3>
+            ${statusRow('Backend', true, 'Running')}
+            ${statusRow('Database', dbUp, dbUp ? 'Connected' : 'Unreachable')}
+            ${statusRow('NVIDIA provider', config.NVIDIA_API_KEY === 'SET', config.NVIDIA_API_KEY === 'SET' ? 'Configured' : 'Not configured')}
+            ${statusRow('OpenAI provider', config.OPENAI_API_KEY === 'SET', config.OPENAI_API_KEY === 'SET' ? 'Configured' : 'Not configured')}
+          </div>
+
           <div class="panel">
             <h3 class="panel-title">Quick links</h3>
-            <p class="muted"><a href="/admin/users">Manage users &amp; passwords</a> · <a href="/admin/records">Review records</a> · <a href="/health">System health JSON</a></p>
+            <p class="muted"><a href="/admin/users">Manage users</a> · <a href="/admin/records">Review records</a> · <a href="/admin/usage">Usage</a> · <a href="/health">System health JSON</a></p>
           </div>
         `,
       })
@@ -315,58 +348,88 @@ function toExpiresAtOrNull(raw) {
   return date.toISOString();
 }
 
+// Manage drawer (product spec section 6): a native <dialog> per user, so
+// every action stays a plain HTML form POST like the rest of this
+// no-build-step admin app -- no client JS framework, no fetch/AJAX. Each
+// dialog is opened by its row's single "Manage" button
+// (dialog.showModal(), a couple of bytes of inline JS) and closed by its
+// own Close button; the browser's native <dialog> backdrop/Escape handling
+// covers the rest for free.
+function manageDialogHtml(user) {
+  const modelAccess = user.model_access ?? ['NVIDIA'];
+  const hasOpenAi = modelAccess.includes('OPENAI');
+  const status = accessStatus(user);
+  const expiryValue = user.expires_at ? new Date(user.expires_at).toISOString().slice(0, 16) : '';
+  const lastSeen = user.last_seen_at ? new Date(user.last_seen_at).toLocaleString() : 'Never';
+
+  return `
+    <dialog id="manage-${user.id}" class="manage-dialog">
+      <form method="dialog"><button type="submit" class="dialog-close" aria-label="Close">&times;</button></form>
+      <h3 class="panel-title">${escapeHtml(user.autocat_user_id ?? '—')}</h3>
+      <dl class="manage-facts">
+        <dt>Email</dt><dd>${escapeHtml(user.email)}</dd>
+        <dt>Institution</dt><dd>${escapeHtml(user.institution_name ?? '—')}</dd>
+        <dt>Subscription</dt><dd>${escapeHtml(user.subscription_tier.toUpperCase())}</dd>
+        <dt>Status</dt><dd><span class="badge ${status.className}">${status.label}</span></dd>
+        <dt>Created</dt><dd>${new Date(user.created_at).toLocaleDateString()}</dd>
+        <dt>Last active</dt><dd>${escapeHtml(lastSeen)}</dd>
+      </dl>
+
+      <h4 class="manage-section-title">AI access</h4>
+      <dl class="manage-facts">
+        <dt>NVIDIA</dt><dd><span class="badge badge-ok">Enabled</span></dd>
+        <dt>OpenAI</dt><dd><span class="badge ${hasOpenAi ? 'badge-ok' : 'badge-off'}">${hasOpenAi ? 'Enabled' : 'Disabled'}</span></dd>
+      </dl>
+      <p class="muted" style="font-size:0.82rem">Driven automatically by Subscription -- FREE enables NVIDIA only, PAID enables both.</p>
+
+      <h4 class="manage-section-title">Account</h4>
+      <form class="stack-form" method="POST" action="/admin/users/${user.id}/tier">
+        <label><span>Change subscription</span>
+          <select name="tier">
+            <option value="free" ${user.subscription_tier === 'free' ? 'selected' : ''}>FREE</option>
+            <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>PAID</option>
+          </select>
+        </label>
+        <button type="submit" class="btn">Save subscription</button>
+      </form>
+      <form class="stack-form" method="POST" action="/admin/users/${user.id}/access">
+        <label><span>Device limit</span><input type="number" name="device_limit" min="1" max="50" value="${user.device_limit}" required /></label>
+        <label><span>Expiry (optional)</span><input type="datetime-local" name="expires_at" value="${escapeHtml(expiryValue)}" /></label>
+        <button type="submit" class="btn btn-secondary">Save access</button>
+      </form>
+      <form class="stack-form" method="POST" action="/admin/users/${user.id}/password">
+        <label><span>Reset password</span><input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" /></label>
+        <button type="submit" class="btn btn-secondary">Reset password</button>
+      </form>
+
+      <h4 class="manage-section-title">Actions</h4>
+      <div class="manage-actions">
+        ${statusActionsHtml(user)}
+        <form method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? MARC records are kept but detached.');">
+          <button type="submit" class="btn btn-danger-outline">Delete account</button>
+        </form>
+      </div>
+    </dialog>
+  `;
+}
+
 function renderUsersPage({ users, formError, notice }) {
   const rows = users
     .map((user) => {
-      const lastSeen = user.last_seen_at
-        ? new Date(user.last_seen_at).toLocaleString()
-        : '<span class="muted">never</span>';
+      const lastSeen = user.last_seen_at ? new Date(user.last_seen_at).toLocaleString() : 'Never';
       const status = accessStatus(user);
-      const expiryValue = user.expires_at
-        ? new Date(user.expires_at).toISOString().slice(0, 16)
-        : '';
       const modelAccess = user.model_access ?? ['NVIDIA'];
-      const hasOpenAi = modelAccess.includes('OPENAI');
+      const aiAccessLabel = modelAccess.includes('OPENAI') ? 'NVIDIA + OpenAI' : 'NVIDIA';
       return `<tr>
-        <td>
-          <strong>${escapeHtml(user.email)}</strong>
-          <div class="muted" style="font-size:0.8rem">${escapeHtml(user.autocat_user_id ?? '—')} · ${escapeHtml(formatExpiry(user.expires_at))}</div>
-          <div style="margin-top:6px"><span class="badge ${status.className}">${status.label}</span></div>
-        </td>
+        <td>${escapeHtml(user.autocat_user_id ?? '—')}</td>
+        <td>${escapeHtml(user.email)}</td>
         <td>${escapeHtml(user.institution_name ?? '—')}</td>
-        <td><span class="badge">${escapeHtml(user.subscription_tier)}</span></td>
-        <td>${modelAccess.map((m) => `<span class="badge">${escapeHtml(m)}</span>`).join(' ')}</td>
-        <td>${user.device_limit}</td>
-        <td>${new Date(user.created_at).toLocaleDateString()}</td>
-        <td>${lastSeen}</td>
-        <td>
-          <div class="user-actions">
-            <form class="inline" method="POST" action="/admin/users/${user.id}/tier">
-              <select name="tier">
-                <option value="free" ${user.subscription_tier === 'free' ? 'selected' : ''}>free</option>
-                <option value="paid" ${user.subscription_tier === 'paid' ? 'selected' : ''}>paid</option>
-              </select>
-              <button type="submit" class="btn">Save tier</button>
-            </form>
-            <form class="inline" method="POST" action="/admin/users/${user.id}/model-access/${hasOpenAi ? 'disable-openai' : 'enable-openai'}">
-              <button type="submit" class="btn ${hasOpenAi ? 'btn-gold' : ''}">${hasOpenAi ? 'Disable OpenAI' : 'Enable OpenAI'}</button>
-            </form>
-            <form class="inline" method="POST" action="/admin/users/${user.id}/access">
-              <input type="number" name="device_limit" min="1" max="50" value="${user.device_limit}" title="Device limit" required />
-              <input type="datetime-local" name="expires_at" value="${escapeHtml(expiryValue)}" title="Expiry (leave blank for none)" />
-              <button type="submit" class="btn btn-secondary">Save access</button>
-            </form>
-            <form class="inline" method="POST" action="/admin/users/${user.id}/password">
-              <input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" />
-              <button type="submit" class="btn btn-secondary">Set password</button>
-            </form>
-            ${statusActionsHtml(user)}
-            <form class="inline" method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? MARC records are kept but detached.');">
-              <button type="submit" class="btn btn-danger-outline">Delete account</button>
-            </form>
-          </div>
-        </td>
-      </tr>`;
+        <td><span class="badge">${escapeHtml(user.subscription_tier.toUpperCase())}</span></td>
+        <td>${escapeHtml(aiAccessLabel)}</td>
+        <td><span class="badge ${status.className}">${status.label}</span></td>
+        <td>${escapeHtml(lastSeen)}</td>
+        <td><button type="button" class="btn btn-secondary" onclick="document.getElementById('manage-${user.id}').showModal()">Manage</button></td>
+      </tr>${manageDialogHtml(user)}`;
     })
     .join('');
 
@@ -375,31 +438,34 @@ function renderUsersPage({ users, formError, notice }) {
     activeHref: '/admin/users',
     body: `
       <h2>Users</h2>
-      <p class="lede">Activate or deactivate accounts, set device limits and expiry periods, reset passwords, or delete accounts.</p>
+      <p class="lede">Create accounts on the left; manage an existing one from the list on the right.</p>
       ${formError ? `<div class="error">${escapeHtml(formError)}</div>` : ''}
       ${notice ? `<div class="success">${escapeHtml(notice)}</div>` : ''}
-      <div class="panel table-wrap">
-        <table>
-          <thead><tr><th>Email / status</th><th>Institution</th><th>Tier</th><th>Model access</th><th>Devices</th><th>Created</th><th>Last active</th><th>Actions</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="8" class="muted">No users yet.</td></tr>'}</tbody>
-        </table>
-      </div>
-      <div class="panel">
-        <h3 class="panel-title">Create user</h3>
-        <form class="stack-form" method="POST" action="/admin/users">
-          <label><span>Email</span><input type="email" name="email" required /></label>
-          <label><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="new-password" /></label>
-          <label><span>Institution slug</span><input type="text" name="institution_slug" placeholder="e.g. riverside-public-library" required /></label>
-          <label><span>Subscription tier</span>
-            <select name="subscription_tier">
-              <option value="free">free</option>
-              <option value="paid">paid</option>
-            </select>
-          </label>
-          <label><span>Device limit</span><input type="number" name="device_limit" min="1" max="50" value="2" required /></label>
-          <label><span>Expiry (optional)</span><input type="datetime-local" name="expires_at" /></label>
-          <button class="btn" type="submit">Create user</button>
-        </form>
+      <div class="users-layout">
+        <div class="panel users-create">
+          <h3 class="panel-title">Create user</h3>
+          <form class="stack-form" method="POST" action="/admin/users">
+            <label><span>Email</span><input type="email" name="email" required /></label>
+            <label><span>Password</span><input type="password" name="password" minlength="8" required autocomplete="new-password" /></label>
+            <label><span>Institution</span><input type="text" name="institution_slug" placeholder="e.g. riverside-public-library" required /></label>
+            <label><span>Subscription</span>
+              <select name="subscription_tier">
+                <option value="free">FREE</option>
+                <option value="paid">PAID</option>
+              </select>
+            </label>
+            <label><span>Device limit</span><input type="number" name="device_limit" min="1" max="50" value="2" required /></label>
+            <label><span>Expiry (optional)</span><input type="datetime-local" name="expires_at" /></label>
+            <button class="btn full" type="submit">Create user</button>
+          </form>
+        </div>
+        <div class="panel users-list table-wrap">
+          <h3 class="panel-title">Users (${users.length})</h3>
+          <table>
+            <thead><tr><th>ID</th><th>Email</th><th>Institution</th><th>Type</th><th>AI access</th><th>Status</th><th>Last active</th><th>Action</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="8" class="muted">No users yet.</td></tr>'}</tbody>
+          </table>
+        </div>
       </div>
     `,
   });
@@ -421,8 +487,10 @@ router.get(
     );
 
     const notice = req.query.created
-      ? 'User created.'
-      : req.query.password_reset
+      ? `User created successfully. AutoCat ID: ${req.query.created}`
+      : req.query.tier_updated
+        ? 'Subscription updated -- AI access adjusted automatically.'
+        : req.query.password_reset
         ? 'Password updated. Existing extension sessions for that user were signed out.'
         : req.query.approved
           ? 'Account approved and activated.'
@@ -465,8 +533,9 @@ router.post(
       return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid expiry date.')}`);
     }
 
+    let created;
     try {
-      await createUser({
+      created = await createUser({
         email: parsed.data.email,
         password: parsed.data.password,
         institutionSlug: parsed.data.institution_slug,
@@ -481,7 +550,10 @@ router.post(
       throw error;
     }
 
-    res.redirect('/admin/users?created=1');
+    // The AutoCat ID is generated entirely server-side (users.autocat_user_id's
+    // sequence-backed column default) -- the admin never types or picks it;
+    // this just echoes back what the database already assigned.
+    res.redirect(`/admin/users?created=${encodeURIComponent(created.autocatUserId)}`);
   })
 );
 
@@ -497,8 +569,15 @@ router.post(
       return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid tier update.')}`);
     }
 
-    await pool.query('UPDATE users SET subscription_tier = $1 WHERE id = $2', [parsed.data.tier, userId]);
-    res.redirect('/admin/users');
+    try {
+      await setSubscriptionTier(userId, parsed.data.tier);
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?tier_updated=1');
   })
 );
 
@@ -700,46 +779,59 @@ router.post(
   })
 );
 
-router.get('/settings', (_req, res) => {
-  res.send(
-    layout({
-      title: 'Settings',
-      activeHref: '/admin/settings',
-      body: `
-        <h2>Settings</h2>
-        <p class="lede">Password and branding notes for operators.</p>
-        <div class="panel">
-          <h3 class="panel-title">Library user access controls</h3>
-          <p>On the Users page you can:</p>
-          <ul>
-            <li><strong>Activate / Deactivate</strong> an account (deactivation signs them out immediately)</li>
-            <li><strong>Device limit</strong> — max concurrent extension devices</li>
-            <li><strong>Expiry period</strong> — optional access end date/time</li>
-            <li><strong>Set password</strong> or <strong>Delete account</strong></li>
-          </ul>
-        </div>
-        <div class="panel">
-          <h3 class="panel-title">Admin console password</h3>
-          <p>There is a single shared admin password (no per-admin accounts yet). Change it in the Render dashboard:</p>
-          <ol>
-            <li>Open the Domidexx_AutoCat service → Environment</li>
-            <li>Edit <code>ADMIN_PASSWORD</code></li>
-            <li>Save and redeploy / restart so the new value is loaded</li>
-          </ol>
-          <p class="muted">The value is never shown in this UI and is not stored in the database.</p>
-        </div>
-        <div class="panel">
-          <h3 class="panel-title">Brand logo</h3>
-          <p>Header uses the Domidexx AutoCat mark with a transparent background (no white tile), aligned to the <a href="https://domidexx.in" target="_blank" rel="noreferrer">domidexx.in</a> blue palette.</p>
-          <img src="/logo/logo-128.png" width="96" height="96" alt="Domidexx AutoCat logo preview" style="background:transparent" />
-        </div>
-        <div class="notice">
-          The green “Add MARC record” screens with tabs 0–9 are <strong>Koha’s own cataloguing UI</strong>. AutoCat fills fields into Koha; it does not replace Koha’s chrome. UI refreshes here apply to the AutoCat admin console and extension.
-        </div>
-      `,
-    })
-  );
-});
+router.get(
+  '/settings',
+  asyncHandler(async (_req, res) => {
+    const [dbUp, ruleProfile] = await Promise.all([checkDatabase().catch(() => false), Promise.resolve(getRuleProfile())]);
+    const config = getConfigStatus();
+    const statusRow = (label, ok, detail) => `<div class="status-row"><span class="status-dot ${ok ? '' : 'off'}"></span><span>${escapeHtml(label)}</span><span class="muted">${escapeHtml(detail)}</span></div>`;
+
+    res.send(
+      layout({
+        title: 'Settings',
+        activeHref: '/admin/settings',
+        body: `
+          <h2>Settings</h2>
+          <p class="lede">Actual application configuration -- nothing here is a deployment instruction.</p>
+
+          <div class="panel">
+            <h3 class="panel-title">System</h3>
+            ${statusRow('Backend', true, 'Running')}
+            ${statusRow('Database', dbUp, dbUp ? 'Connected' : 'Unreachable')}
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">AI providers</h3>
+            ${statusRow('NVIDIA', config.NVIDIA_API_KEY === 'SET', config.NVIDIA_API_KEY === 'SET' ? 'Configured' : 'Not configured')}
+            ${statusRow('OpenAI', config.OPENAI_API_KEY === 'SET', config.OPENAI_API_KEY === 'SET' ? 'Configured' : 'Not configured')}
+            <p class="muted" style="margin-top:10px">FREE accounts get NVIDIA only; PAID accounts get NVIDIA + OpenAI, applied automatically from the Users page.</p>
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Cataloguing</h3>
+            <dl class="manage-facts">
+              <dt>Standard</dt><dd>${escapeHtml(ruleProfile.cataloguing_standard)}</dd>
+              <dt>DDC edition</dt><dd>${escapeHtml(ruleProfile.ddc_edition_default)}</dd>
+              <dt>ILS</dt><dd>${escapeHtml(ruleProfile.ils)}</dd>
+            </dl>
+            <p class="muted" style="margin-top:10px">Full field-by-field configuration is on the <a href="/admin/rules">Rules</a> and <a href="/admin/frameworks">MARC Frameworks</a> pages.</p>
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Security</h3>
+            ${statusRow('Admin session', config.ADMIN_PASSWORD === 'SET' && config.ADMIN_SESSION_SECRET === 'SET', config.ADMIN_PASSWORD === 'SET' && config.ADMIN_SESSION_SECRET === 'SET' ? 'Configured' : 'Incomplete')}
+            <p class="muted" style="margin-top:10px">Library account status (Pending / Active / Rejected / Disabled), device limits, and password resets are managed per-account from the <a href="/admin/users">Users</a> page.</p>
+          </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Branding</h3>
+            <img src="/logo/logo-128.png" width="72" height="72" alt="Domidexx AutoCat logo" style="background:transparent" />
+          </div>
+        `,
+      })
+    );
+  })
+);
 
 // ---------------------------------------------------------------------
 // Records
@@ -752,6 +844,26 @@ function extractTitleFromMarcJson(marcJson) {
   return subfieldA ? subfieldA.replace(/[\s/:;,.]+$/, '') : null;
 }
 
+// The DDC number attached to this record, if 082$a was actually present
+// (i.e. the DDC decision was approved before this generation) -- not every
+// generated record has one (a NEEDS_REVIEW draft made before DDC approval
+// won't), so the Records page must show that honestly rather than guessing.
+function extractDdcFromMarcJson(marcJson) {
+  if (!Array.isArray(marcJson)) return null;
+  const field082 = marcJson.find((field) => field.tag === '082');
+  return field082?.subfields?.find((subfield) => subfield.code === 'a')?.value ?? null;
+}
+
+function marcRecordDisplayId(id) {
+  return `MARC-${String(id).padStart(4, '0')}`;
+}
+
+function recordStatusBadgeClass(status) {
+  if (status === 'COMPLETED') return 'badge-ok';
+  if (status === 'NEEDS_REVIEW') return 'badge-warn';
+  return 'badge';
+}
+
 router.get(
   '/records',
   asyncHandler(async (req, res) => {
@@ -760,7 +872,7 @@ router.get(
 
     const [{ rows: records }, { rows: countRows }] = await Promise.all([
       pool.query(
-        `SELECT r.id, r.isbn, r.marc_json, r.status, r.created_at, u.email AS user_email
+        `SELECT r.id, r.isbn, r.marc_json, r.status, r.created_at, u.autocat_user_id
          FROM marc_records r
          LEFT JOIN users u ON u.id = r.user_id
          ORDER BY r.created_at DESC
@@ -776,12 +888,15 @@ router.get(
     const rows = records
       .map((record) => {
         const title = extractTitleFromMarcJson(record.marc_json) ?? '<span class="muted">(no title)</span>';
+        const ddc = extractDdcFromMarcJson(record.marc_json);
         return `<tr>
-          <td><a href="/admin/records/${record.id}">${escapeHtml(record.isbn ?? '—')}</a></td>
+          <td><a href="/admin/records/${record.id}">${marcRecordDisplayId(record.id)}</a></td>
+          <td>${escapeHtml(record.isbn ?? '—')}</td>
           <td>${title}</td>
-          <td>${escapeHtml(record.user_email ?? '—')}</td>
-          <td>${escapeHtml(record.status)}</td>
-          <td>${new Date(record.created_at).toLocaleString()}</td>
+          <td>${ddc ? escapeHtml(ddc) : '<span class="muted">—</span>'}</td>
+          <td>${escapeHtml(record.autocat_user_id ?? '—')}</td>
+          <td><span class="badge ${recordStatusBadgeClass(record.status)}">${escapeHtml(record.status)}</span></td>
+          <td>${new Date(record.created_at).toLocaleDateString()}</td>
         </tr>`;
       })
       .join('');
@@ -799,11 +914,11 @@ router.get(
         activeHref: '/admin/records',
         body: `
           <h2>Records</h2>
-          <p class="lede">${total} MARC record${total === 1 ? '' : 's'} total.</p>
+          <p class="lede">${total} MARC record${total === 1 ? '' : 's'} generated by AutoCat. An ISBN lookup on its own is never stored here -- only an actual "Generate MARC" action is.</p>
           <div class="panel table-wrap">
           <table>
-            <thead><tr><th>ISBN</th><th>Title</th><th>User</th><th>Status</th><th>Created</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="5" class="muted">No records yet.</td></tr>'}</tbody>
+            <thead><tr><th>MARC ID</th><th>ISBN</th><th>Title</th><th>DDC</th><th>User ID</th><th>Status</th><th>Created</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="7" class="muted">No MARC records generated yet.</td></tr>'}</tbody>
           </table>
           </div>
           ${pagination}
@@ -822,7 +937,7 @@ router.get(
     }
 
     const { rows: recordRows } = await pool.query(
-      `SELECT r.id, r.isbn, r.marc_text, r.status, r.created_at, u.email AS user_email
+      `SELECT r.id, r.isbn, r.marc_json, r.marc_text, r.status, r.created_at, u.email AS user_email, u.autocat_user_id
        FROM marc_records r
        LEFT JOIN users u ON u.id = r.user_id
        WHERE r.id = $1`,
@@ -847,15 +962,17 @@ router.get(
       )
       .join('');
 
+    const ddc = extractDdcFromMarcJson(record.marc_json);
+
     res.send(
       layout({
-        title: `Record ${record.isbn ?? record.id}`,
+        title: marcRecordDisplayId(record.id),
         activeHref: '/admin/records',
         body: `
           <p><a href="/admin/records">&larr; Back to records</a></p>
-          <h2>Record: ${escapeHtml(record.isbn ?? `#${record.id}`)}</h2>
-          <p class="muted">User: ${escapeHtml(record.user_email ?? '—')} &middot; Status: ${escapeHtml(record.status)} &middot; Created: ${new Date(record.created_at).toLocaleString()}</p>
-          <h3>MARC text</h3>
+          <h2>${marcRecordDisplayId(record.id)} <span class="badge ${recordStatusBadgeClass(record.status)}">${escapeHtml(record.status)}</span></h2>
+          <p class="muted">ISBN: ${escapeHtml(record.isbn ?? '—')} &middot; DDC: ${escapeHtml(ddc ?? '—')} &middot; User: ${escapeHtml(record.autocat_user_id ?? '—')} (${escapeHtml(record.user_email ?? 'deleted account')}) &middot; Created: ${new Date(record.created_at).toLocaleString()}</p>
+          <h3>MARC data</h3>
           <pre>${escapeHtml(record.marc_text ?? '(no marc_text recorded)')}</pre>
           <h3>Edit history</h3>
           <table>
@@ -872,45 +989,130 @@ router.get(
 // Usage
 // ---------------------------------------------------------------------
 
+function usageFiltersFromQuery(query) {
+  const userId = Number(query.user_id);
+  return {
+    userId: Number.isInteger(userId) && userId > 0 ? userId : undefined,
+    provider: ['nvidia', 'openai'].includes(query.provider) ? query.provider : undefined,
+    status: ['success', 'failure'].includes(query.status) ? query.status : undefined,
+    since: query.since ? new Date(query.since).toISOString() : undefined,
+    until: query.until ? new Date(query.until).toISOString() : undefined,
+  };
+}
+
+function usageRowsHtml(rows) {
+  if (rows.length === 0) return '<tr><td colspan="8" class="muted">No matching requests yet.</td></tr>';
+  return rows
+    .map(
+      (row) => `<tr>
+        <td>${escapeHtml(row.email ?? 'unknown')}</td>
+        <td>${escapeHtml(row.autocat_user_id ?? '—')}</td>
+        <td><span class="badge">${escapeHtml(row.provider === 'openai' ? 'OpenAI' : 'NVIDIA')}</span></td>
+        <td>${escapeHtml(row.model ?? '—')}</td>
+        <td>${escapeHtml(row.request_type)}</td>
+        <td>${row.tokens_used != null ? Number(row.tokens_used).toLocaleString() : '—'}</td>
+        <td>${new Date(row.created_at).toLocaleString()}</td>
+        <td><span class="badge ${row.status === 'success' ? 'badge-ok' : 'badge-off'}">${escapeHtml(row.status)}</span></td>
+      </tr>`
+    )
+    .join('');
+}
+
+// GET /admin/usage/data -- JSON the Usage page polls (every 5s, see the
+// inline script below) so the summary cards and live-activity table update
+// on their own without the admin manually reloading. Plain polling rather
+// than WebSocket/SSE: this admin dashboard is server-rendered, no-build-step
+// HTML throughout (see admin.css/the rest of this file) -- polling a JSON
+// endpoint fits that architecture without standing up a second transport.
+router.get(
+  '/usage/data',
+  asyncHandler(async (req, res) => {
+    const filters = usageFiltersFromQuery(req.query);
+    const [summary, rows] = await Promise.all([usageSummary(filters), listUsage({ ...filters, limit: 100 })]);
+    res.json({ summary, rowsHtml: usageRowsHtml(rows) });
+  })
+);
+
 router.get(
   '/usage',
-  asyncHandler(async (_req, res) => {
-    const { rows } = await pool.query(`
-      SELECT provider,
-        COUNT(*) FILTER (WHERE created_at >= now() - interval '7 days') AS calls_7d,
-        COALESCE(SUM(tokens_used) FILTER (WHERE created_at >= now() - interval '7 days'), 0) AS tokens_7d,
-        COUNT(*) FILTER (WHERE created_at >= now() - interval '30 days') AS calls_30d,
-        COALESCE(SUM(tokens_used) FILTER (WHERE created_at >= now() - interval '30 days'), 0) AS tokens_30d
-      FROM api_usage
-      GROUP BY provider
-      ORDER BY provider
-    `);
-
-    const tableRows = rows
-      .map(
-        (row) => `<tr>
-          <td>${escapeHtml(row.provider)}</td>
-          <td>${row.calls_7d}</td>
-          <td>${Number(row.tokens_7d).toLocaleString()}</td>
-          <td>${row.calls_30d}</td>
-          <td>${Number(row.tokens_30d).toLocaleString()}</td>
-        </tr>`
-      )
-      .join('');
+  asyncHandler(async (req, res) => {
+    const filters = usageFiltersFromQuery(req.query);
+    const [summary, rows, users] = await Promise.all([
+      usageSummary(filters),
+      listUsage({ ...filters, limit: 100 }),
+      listUsageUsers(),
+    ]);
+    const queryString = new URLSearchParams(
+      Object.fromEntries(Object.entries(req.query).filter(([, v]) => v))
+    ).toString();
 
     res.send(
       layout({
         title: 'Usage',
         activeHref: '/admin/usage',
         body: `
-          <h2>API usage</h2>
-          <p class="lede">Estimated tokens are whatever each provider call logged to api_usage.tokens_used; not a billing figure.</p>
-          <div class="panel table-wrap">
-          <table>
-            <thead><tr><th>Provider</th><th>Calls (7d)</th><th>Tokens (7d)</th><th>Calls (30d)</th><th>Tokens (30d)</th></tr></thead>
-            <tbody>${tableRows || '<tr><td colspan="5" class="muted">No API usage recorded yet.</td></tr>'}</tbody>
-          </table>
+          <h2>AI usage</h2>
+          <p class="lede">Every logged AI request, per user and provider, updating automatically -- no manual refresh needed.</p>
+
+          <div class="grid-4" id="usage-summary">
+            <div class="panel stat-panel"><span class="stat-label">Total requests</span><span class="stat-value" id="stat-total">${summary.totalRequests}</span></div>
+            <div class="panel stat-panel"><span class="stat-label">NVIDIA requests</span><span class="stat-value" id="stat-nvidia">${summary.nvidiaRequests}</span></div>
+            <div class="panel stat-panel"><span class="stat-label">OpenAI requests</span><span class="stat-value" id="stat-openai">${summary.openaiRequests}</span></div>
+            <div class="panel stat-panel"><span class="stat-label">Active users</span><span class="stat-value" id="stat-active">${summary.activeUsers}</span></div>
           </div>
+
+          <div class="panel">
+            <h3 class="panel-title">Filters</h3>
+            <form class="inline" method="GET" action="/admin/usage" id="usage-filters">
+              <select name="user_id">
+                <option value="">All users</option>
+                ${users.map((u) => `<option value="${u.id}" ${filters.userId === u.id ? 'selected' : ''}>${escapeHtml(u.autocat_user_id ?? '')} — ${escapeHtml(u.email)}</option>`).join('')}
+              </select>
+              <select name="provider">
+                <option value="">All providers</option>
+                <option value="nvidia" ${filters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
+                <option value="openai" ${filters.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+              </select>
+              <select name="status">
+                <option value="">Any status</option>
+                <option value="success" ${filters.status === 'success' ? 'selected' : ''}>Success</option>
+                <option value="failure" ${filters.status === 'failure' ? 'selected' : ''}>Failure</option>
+              </select>
+              <input type="datetime-local" name="since" value="${escapeHtml(req.query.since || '')}" title="Since" />
+              <input type="datetime-local" name="until" value="${escapeHtml(req.query.until || '')}" title="Until" />
+              <button type="submit" class="btn btn-secondary">Apply</button>
+              <a href="/admin/usage" class="btn btn-secondary">Clear</a>
+            </form>
+          </div>
+
+          <div class="panel table-wrap">
+            <h3 class="panel-title">Live activity</h3>
+            <table>
+              <thead><tr><th>User</th><th>ID</th><th>Provider</th><th>Model</th><th>Request</th><th>Tokens</th><th>Time</th><th>Status</th></tr></thead>
+              <tbody id="usage-rows">${usageRowsHtml(rows)}</tbody>
+            </table>
+          </div>
+
+          <script>
+            (function () {
+              const qs = ${JSON.stringify(queryString)};
+              async function poll() {
+                try {
+                  const res = await fetch('/admin/usage/data' + (qs ? '?' + qs : ''), { credentials: 'same-origin' });
+                  if (!res.ok) return;
+                  const data = await res.json();
+                  document.getElementById('stat-total').textContent = data.summary.totalRequests;
+                  document.getElementById('stat-nvidia').textContent = data.summary.nvidiaRequests;
+                  document.getElementById('stat-openai').textContent = data.summary.openaiRequests;
+                  document.getElementById('stat-active').textContent = data.summary.activeUsers;
+                  document.getElementById('usage-rows').innerHTML = data.rowsHtml;
+                } catch {
+                  // Transient network hiccup -- next poll tick will retry.
+                }
+              }
+              setInterval(poll, 5000);
+            })();
+          </script>
         `,
       })
     );
