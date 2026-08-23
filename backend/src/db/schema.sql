@@ -86,6 +86,15 @@ CREATE INDEX IF NOT EXISTS ddc_relative_index_search_idx ON ddc_relative_index U
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS device_limit INTEGER NOT NULL DEFAULT 2;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
+-- Account activation workflow: PENDING (just signed up, awaiting admin
+-- approval) / ACTIVE / REJECTED / DISABLED. DEFAULT 'ACTIVE' means this
+-- migration never locks out any account that already existed before this
+-- column did -- only new public signups (userService.createUser) request
+-- PENDING explicitly. is_active is kept in sync with status = 'ACTIVE' at
+-- every write site for backward compatibility with existing admin-UI/badge
+-- code that already reads is_active; status is the authoritative field the
+-- session-gating logic (requireSession/accountAccessError) checks.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'ACTIVE';
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS device_id TEXT;
 CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS sessions_user_device_idx ON sessions (user_id, device_id);

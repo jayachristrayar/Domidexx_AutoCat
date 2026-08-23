@@ -65,6 +65,25 @@ function friendlyResultFor(response, payload, { onUnauthorized } = {}) {
   return { ok: false, code: 'UNKNOWN_ERROR', message: 'Something went wrong. Please try again.' };
 }
 
+// Login gets its own error mapping, distinct from friendlyResultFor's
+// generic 401/403 -> "session expired" collapse: a login attempt's 403 can
+// mean the account is PENDING/REJECTED/DISABLED, and the backend already
+// composed the exact, specific, librarian-friendly message for each case
+// (userService.accountAccessError) -- that message must reach the Side
+// Panel verbatim, not be replaced with a generic "log in again" that would
+// be actively misleading (the user IS trying to log in; that's the problem).
+// A plain 401 (wrong password) still gets the standard invalid-credentials
+// message.
+function loginResultFor(response, payload) {
+  if (response.status === 403 && payload?.error_class === 'authorization_error' && typeof payload?.error === 'string') {
+    return { ok: false, code: 'ACCOUNT_NOT_AUTHORIZED', message: payload.error };
+  }
+  if (response.status === 401 || response.status === 403) {
+    return { ok: false, code: 'INVALID_CREDENTIALS', message: 'Invalid email or password.' };
+  }
+  return friendlyResultFor(response, payload);
+}
+
 function networkErrorResult(error) {
   console.error('[AutoCat] Network error reaching AutoCat:', error);
   return { ok: false, code: 'BACKEND_UNAVAILABLE', message: 'Unable to connect to AutoCat. Please check your connection and try again.' };
@@ -86,7 +105,7 @@ async function actionLogin({ email, password }) {
     });
     const body = await readJson(response);
     if (!response.ok || !body?.token) {
-      return friendlyResultFor(response, body);
+      return loginResultFor(response, body);
     }
     await setSessionToken(body.token);
     return actionGetMe();
@@ -95,19 +114,22 @@ async function actionLogin({ email, password }) {
   }
 }
 
+// Signup never logs the librarian in (product spec section 1): a new
+// account is created PENDING and the backend deliberately issues no
+// session token at all, so there is nothing to store here even on
+// success. The Side Panel renders the pending-activation message from
+// this action's returned data instead of moving into the workspace.
 async function actionSignup({ email, password, institutionSlug }) {
   try {
-    const deviceId = await getDeviceId();
     const response = await apiFetch('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password, institution_slug: institutionSlug, device_id: deviceId }),
+      body: JSON.stringify({ email, password, institution_slug: institutionSlug }),
     });
     const body = await readJson(response);
-    if (!response.ok || !body?.token) {
+    if (!response.ok || body?.status !== 'PENDING') {
       return friendlyResultFor(response, body);
     }
-    await setSessionToken(body.token);
-    return actionGetMe();
+    return { ok: true, data: { status: body.status, message: body.message, contactEmail: body.contact_email } };
   } catch (error) {
     return networkErrorResult(error);
   }

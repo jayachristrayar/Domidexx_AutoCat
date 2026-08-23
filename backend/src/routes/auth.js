@@ -69,6 +69,11 @@ const signupSchema = z.object({
   device_id: z.string().min(1).max(128).optional(),
 });
 
+// Contact address for activation requests -- shown to the librarian after
+// signup and on a pending/inactive login attempt. A single constant so the
+// address only needs to change in one place.
+const ACTIVATION_CONTACT_EMAIL = 'team.domidexx@gmail.com';
+
 router.post(
   '/signup',
   asyncHandler(async (req, res) => {
@@ -76,12 +81,15 @@ router.post(
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.flatten() });
     }
-    const { email, password, institution_slug: institutionSlug, device_id: bodyDeviceId } = parsed.data;
-    const deviceId = readDeviceId(req, bodyDeviceId);
+    const { email, password, institution_slug: institutionSlug } = parsed.data;
 
-    let userId;
+    // A librarian must never get an immediately-usable account just by
+    // submitting this form (product spec section 1): the account is
+    // created, but PENDING -- no session is issued, so there is nothing
+    // for the extension to even be logged in WITH until an administrator
+    // approves it via the admin dashboard.
     try {
-      ({ userId } = await createUser({ email, password, institutionSlug }));
+      await createUser({ email, password, institutionSlug, status: 'PENDING' });
     } catch (error) {
       if (error instanceof UserAlreadyExistsError) {
         return res.status(400).json({ error: 'Email already registered' });
@@ -89,8 +97,11 @@ router.post(
       throw error;
     }
 
-    const token = await createSession(userId, deviceId);
-    res.status(201).json({ token });
+    res.status(201).json({
+      status: 'PENDING',
+      message: 'Account created successfully. Your account is currently pending activation by an administrator. Please contact the AutoCat team to request credential activation.',
+      contact_email: ACTIVATION_CONTACT_EMAIL,
+    });
   })
 );
 
@@ -111,7 +122,7 @@ router.post(
     const deviceId = readDeviceId(req, bodyDeviceId);
 
     const result = await pool.query(
-      `SELECT id, password_hash, is_active, device_limit, expires_at
+      `SELECT id, password_hash, is_active, status, device_limit, expires_at
        FROM users WHERE email = $1`,
       [email]
     );
@@ -121,9 +132,13 @@ router.post(
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Authentication (password matched) proved above; authorization (is
+    // this account currently allowed to use AutoCat?) is a separate check
+    // -- a correct password on a PENDING/REJECTED/DISABLED account must
+    // still never issue a session.
     const accessError = accountAccessError(user);
     if (accessError) {
-      return res.status(403).json({ error: accessError, error_class: 'authorization_error' });
+      return res.status(403).json({ error: accessError.message, error_class: 'authorization_error', status: user.status });
     }
 
     await enforceDeviceLimit(user.id, user.device_limit, deviceId);

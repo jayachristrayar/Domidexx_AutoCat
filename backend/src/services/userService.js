@@ -14,17 +14,22 @@ function institutionNameFromSlug(slug) {
     .join(' ');
 }
 
-// createUser -- shared by POST /auth/signup (public signup, always 'free')
-// and the admin dashboard's "Create user" form (POST /admin/users, which
-// can set the tier directly). Institutions are looked up or created by
-// slug purely as a grouping/reporting label, per the shared-rules
-// architecture -- it does not select which cataloguing rules apply.
+// createUser -- shared by POST /auth/signup (public signup: always 'free'
+// tier, and always created with status 'PENDING' -- a librarian must never
+// get an immediately-usable account just by submitting the signup form)
+// and the admin dashboard's "Create user" form (POST /admin/users, an
+// admin directly provisioning an account, so it defaults to already
+// ACTIVE -- callers pass status explicitly either way, this default only
+// covers the admin-dashboard call site). Institutions are looked up or
+// created by slug purely as a grouping/reporting label, per the
+// shared-rules architecture -- it does not select which cataloguing rules
+// apply.
 export async function createUser({
   email,
   password,
   institutionSlug,
   subscriptionTier = 'free',
-  isActive = true,
+  status = 'ACTIVE',
   deviceLimit = 2,
   expiresAt = null,
 }) {
@@ -47,14 +52,18 @@ export async function createUser({
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+  // is_active kept in sync with status here too, purely for the existing
+  // admin-UI badge/backward-compat reads -- status is the field every
+  // access-control check (accountAccessError) actually relies on.
+  const isActive = status === 'ACTIVE';
 
   const insertedUser = await pool.query(
     `INSERT INTO users (
        email, password_hash, institution_id, subscription_tier,
-       is_active, device_limit, expires_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       is_active, status, device_limit, expires_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING id`,
-    [email, passwordHash, institutionId, subscriptionTier, isActive, deviceLimit, expiresAt]
+    [email, passwordHash, institutionId, subscriptionTier, isActive, status, deviceLimit, expiresAt]
   );
 
   return { userId: insertedUser.rows[0].id, institutionId };
@@ -74,9 +83,16 @@ export async function resetUserPassword(userId, password) {
   return { userId };
 }
 
+// setUserActive -- the pre-existing activate/deactivate toggle (still used
+// by the admin dashboard's Activate/Deactivate button for accounts already
+// past the initial PENDING approval step). Keeps status in sync: activating
+// sets ACTIVE, deactivating sets DISABLED (never silently leaves an account
+// looking PENDING again -- that would misrepresent "never approved yet" as
+// "approved, then deactivated").
 export async function setUserActive(userId, isActive) {
-  const result = await pool.query('UPDATE users SET is_active = $1 WHERE id = $2 RETURNING id', [
+  const result = await pool.query('UPDATE users SET is_active = $1, status = $2 WHERE id = $3 RETURNING id', [
     isActive,
+    isActive ? 'ACTIVE' : 'DISABLED',
     userId,
   ]);
   if (result.rows.length === 0) {
@@ -86,6 +102,31 @@ export async function setUserActive(userId, isActive) {
     await pool.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
   }
   return { userId };
+}
+
+const VALID_STATUSES = new Set(['PENDING', 'ACTIVE', 'REJECTED', 'DISABLED']);
+
+// setUserStatus -- the general activation-workflow transition backing the
+// admin dashboard's Approve / Reject / Disable / Reactivate actions.
+// Revoking access (anything but ACTIVE) always clears existing sessions,
+// so a change takes effect immediately rather than waiting for the next
+// requireSession check to catch up on an already-issued token.
+export async function setUserStatus(userId, status) {
+  if (!VALID_STATUSES.has(status)) {
+    throw new Error(`Invalid user status: ${status}`);
+  }
+  const result = await pool.query('UPDATE users SET status = $1, is_active = $2 WHERE id = $3 RETURNING id', [
+    status,
+    status === 'ACTIVE',
+    userId,
+  ]);
+  if (result.rows.length === 0) {
+    throw new UserNotFoundError('User not found');
+  }
+  if (status !== 'ACTIVE') {
+    await pool.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  }
+  return { userId, status };
 }
 
 export async function updateUserAccess({ userId, deviceLimit, expiresAt }) {
@@ -129,11 +170,30 @@ export async function deleteUser(userId) {
   return { userId };
 }
 
+// Authentication (does this account/session exist and match the password?)
+// is deliberately separate from authorization (is this account currently
+// ALLOWED to use AutoCat?) -- accountAccessError is the single place that
+// answers the second question, called both at login (auth.js) and on every
+// subsequent protected request (requireSession.js), so a status change an
+// admin makes takes effect immediately rather than only at next login.
+// Returns { message, code } describing why access is denied, or null when
+// the account is fully authorized.
 export function accountAccessError(user) {
-  if (!user) return 'Invalid email or password';
-  if (user.is_active === false) return 'Account is deactivated. Contact your administrator.';
+  if (!user) return { message: 'Invalid email or password', code: 'INVALID_CREDENTIALS' };
+  if (user.status === 'PENDING') {
+    return {
+      message: 'Your account is awaiting administrator activation. Please contact team.domidexx@gmail.com if you need activation.',
+      code: 'ACCOUNT_PENDING',
+    };
+  }
+  if (user.status === 'REJECTED' || user.status === 'DISABLED' || user.is_active === false) {
+    return {
+      message: 'Your AutoCat account is currently inactive. Please contact the AutoCat team.',
+      code: 'ACCOUNT_INACTIVE',
+    };
+  }
   if (user.expires_at && new Date(user.expires_at) < new Date()) {
-    return 'Account access period has expired. Contact your administrator.';
+    return { message: 'Account access period has expired. Contact your administrator.', code: 'ACCOUNT_EXPIRED' };
   }
   return null;
 }

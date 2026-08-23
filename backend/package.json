@@ -11,7 +11,7 @@
     "test:access": "node scripts/testUserAccess.js",
     "test:p1": "node scripts/testMarcRulesP1.js",
     "consistency:marc": "node scripts/marcConsistencyReport.js",
-    "test": "npm run test:p0 && npm run test:access && npm run test:p1 && npm run test:p2 && npm run test:literary-ddc && npm run test:ai-ddc && npm run test:chat",
+    "test": "npm run test:p0 && npm run test:access && npm run test:activation && npm run test:p1 && npm run test:p2 && npm run test:literary-ddc && npm run test:ai-ddc && npm run test:chat",
     "seed:ddc": "node scripts/seedDdc.js",
     "seed:marc-frameworks": "node scripts/seedMarcFrameworks.js",
     "test:p2": "node scripts/testDdcP2.js",
@@ -20,7 +20,8 @@
     "test:marc-frameworks": "node scripts/testMarcFrameworksP5.js",
     "test:chat": "node scripts/testChatP6.js",
     "test:literary-ddc": "node scripts/testLiteraryDdcP7.js",
-    "test:ai-ddc": "node scripts/testAiDdcClassificationP8.js"
+    "test:ai-ddc": "node scripts/testAiDdcClassificationP8.js",
+    "test:activation": "node scripts/testAccountActivationP9.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

@@ -13,6 +13,7 @@ import {
   createUser,
   resetUserPassword,
   setUserActive,
+  setUserStatus,
   updateUserAccess,
   deleteUser,
   UserAlreadyExistsError,
@@ -273,11 +274,36 @@ function formatExpiry(value) {
 }
 
 function accessStatus(user) {
-  if (!user.is_active) return { label: 'Inactive', className: 'badge-off' };
+  if (user.status === 'PENDING') return { label: 'Pending activation', className: 'badge-warn' };
+  if (user.status === 'REJECTED') return { label: 'Rejected', className: 'badge-off' };
+  if (user.status === 'DISABLED' || !user.is_active) return { label: 'Disabled', className: 'badge-off' };
   if (user.expires_at && new Date(user.expires_at) < new Date()) {
     return { label: 'Expired', className: 'badge-warn' };
   }
   return { label: 'Active', className: 'badge-ok' };
+}
+
+// The action(s) offered per account status -- an admin can only take the
+// transitions that make sense from where the account currently is.
+// PENDING accounts get Approve/Reject; anything else gets the existing
+// Activate/Deactivate toggle (Reactivate is just Activate on a
+// REJECTED/DISABLED account -- same transition, same button).
+function statusActionsHtml(user) {
+  if (user.status === 'PENDING') {
+    return `
+      <form class="inline" method="POST" action="/admin/users/${user.id}/approve">
+        <button type="submit" class="btn">Approve</button>
+      </form>
+      <form class="inline" method="POST" action="/admin/users/${user.id}/reject" onsubmit="return confirm('Reject this signup request?');">
+        <button type="submit" class="btn btn-danger-outline">Reject</button>
+      </form>
+    `;
+  }
+  return `
+    <form class="inline" method="POST" action="/admin/users/${user.id}/${user.is_active ? 'deactivate' : 'activate'}">
+      <button type="submit" class="btn ${user.is_active ? 'btn-gold' : 'btn'}">${user.is_active ? 'Deactivate' : 'Reactivate'}</button>
+    </form>
+  `;
 }
 
 function toExpiresAtOrNull(raw) {
@@ -326,9 +352,7 @@ function renderUsersPage({ users, formError, notice }) {
               <input type="password" name="password" minlength="8" placeholder="New password" required autocomplete="new-password" />
               <button type="submit" class="btn btn-secondary">Set password</button>
             </form>
-            <form class="inline" method="POST" action="/admin/users/${user.id}/${user.is_active ? 'deactivate' : 'activate'}">
-              <button type="submit" class="btn ${user.is_active ? 'btn-gold' : 'btn'}">${user.is_active ? 'Deactivate' : 'Activate'}</button>
-            </form>
+            ${statusActionsHtml(user)}
             <form class="inline" method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? MARC records are kept but detached.');">
               <button type="submit" class="btn btn-danger-outline">Delete account</button>
             </form>
@@ -377,29 +401,33 @@ router.get(
   '/users',
   asyncHandler(async (req, res) => {
     const { rows: users } = await pool.query(
-      `SELECT u.id, u.email, u.subscription_tier, u.created_at, u.is_active, u.device_limit, u.expires_at,
+      `SELECT u.id, u.email, u.subscription_tier, u.created_at, u.is_active, u.status, u.device_limit, u.expires_at,
               i.name AS institution_name,
               MAX(s.last_seen_at) AS last_seen_at
        FROM users u
        LEFT JOIN institutions i ON i.id = u.institution_id
        LEFT JOIN sessions s ON s.user_id = u.id
        GROUP BY u.id, i.name
-       ORDER BY u.created_at DESC`
+       ORDER BY (u.status = 'PENDING') DESC, u.created_at DESC`
     );
 
     const notice = req.query.created
       ? 'User created.'
       : req.query.password_reset
         ? 'Password updated. Existing extension sessions for that user were signed out.'
-        : req.query.activated
-          ? 'Account activated.'
-          : req.query.deactivated
-            ? 'Account deactivated and sessions cleared.'
-            : req.query.access
-              ? 'Device limit / expiry updated.'
-              : req.query.deleted
-                ? 'Account deleted.'
-                : null;
+        : req.query.approved
+          ? 'Account approved and activated.'
+          : req.query.rejected
+            ? 'Signup request rejected.'
+            : req.query.activated
+              ? 'Account activated.'
+              : req.query.deactivated
+                ? 'Account deactivated and sessions cleared.'
+                : req.query.access
+                  ? 'Device limit / expiry updated.'
+                  : req.query.deleted
+                    ? 'Account deleted.'
+                    : null;
 
     res.send(
       renderUsersPage({
@@ -516,6 +544,48 @@ router.post(
     }
 
     res.redirect('/admin/users?access=1');
+  })
+);
+
+// Approve/Reject -- the PENDING-account activation workflow (product spec
+// section 3). Only reachable behind requireAdminSession (applied to the
+// whole /admin router below); a librarian's session token is a completely
+// different credential and is never accepted here.
+router.post(
+  '/users/:id/approve',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await setUserStatus(userId, 'ACTIVE');
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?approved=1');
+  })
+);
+
+router.post(
+  '/users/:id/reject',
+  asyncHandler(async (req, res) => {
+    const userId = Number(req.params.id);
+    if (!Number.isInteger(userId)) {
+      return res.redirect(`/admin/users?error=${encodeURIComponent('Invalid user.')}`);
+    }
+    try {
+      await setUserStatus(userId, 'REJECTED');
+    } catch (error) {
+      if (error instanceof UserNotFoundError) {
+        return res.redirect(`/admin/users?error=${encodeURIComponent('User not found.')}`);
+      }
+      throw error;
+    }
+    res.redirect('/admin/users?rejected=1');
   })
 );
 
