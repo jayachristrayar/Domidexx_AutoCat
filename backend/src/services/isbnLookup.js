@@ -20,6 +20,57 @@ function normalizeIsbn(isbn) {
   return isbn.replace(/[-\s]/g, '');
 }
 
+function isbn10To13(isbn10) {
+  const prefixed = `978${isbn10.slice(0, 9)}`;
+  let sum = 0;
+  for (let i = 0; i < 12; i += 1) sum += Number(prefixed[i]) * (i % 2 === 0 ? 1 : 3);
+  return `${prefixed}${(10 - (sum % 10)) % 10}`;
+}
+
+// Only 978-prefixed ISBN-13s have a valid ISBN-10 form (979-prefixed ones
+// don't) -- returns null rather than a bogus check digit for those.
+function isbn13To10(isbn13) {
+  if (!isbn13.startsWith('978')) return null;
+  const core = isbn13.slice(3, 12);
+  let sum = 0;
+  for (let i = 0; i < 9; i += 1) sum += Number(core[i]) * (10 - i);
+  const check = (11 - (sum % 11)) % 11;
+  return `${core}${check === 10 ? 'X' : check}`;
+}
+
+// A structured source may only have indexed one form of a book's ISBN --
+// product spec item 1 explicitly calls for trying "the exact ISBN, and the
+// ISBN-10/ISBN-13 equivalent". Returns the given ISBN first (so an exact
+// match is always preferred), then its other form when one exists.
+export function isbnVariants(isbn) {
+  if (/^\d{13}$/.test(isbn)) {
+    const isbn10 = isbn13To10(isbn);
+    return isbn10 ? [isbn, isbn10] : [isbn];
+  }
+  if (/^\d{9}[\dXx]$/.test(isbn)) {
+    return [isbn.toUpperCase(), isbn10To13(isbn.toUpperCase())];
+  }
+  return [isbn];
+}
+
+// Tries each ISBN variant against `fn` in order, returning the first
+// non-empty result. A variant that throws doesn't stop the attempt --
+// only rethrown if every variant fails, so Promise.allSettled at the call
+// site still sees a genuine failure when (and only when) nothing worked.
+async function tryVariants(variants, fn) {
+  let lastError = null;
+  for (const variant of variants) {
+    try {
+      const result = await fn(variant);
+      if (result) return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  return null;
+}
+
 async function fetchWithTimeout(url, timeoutMs = FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -325,13 +376,17 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
     return null;
   }
 
+  // Also search the other ISBN-10/ISBN-13 form (product spec item 1) -- a
+  // publisher/library page commonly lists only one form of the number.
+  const otherForm = isbnVariants(isbn).find((v) => v !== isbn) ?? null;
+  const isbnFormVariation = otherForm ? `, "ISBN ${otherForm}", "${otherForm} book"` : '';
   const deepVariations = deep ? `, "${isbn} author", "${isbn} publisher", "${isbn} catalog", "${isbn} library"` : '';
   let searchResponse;
   try {
     searchResponse = await client.responses.create({
       model,
       tools: [{ type: 'web_search' }],
-      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
+      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
     });
   } catch (error) {
     console.error(`ISBN web research: web_search call failed for ${isbn}: ${error.message}`);
@@ -504,6 +559,10 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     return cached.rows[0].raw_json;
   }
 
+  // Every structured source is tried against the ISBN-10 AND ISBN-13 form
+  // (product spec item 1) -- a catalogue/API commonly indexes a book under
+  // only one of the two, and normalizeIsbn above never converts between them.
+  const variants = isbnVariants(isbn);
   const sourceCalls = [
     ['z3950', lookupZ3950],
     ['libraryThing', fetchLibraryThing],
@@ -511,7 +570,7 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     ['googleBooks', fetchGoogleBooks],
   ];
 
-  const settled = await Promise.allSettled(sourceCalls.map(([, fn]) => fn(isbn)));
+  const settled = await Promise.allSettled(sourceCalls.map(([, fn]) => tryVariants(variants, fn)));
 
   const rawBySource = {};
   settled.forEach((result, index) => {
