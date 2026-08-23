@@ -183,6 +183,7 @@ function bookDetailsHtml(metadata) {
     ['Pages', metadata.physical_description?.pages],
     ['Series', metadata.series?.name ?? metadata.series],
     ['Subjects', (metadata.subjects || []).join(', ')],
+    ['Existing classification', (metadata.existing_classifications || []).map((c) => c.number).join(', ')],
   ].filter(([, value]) => value !== undefined && value !== null && value !== '');
 
   const primary = rows.slice(0, 4);
@@ -247,6 +248,14 @@ function ddcHtml(decision, source) {
     ${decision.alternatives?.length ? `
       <p class="result-heading">Alternative considered</p>
       <ul>${decision.alternatives.slice(0, 2).map((a) => `<li><strong>${escapeHtml(a.number)}</strong> — ${escapeHtml(a.label)}: ${escapeHtml(a.reason_rejected || a.reason_considered || '')}</li>`).join('')}</ul>
+    ` : ''}
+
+    ${(decision.evidence?.length || decision.sources?.length) ? `
+      <details class="ddc-evidence">
+        <summary>Show evidence</summary>
+        ${decision.sources?.length ? `<p class="result-heading">Sources</p><ul>${decision.sources.map((s) => `<li>${escapeHtml(s)}</li>`).join('')}</ul>` : ''}
+        ${decision.evidence?.length ? `<p class="result-heading">Evidence used</p><ul>${decision.evidence.map((e) => `<li>${escapeHtml(typeof e === 'string' ? e : e.value)}</li>`).join('')}</ul>` : ''}
+      </details>
     ` : ''}
   `;
 }

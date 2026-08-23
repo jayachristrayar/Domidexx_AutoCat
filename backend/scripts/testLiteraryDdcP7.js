@@ -24,7 +24,7 @@ const wutheringHeights = {
   subjects: ['Gothic fiction', 'Yorkshire (England) -- Fiction', 'Domestic fiction', 'Brontë family'],
 };
 
-let d = recommendDdc(wutheringHeights);
+let d = await recommendDdc(wutheringHeights);
 assert.strictEqual(d.recommended_ddc.number, '823.8', `Wuthering Heights must classify as 823.8, got ${d.recommended_ddc.number}`);
 assert.strictEqual(d.work_type, 'FICTION');
 assert.notStrictEqual(d.recommended_ddc.number, '025');
@@ -43,7 +43,7 @@ assert.ok(/fiction/i.test(d.justification) && /English/i.test(d.justification));
 
 // Directly exercises the exact adversarial case: library-science trigger
 // words stuffed alongside the literary evidence must not hijack the result.
-d = recommendDdc({
+d = await recommendDdc({
   ...wutheringHeights,
   description: wutheringHeights.description + ' This edition includes a library reference catalog circulation guide appendix.',
 });
@@ -113,7 +113,7 @@ assert.strictEqual(hinted.form, 'fiction');
 // stop incidental keyword matches (like boilerplate "references") from
 // producing them for unrelated books.
 // ---------------------------------------------------------------------
-d = recommendDdc({
+d = await recommendDdc({
   title: 'Library Operations',
   description: 'Cataloging, acquisitions, circulation, reference service, serials control, and discovery workflows.',
   table_of_contents: ['Acquisitions', 'Cataloging', 'Circulation', 'Reference services'],

@@ -37,6 +37,11 @@ function toClientResponse(result) {
     description: result.description,
     subjects: result.subjects,
     series: result.series,
+    // Existing classification evidence (e.g. a Dewey number already on a
+    // library catalogue record) -- supporting evidence for the DDC
+    // pipeline and for the Side Panel's "evidence used" section, never a
+    // value the client is meant to trust/copy on its own.
+    existing_classifications: result.existing_classifications,
   };
 
   if (result.not_found) {

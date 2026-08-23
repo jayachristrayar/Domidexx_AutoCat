@@ -209,6 +209,12 @@ export function mergeSources(isbn, rawBySource) {
   }
   merged.physical_description = physicalDescription;
 
+  // Existing classification evidence (e.g. a Dewey number already on the
+  // LOC MARC record): a union across sources, never a single "winning"
+  // value like the scalar fields above -- the DDC pipeline treats every
+  // entry as supporting evidence to weigh, not a value to pick and trust.
+  merged.existing_classifications = SOURCE_PRIORITY.flatMap((source) => extractedBySource[source]?.existing_classifications ?? []);
+
   merged.sources = {
     z3950: rawBySource.z3950 ?? null,
     libraryThing: rawBySource.libraryThing ?? null,
@@ -239,6 +245,7 @@ function emptyNormalizedRecord(isbn) {
     physical_description: { pages: null, dimensions: null },
     description: null,
     subjects: [],
+    existing_classifications: [],
     series: null,
     conflicts: [],
   };
@@ -358,6 +365,7 @@ ${searchText}`,
     description: parsed.description ?? null,
     subjects: parsed.subjects ?? [],
     series: parsed.series ?? null,
+    existing_classifications: [],
     conflicts: [],
     // Internal audit tag only -- the /records/lookup/:isbn route strips this
     // down to a bare "provenance": "unverified" before it ever reaches the
