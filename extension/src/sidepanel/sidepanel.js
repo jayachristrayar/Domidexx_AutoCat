@@ -263,6 +263,7 @@ function bookDetailsHtml(metadata) {
           <summary>More details</summary>
           <dl>${rest.map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('')}</dl>
           ${metadata.description ? `<p class="result-heading">Description</p><p>${escapeHtml(metadata.description)}</p>` : ''}
+          ${metadata.table_of_contents ? `<p class="result-heading">Table of contents</p><p>${escapeHtml(metadata.table_of_contents)}</p>` : ''}
         </details>
       ` : ''}
       ${metadata.provenance === 'unverified' ? '<p class="hint">Sourced via AI-assisted web research -- please verify against the physical item.</p>' : ''}
