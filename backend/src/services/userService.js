@@ -129,6 +129,34 @@ export async function setUserStatus(userId, status) {
   return { userId, status };
 }
 
+// setModelAccess -- the only place users.model_access is ever written.
+// Called exclusively from the admin dashboard (admin.js); a librarian's own
+// session can never reach this (there is no user-facing route that calls
+// it) -- section 8/18's "only an administrator can grant/revoke OpenAI
+// access, never the account itself" is enforced by there being no other
+// caller, not by a runtime role check on top of it.
+async function setModelAccess(userId, access) {
+  const result = await pool.query('UPDATE users SET model_access = $1::text[] WHERE id = $2 RETURNING model_access', [
+    access,
+    userId,
+  ]);
+  if (result.rows.length === 0) {
+    throw new UserNotFoundError('User not found');
+  }
+  return { userId, modelAccess: result.rows[0].model_access };
+}
+
+// NVIDIA is the permanent baseline every account gets by default (product
+// spec section 4) -- there is no "disable NVIDIA" action, so both of these
+// always include it regardless of the account's prior model_access value.
+export function enableOpenAiAccess(userId) {
+  return setModelAccess(userId, ['NVIDIA', 'OPENAI']);
+}
+
+export function disableOpenAiAccess(userId) {
+  return setModelAccess(userId, ['NVIDIA']);
+}
+
 export async function updateUserAccess({ userId, deviceLimit, expiresAt }) {
   const result = await pool.query(
     `UPDATE users

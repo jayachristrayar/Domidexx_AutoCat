@@ -171,11 +171,22 @@ async function actionLookupIsbn({ isbn }) {
   }
 }
 
-async function actionRecommendDdc({ metadata }) {
+async function actionRecommendDdc({ metadata, model }) {
   try {
-    const response = await apiFetch('/api/ddc/recommend', { method: 'POST', body: JSON.stringify({ metadata }) });
+    const response = await apiFetch('/api/ddc/recommend', { method: 'POST', body: JSON.stringify({ metadata, model }) });
     const body = await readJson(response);
-    if (!response.ok) return friendlyResultFor(response, body);
+    if (!response.ok) {
+      // A 403 for an unauthorized AI model is NOT a session problem --
+      // friendlyResultFor's generic 401/403 handling would otherwise
+      // misroute this into "session expired, log in again", which is wrong
+      // and would even sign a still-valid session out. Give it its own
+      // code so the Side Panel can show the actual "OpenAI access is not
+      // enabled" message instead.
+      if (response.status === 403 && body?.error_class === 'model_access_error') {
+        return { ok: false, code: 'MODEL_NOT_AUTHORIZED', message: body.error, contactEmail: body.contact_email, requestedModel: model };
+      }
+      return friendlyResultFor(response, body);
+    }
     return { ok: true, data: body };
   } catch (error) {
     return networkErrorResult(error);

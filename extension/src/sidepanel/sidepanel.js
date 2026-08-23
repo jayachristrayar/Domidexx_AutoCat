@@ -195,6 +195,34 @@ function kohaStatusHtml(state) {
 }
 
 // ---------------------------------------------------------------------
+// AI model selector -- shows only what this account is authorized for
+// (product spec section 5/20: never a tier/plan/pricing word, just the
+// model names). A single-model account gets a plain label (plus a locked
+// row for anything it isn't authorized for, so unavailability is visible
+// without naming why); an account authorized for more than one gets a
+// real dropdown.
+// ---------------------------------------------------------------------
+
+const ALL_MODELS = ['NVIDIA', 'OPENAI'];
+const MODEL_LABELS = { NVIDIA: 'NVIDIA', OPENAI: 'OpenAI' };
+
+function modelSelectorHtml(modelAccess) {
+  const access = Array.isArray(modelAccess) && modelAccess.length > 0 ? modelAccess : ['NVIDIA'];
+  if (access.length <= 1) {
+    return ALL_MODELS.map((model) =>
+      access.includes(model)
+        ? `<p class="model-current">${escapeHtml(MODEL_LABELS[model])}</p>`
+        : `<p class="model-locked">${escapeHtml(MODEL_LABELS[model])} <span class="lock">🔒 Access required</span></p>`
+    ).join('');
+  }
+  return `
+    <select id="model-select">
+      ${access.map((model) => `<option value="${escapeHtml(model)}">${escapeHtml(MODEL_LABELS[model] || model)}</option>`).join('')}
+    </select>
+  `;
+}
+
+// ---------------------------------------------------------------------
 // Book details
 // ---------------------------------------------------------------------
 
@@ -324,11 +352,18 @@ function renderWorkspace(me) {
       <div class="who">
         <div class="section-title">Account</div>
         <div class="email">${escapeHtml(me.email)}</div>
+        ${me.autocat_user_id ? `<div class="doac-id">${escapeHtml(me.autocat_user_id)}</div>` : ''}
       </div>
       <button type="button" class="secondary" id="logout">Log out</button>
     </div>
 
     <div class="card koha-status-card" id="koha-status">${kohaStatusHtml('DETECTING')}</div>
+
+    <div class="card" id="model-card">
+      <label class="section-title" for="model-select">AI Model</label>
+      <div id="model-select-wrap">${modelSelectorHtml(me.model_access)}</div>
+      <div id="model-status"></div>
+    </div>
 
     <div class="card">
       <label class="section-title" for="isbn-input">ISBN</label>
@@ -400,7 +435,18 @@ function renderWorkspace(me) {
     ddcDecision: null,
     ddcSource: 'ai', // 'ai' | 'cataloguer' -- section 41: keep these distinguishable
     marcResult: null,
+    // The account's own default -- whatever the backend put first in
+    // model_access (NVIDIA for every account unless an admin also granted
+    // OpenAI). Only ever changed by the librarian via the model dropdown
+    // below, never inferred or silently swapped by the extension itself.
+    selectedModel: (me.model_access && me.model_access[0]) || 'NVIDIA',
   };
+
+  const modelStatus = app.querySelector('#model-status');
+  app.querySelector('#model-select')?.addEventListener('change', (event) => {
+    state.selectedModel = event.target.value;
+    modelStatus.innerHTML = '';
+  });
 
   const bookCard = app.querySelector('#book-card');
   const bookStatus = app.querySelector('#book-status');
@@ -476,6 +522,18 @@ function renderWorkspace(me) {
       renderAuth(error.message);
       return;
     }
+    // Not a session problem -- the account is authenticated fine, it just
+    // isn't authorized for the model it (or a manually crafted request)
+    // asked for. Exact wording and the clickable contact link per product
+    // spec section 6/19 -- never "upgrade your plan" language.
+    if (error.code === 'MODEL_NOT_AUTHORIZED') {
+      const email = error.contactEmail || 'team.domidexx@gmail.com';
+      targetEl.innerHTML = `
+        ${stateHtml('error', 'OpenAI access is not enabled for your account. Please contact the administrator to upgrade access.')}
+        <p class="hint">Contact: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
+      `;
+      return;
+    }
     const message =
       error.code === 'BACKEND_UNAVAILABLE' || error.code === 'EXTENSION_ERROR' || error.code === 'EMPTY_RESPONSE'
         ? 'AutoCat service is temporarily unavailable. Please try again.'
@@ -493,7 +551,7 @@ function renderWorkspace(me) {
     state.marcResult = null;
     let recommendation;
     try {
-      recommendation = await api.recommendDdc(state.metadata);
+      recommendation = await api.recommendDdc(state.metadata, state.selectedModel);
     } catch (error) {
       handleWorkflowError(error, ddcStatus);
       return;

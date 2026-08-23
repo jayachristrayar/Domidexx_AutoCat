@@ -13,6 +13,7 @@ export const requireSession = asyncHandler(async (req, res, next) => {
   const { rows } = await pool.query(
     `SELECT s.token, s.expires_at, s.device_id,
             u.id AS user_id, u.institution_id, u.subscription_tier,
+            u.autocat_user_id, u.model_access,
             u.is_active, u.status, u.expires_at AS account_expires_at, u.device_limit
      FROM sessions s
      JOIN users u ON u.id = s.user_id
@@ -46,6 +47,8 @@ export const requireSession = asyncHandler(async (req, res, next) => {
     userId: session.user_id,
     institutionId: session.institution_id,
     subscriptionTier: session.subscription_tier,
+    autocatUserId: session.autocat_user_id,
+    modelAccess: session.model_access,
     deviceLimit: session.device_limit,
     deviceId: session.device_id,
   };

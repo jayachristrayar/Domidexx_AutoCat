@@ -143,6 +143,7 @@ router.post(
 
     await enforceDeviceLimit(user.id, user.device_limit, deviceId);
     const token = await createSession(user.id, deviceId);
+    await pool.query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
     res.json({ token });
   })
 );
