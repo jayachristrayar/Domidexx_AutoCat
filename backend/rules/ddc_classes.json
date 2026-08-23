@@ -6,600 +6,6 @@
     "source": "project_supplied_ddc_reference"
   },
   {
-    "number": "100",
-    "label": "Philosophy",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "200",
-    "label": "Religion",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "300",
-    "label": "Social sciences",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "400",
-    "label": "Language",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "500",
-    "label": "Natural sciences & mathematics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "600",
-    "label": "Technology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "700",
-    "label": "The arts; fine & decorative arts",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "800",
-    "label": "Literature & rhetoric",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "900",
-    "label": "History & geography",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "010",
-    "label": "Bibliography",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "020",
-    "label": "Library & information sciences",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "030",
-    "label": "General encyclopedic works",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "040",
-    "label": "Unassigned",
-    "status": "UNASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "050",
-    "label": "General serial publications",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "060",
-    "label": "General organizations & museum science",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "070",
-    "label": "News media, journalism & publishing",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "080",
-    "label": "General collections",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "090",
-    "label": "Manuscripts & rare books",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "110",
-    "label": "Metaphysics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "120",
-    "label": "Epistemology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "130",
-    "label": "Parapsychology & occultism",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "140",
-    "label": "Specific philosophical schools",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "150",
-    "label": "Psychology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "160",
-    "label": "Logic",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "170",
-    "label": "Ethics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "180",
-    "label": "Ancient, medieval & eastern philosophy",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "190",
-    "label": "Modern western philosophy",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "210",
-    "label": "Philosophy & theory of religion",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "220",
-    "label": "Bible",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "230",
-    "label": "Christianity",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "240",
-    "label": "Christian practice & observance",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "250",
-    "label": "Christian orders & local church",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "260",
-    "label": "Christian social theology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "270",
-    "label": "History of Christianity",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "280",
-    "label": "Christian denominations",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "290",
-    "label": "Other religions",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "310",
-    "label": "Statistics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "320",
-    "label": "Political science",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "330",
-    "label": "Economics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "340",
-    "label": "Law",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "350",
-    "label": "Public administration & military science",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "360",
-    "label": "Social problems & services",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "370",
-    "label": "Education",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "380",
-    "label": "Commerce, communications & transportation",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "390",
-    "label": "Customs, etiquette & folklore",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "410",
-    "label": "Linguistics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "420",
-    "label": "English & Old English languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "430",
-    "label": "Germanic languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "440",
-    "label": "French & related languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "450",
-    "label": "Italian, Romanian & related languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "460",
-    "label": "Spanish, Portuguese, Galician",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "470",
-    "label": "Latin & Italic languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "480",
-    "label": "Classical & modern Greek languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "490",
-    "label": "Other languages",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "510",
-    "label": "Mathematics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "520",
-    "label": "Astronomy",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "530",
-    "label": "Physics",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "540",
-    "label": "Chemistry",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "550",
-    "label": "Earth sciences & geology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "560",
-    "label": "Fossils & prehistoric life",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "570",
-    "label": "Life sciences; biology",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "580",
-    "label": "Plants",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "590",
-    "label": "Animals",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "610",
-    "label": "Medicine & health",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "620",
-    "label": "Engineering",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "630",
-    "label": "Agriculture",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "640",
-    "label": "Home & family management",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "650",
-    "label": "Management & auxiliary services",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "660",
-    "label": "Chemical engineering",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "670",
-    "label": "Manufacturing",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "680",
-    "label": "Manufacture for specific uses",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "690",
-    "label": "Construction of buildings",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "710",
-    "label": "Area planning & landscape architecture",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "720",
-    "label": "Architecture",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "730",
-    "label": "Sculpture, ceramics & metalwork",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "740",
-    "label": "Drawing & decorative arts",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "750",
-    "label": "Painting",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "760",
-    "label": "Graphic arts",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "770",
-    "label": "Photography",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "780",
-    "label": "Music",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "790",
-    "label": "Sports, games & entertainment",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "810",
-    "label": "American literature in English",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "820",
-    "label": "English & Old English literatures",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "830",
-    "label": "German literature",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "840",
-    "label": "French literature",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "850",
-    "label": "Italian literature",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "860",
-    "label": "Spanish & Portuguese literatures",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "870",
-    "label": "Latin literature",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "880",
-    "label": "Classical & modern Greek literatures",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "890",
-    "label": "Other literatures",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "910",
-    "label": "Geography & travel",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "920",
-    "label": "Biography & genealogy",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "930",
-    "label": "Ancient history",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "940",
-    "label": "History of Europe",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "950",
-    "label": "History of Asia",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "960",
-    "label": "History of Africa",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "970",
-    "label": "History of North America",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "980",
-    "label": "History of South America",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "990",
-    "label": "History of other areas",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
     "number": "001",
     "label": "Knowledge",
     "status": "ASSIGNED",
@@ -636,6 +42,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "006.3",
+    "label": "Artificial intelligence",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "007",
     "label": "General works",
     "status": "ASSIGNED",
@@ -650,6 +62,12 @@
   {
     "number": "009",
     "label": "General works",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "010",
+    "label": "Bibliography",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -708,6 +126,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "020",
+    "label": "Library & information sciences",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "021",
     "label": "Library relationships",
     "status": "ASSIGNED",
@@ -738,6 +162,18 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "025.1",
+    "label": "Library administration",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "025.5",
+    "label": "Library services to users",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "026",
     "label": "Libraries for specific subjects",
     "status": "ASSIGNED",
@@ -759,6 +195,12 @@
     "number": "029",
     "label": "Unassigned",
     "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "030",
+    "label": "General encyclopedic works",
+    "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
@@ -816,6 +258,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "040",
+    "label": "Unassigned",
+    "status": "UNASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "041",
     "label": "Unassigned",
     "status": "UNASSIGNED",
@@ -870,6 +318,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "050",
+    "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "051",
     "label": "General serial publications",
     "status": "ASSIGNED",
@@ -920,6 +374,12 @@
   {
     "number": "059",
     "label": "General serial publications",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "060",
+    "label": "General organizations & museum science",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -978,6 +438,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "070",
+    "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "071",
     "label": "News media, journalism & publishing",
     "status": "ASSIGNED",
@@ -1028,6 +494,12 @@
   {
     "number": "079",
     "label": "News media, journalism & publishing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "080",
+    "label": "General collections",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1086,6 +558,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "090",
+    "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "091",
     "label": "Manuscripts & rare books",
     "status": "ASSIGNED",
@@ -1136,6 +614,12 @@
   {
     "number": "099",
     "label": "Manuscripts & rare books",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "100",
+    "label": "Philosophy",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1194,6 +678,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "110",
+    "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "111",
     "label": "Metaphysics",
     "status": "ASSIGNED",
@@ -1244,6 +734,12 @@
   {
     "number": "119",
     "label": "Metaphysics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "120",
+    "label": "Epistemology",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1302,6 +798,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "130",
+    "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "131",
     "label": "Parapsychology & occultism",
     "status": "ASSIGNED",
@@ -1352,6 +854,12 @@
   {
     "number": "139",
     "label": "Parapsychology & occultism",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "140",
+    "label": "Specific philosophical schools",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1410,6 +918,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "150",
+    "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "151",
     "label": "Psychology",
     "status": "ASSIGNED",
@@ -1460,6 +974,12 @@
   {
     "number": "159",
     "label": "Psychology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "160",
+    "label": "Logic",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1518,6 +1038,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "170",
+    "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "171",
     "label": "Ethics",
     "status": "ASSIGNED",
@@ -1568,6 +1094,12 @@
   {
     "number": "179",
     "label": "Ethics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "180",
+    "label": "Ancient, medieval & eastern philosophy",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1626,6 +1158,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "190",
+    "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "191",
     "label": "Modern western philosophy",
     "status": "ASSIGNED",
@@ -1676,6 +1214,12 @@
   {
     "number": "199",
     "label": "Modern western philosophy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "200",
+    "label": "Religion",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1734,6 +1278,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "210",
+    "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "211",
     "label": "Philosophy & theory of religion",
     "status": "ASSIGNED",
@@ -1784,6 +1334,12 @@
   {
     "number": "219",
     "label": "Philosophy & theory of religion",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "220",
+    "label": "Bible",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1842,6 +1398,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "230",
+    "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "231",
     "label": "Christianity",
     "status": "ASSIGNED",
@@ -1892,6 +1454,12 @@
   {
     "number": "239",
     "label": "Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "240",
+    "label": "Christian practice & observance",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -1950,6 +1518,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "250",
+    "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "251",
     "label": "Christian orders & local church",
     "status": "ASSIGNED",
@@ -2000,6 +1574,12 @@
   {
     "number": "259",
     "label": "Christian orders & local church",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "260",
+    "label": "Christian social theology",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2058,6 +1638,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "270",
+    "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "271",
     "label": "History of Christianity",
     "status": "ASSIGNED",
@@ -2108,6 +1694,12 @@
   {
     "number": "279",
     "label": "History of Christianity",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "280",
+    "label": "Christian denominations",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2166,6 +1758,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "290",
+    "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "291",
     "label": "Other religions",
     "status": "ASSIGNED",
@@ -2216,6 +1814,12 @@
   {
     "number": "299",
     "label": "Other religions",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "300",
+    "label": "Social sciences",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2274,6 +1878,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "310",
+    "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "311",
     "label": "Statistics",
     "status": "ASSIGNED",
@@ -2324,6 +1934,12 @@
   {
     "number": "319",
     "label": "Statistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "320",
+    "label": "Political science",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2382,6 +1998,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "330",
+    "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "331",
     "label": "Economics",
     "status": "ASSIGNED",
@@ -2432,6 +2054,12 @@
   {
     "number": "339",
     "label": "Economics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "340",
+    "label": "Law",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2490,6 +2118,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "350",
+    "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "351",
     "label": "Public administration & military science",
     "status": "ASSIGNED",
@@ -2540,6 +2174,12 @@
   {
     "number": "359",
     "label": "Public administration & military science",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "360",
+    "label": "Social problems & services",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2598,6 +2238,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "370",
+    "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "371",
     "label": "Education",
     "status": "ASSIGNED",
@@ -2648,6 +2294,12 @@
   {
     "number": "379",
     "label": "Education",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "380",
+    "label": "Commerce, communications & transportation",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2706,6 +2358,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "390",
+    "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "391",
     "label": "Customs, etiquette & folklore",
     "status": "ASSIGNED",
@@ -2756,6 +2414,12 @@
   {
     "number": "399",
     "label": "Customs, etiquette & folklore",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "400",
+    "label": "Language",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2814,6 +2478,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "410",
+    "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "411",
     "label": "Linguistics",
     "status": "ASSIGNED",
@@ -2864,6 +2534,12 @@
   {
     "number": "419",
     "label": "Linguistics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "420",
+    "label": "English & Old English languages",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -2922,6 +2598,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "430",
+    "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "431",
     "label": "Germanic languages",
     "status": "ASSIGNED",
@@ -2972,6 +2654,12 @@
   {
     "number": "439",
     "label": "Germanic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "440",
+    "label": "French & related languages",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3030,6 +2718,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "450",
+    "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "451",
     "label": "Italian, Romanian & related languages",
     "status": "ASSIGNED",
@@ -3080,6 +2774,12 @@
   {
     "number": "459",
     "label": "Italian, Romanian & related languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "460",
+    "label": "Spanish, Portuguese, Galician",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3138,6 +2838,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "470",
+    "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "471",
     "label": "Latin & Italic languages",
     "status": "ASSIGNED",
@@ -3188,6 +2894,12 @@
   {
     "number": "479",
     "label": "Latin & Italic languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "480",
+    "label": "Classical & modern Greek languages",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3246,6 +2958,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "490",
+    "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "491",
     "label": "Other languages",
     "status": "ASSIGNED",
@@ -3296,6 +3014,12 @@
   {
     "number": "499",
     "label": "Other languages",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "500",
+    "label": "Natural sciences & mathematics",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3354,6 +3078,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "510",
+    "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "511",
     "label": "Mathematics",
     "status": "ASSIGNED",
@@ -3404,6 +3134,12 @@
   {
     "number": "519",
     "label": "Mathematics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "520",
+    "label": "Astronomy",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3462,6 +3198,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "530",
+    "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "531",
     "label": "Physics",
     "status": "ASSIGNED",
@@ -3512,6 +3254,12 @@
   {
     "number": "539",
     "label": "Physics",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "540",
+    "label": "Chemistry",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3570,6 +3318,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "550",
+    "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "551",
     "label": "Earth sciences & geology",
     "status": "ASSIGNED",
@@ -3620,6 +3374,12 @@
   {
     "number": "559",
     "label": "Earth sciences & geology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "560",
+    "label": "Fossils & prehistoric life",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3678,6 +3438,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "570",
+    "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "571",
     "label": "Life sciences; biology",
     "status": "ASSIGNED",
@@ -3728,6 +3494,12 @@
   {
     "number": "579",
     "label": "Life sciences; biology",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "580",
+    "label": "Plants",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3786,6 +3558,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "590",
+    "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "591",
     "label": "Animals",
     "status": "ASSIGNED",
@@ -3836,6 +3614,12 @@
   {
     "number": "599",
     "label": "Animals",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "600",
+    "label": "Technology",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -3894,6 +3678,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "610",
+    "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "611",
     "label": "Medicine & health",
     "status": "ASSIGNED",
@@ -3944,6 +3734,12 @@
   {
     "number": "619",
     "label": "Medicine & health",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "620",
+    "label": "Engineering",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4002,6 +3798,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "630",
+    "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "631",
     "label": "Agriculture",
     "status": "ASSIGNED",
@@ -4052,6 +3854,12 @@
   {
     "number": "639",
     "label": "Agriculture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "640",
+    "label": "Home & family management",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4110,6 +3918,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "650",
+    "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "651",
     "label": "Management & auxiliary services",
     "status": "ASSIGNED",
@@ -4160,6 +3974,12 @@
   {
     "number": "659",
     "label": "Management & auxiliary services",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "660",
+    "label": "Chemical engineering",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4218,6 +4038,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "670",
+    "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "671",
     "label": "Manufacturing",
     "status": "ASSIGNED",
@@ -4268,6 +4094,12 @@
   {
     "number": "679",
     "label": "Manufacturing",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "680",
+    "label": "Manufacture for specific uses",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4326,6 +4158,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "690",
+    "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "691",
     "label": "Construction of buildings",
     "status": "ASSIGNED",
@@ -4376,6 +4214,12 @@
   {
     "number": "699",
     "label": "Construction of buildings",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "700",
+    "label": "The arts; fine & decorative arts",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4434,6 +4278,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "710",
+    "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "711",
     "label": "Area planning & landscape architecture",
     "status": "ASSIGNED",
@@ -4484,6 +4334,12 @@
   {
     "number": "719",
     "label": "Area planning & landscape architecture",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "720",
+    "label": "Architecture",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4542,6 +4398,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "730",
+    "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "731",
     "label": "Sculpture, ceramics & metalwork",
     "status": "ASSIGNED",
@@ -4592,6 +4454,12 @@
   {
     "number": "739",
     "label": "Sculpture, ceramics & metalwork",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "740",
+    "label": "Drawing & decorative arts",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4650,6 +4518,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "750",
+    "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "751",
     "label": "Painting",
     "status": "ASSIGNED",
@@ -4700,6 +4574,12 @@
   {
     "number": "759",
     "label": "Painting",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "760",
+    "label": "Graphic arts",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4758,6 +4638,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "770",
+    "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "771",
     "label": "Photography",
     "status": "ASSIGNED",
@@ -4808,6 +4694,12 @@
   {
     "number": "779",
     "label": "Photography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "780",
+    "label": "Music",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4866,6 +4758,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "790",
+    "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "791",
     "label": "Sports, games & entertainment",
     "status": "ASSIGNED",
@@ -4916,6 +4814,12 @@
   {
     "number": "799",
     "label": "Sports, games & entertainment",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "800",
+    "label": "Literature & rhetoric",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -4974,50 +4878,56 @@
     "source": "project_supplied_ddc_reference"
   },
   {
-    "number": "811",
+    "number": "810",
     "label": "American literature in English",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "811",
+    "label": "American poetry",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "812",
-    "label": "American literature in English",
+    "label": "American drama",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "813",
-    "label": "American literature in English",
+    "label": "American fiction",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "814",
-    "label": "American literature in English",
+    "label": "American essays",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "815",
-    "label": "American literature in English",
+    "label": "American speeches",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "816",
-    "label": "American literature in English",
+    "label": "American letters",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "817",
-    "label": "American literature in English",
+    "label": "American satire & humor",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "818",
-    "label": "American literature in English",
+    "label": "American miscellaneous writings",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5028,56 +4938,230 @@
     "source": "project_supplied_ddc_reference"
   },
   {
-    "number": "821",
+    "number": "820",
     "label": "English & Old English literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821",
+    "label": "English poetry",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.1",
+    "label": "English poetry \u2014 Old English (Anglo-Saxon) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.2",
+    "label": "English poetry \u2014 Middle English period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.3",
+    "label": "English poetry \u2014 Elizabethan & early Stuart (Renaissance) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.4",
+    "label": "English poetry \u2014 Restoration period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.5",
+    "label": "English poetry \u2014 Augustan / early 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.6",
+    "label": "English poetry \u2014 Later 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.7",
+    "label": "English poetry \u2014 Romantic period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.8",
+    "label": "English poetry \u2014 Victorian period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "821.9",
+    "label": "English poetry \u2014 20th-century and later",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "822",
-    "label": "English & Old English literatures",
+    "label": "English drama",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.1",
+    "label": "English drama \u2014 Old English (Anglo-Saxon) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.2",
+    "label": "English drama \u2014 Middle English period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.3",
+    "label": "English drama \u2014 Elizabethan & early Stuart (Renaissance) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.4",
+    "label": "English drama \u2014 Restoration period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.5",
+    "label": "English drama \u2014 Augustan / early 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.6",
+    "label": "English drama \u2014 Later 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.7",
+    "label": "English drama \u2014 Romantic period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.8",
+    "label": "English drama \u2014 Victorian period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "822.9",
+    "label": "English drama \u2014 20th-century and later",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "823",
-    "label": "English & Old English literatures",
+    "label": "English fiction",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.1",
+    "label": "English fiction \u2014 Old English (Anglo-Saxon) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.2",
+    "label": "English fiction \u2014 Middle English period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.3",
+    "label": "English fiction \u2014 Elizabethan & early Stuart (Renaissance) period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.4",
+    "label": "English fiction \u2014 Restoration period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.5",
+    "label": "English fiction \u2014 Augustan / early 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.6",
+    "label": "English fiction \u2014 Later 18th-century period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.7",
+    "label": "English fiction \u2014 Romantic period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.8",
+    "label": "English fiction \u2014 Victorian period",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "823.9",
+    "label": "English fiction \u2014 20th-century and later",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "824",
-    "label": "English & Old English literatures",
+    "label": "English essays",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "825",
-    "label": "English & Old English literatures",
+    "label": "English speeches",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "826",
-    "label": "English & Old English literatures",
+    "label": "English letters",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "827",
-    "label": "English & Old English literatures",
+    "label": "English satire & humor",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "828",
-    "label": "English & Old English literatures",
+    "label": "English miscellaneous writings",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
   {
     "number": "829",
-    "label": "English & Old English literatures",
+    "label": "Old English (Anglo-Saxon) literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "830",
+    "label": "German literature",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5136,6 +5220,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "840",
+    "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "841",
     "label": "French literature",
     "status": "ASSIGNED",
@@ -5186,6 +5276,12 @@
   {
     "number": "849",
     "label": "French literature",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "850",
+    "label": "Italian literature",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5244,6 +5340,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "860",
+    "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "861",
     "label": "Spanish & Portuguese literatures",
     "status": "ASSIGNED",
@@ -5294,6 +5396,12 @@
   {
     "number": "869",
     "label": "Spanish & Portuguese literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "870",
+    "label": "Latin literature",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5352,6 +5460,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "880",
+    "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "881",
     "label": "Classical & modern Greek literatures",
     "status": "ASSIGNED",
@@ -5402,6 +5516,12 @@
   {
     "number": "889",
     "label": "Classical & modern Greek literatures",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "890",
+    "label": "Other literatures",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5460,6 +5580,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "900",
+    "label": "History & geography",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "901",
     "label": "History & geography",
     "status": "ASSIGNED",
@@ -5509,7 +5635,13 @@
   },
   {
     "number": "909",
-    "label": "History & geography",
+    "label": "World history",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "910",
+    "label": "Geography & travel",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5568,6 +5700,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "920",
+    "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "921",
     "label": "Biography & genealogy",
     "status": "ASSIGNED",
@@ -5618,6 +5756,12 @@
   {
     "number": "929",
     "label": "Biography & genealogy",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "930",
+    "label": "Ancient history",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5676,6 +5820,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "940",
+    "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "941",
     "label": "History of Europe",
     "status": "ASSIGNED",
@@ -5726,6 +5876,12 @@
   {
     "number": "949",
     "label": "History of Europe",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "950",
+    "label": "History of Asia",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5784,6 +5940,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "960",
+    "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "961",
     "label": "History of Africa",
     "status": "ASSIGNED",
@@ -5834,6 +5996,12 @@
   {
     "number": "969",
     "label": "History of Africa",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
+    "number": "970",
+    "label": "History of North America",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   },
@@ -5892,6 +6060,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "980",
+    "label": "History of South America",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "981",
     "label": "History of South America",
     "status": "ASSIGNED",
@@ -5946,6 +6120,12 @@
     "source": "project_supplied_ddc_reference"
   },
   {
+    "number": "990",
+    "label": "History of other areas",
+    "status": "ASSIGNED",
+    "source": "project_supplied_ddc_reference"
+  },
+  {
     "number": "991",
     "label": "History of other areas",
     "status": "ASSIGNED",
@@ -5996,24 +6176,6 @@
   {
     "number": "999",
     "label": "History of other areas",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "006.3",
-    "label": "Artificial intelligence",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "025.1",
-    "label": "Library administration",
-    "status": "ASSIGNED",
-    "source": "project_supplied_ddc_reference"
-  },
-  {
-    "number": "025.5",
-    "label": "Library services to users",
     "status": "ASSIGNED",
     "source": "project_supplied_ddc_reference"
   }

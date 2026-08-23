@@ -25,7 +25,11 @@ assert.strictEqual(d.primary_subject,'Library & Information Science'); assert.st
 
 assert.strictEqual(rec({title:'Foundations of Computer Science',description:'Computing, data processing, programming, software, algorithms and systems.'}).recommended_ddc.number,'004');
 assert.strictEqual(rec({title:'Education and Curriculum Design',description:'Teaching, learning, schools, pedagogy, assessment and curriculum.'}).recommended_ddc.number,'370');
-assert.strictEqual(rec({title:'World History',description:'A survey of civilizations, ancient history, Europe, Asia, Africa and America.'}).recommended_ddc.number,'900');
+// 900 is only a bare DDC main class -- never a valid recommendation (see
+// literaryDdc.validateClassificationAgainstWorkType / P7 tests). A
+// multi-region survey correctly resolves to 909 (World history), DDC 23's
+// own number for general/world-survey history.
+assert.strictEqual(rec({title:'World History',description:'A survey of civilizations, ancient history, Europe, Asia, Africa and America.'}).recommended_ddc.number,'909');
 assert.notStrictEqual(rec({title:'Python for Library Managers',description:'A guide to library services and library operations; Python is introduced only as a support tool.',keywords:['Python','AI']}).recommended_ddc.number,'005');
 assert.strictEqual(rec({keywords:['AI','Machine Learning','Python','Libraries','Automation'],description:'Library automation, library services and information organization are the central focus.'}).primary_subject,'Library & Information Science');
 assert.strictEqual(rec({title:'Conflicting metadata',description:'Library cataloging and reference services across the book.',subject_headings:['Artificial intelligence']}).primary_subject,'Library & Information Science');
