@@ -33,7 +33,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, '..', 'public');
 
 const app = express();
-const port = process.env.PORT || 10000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // The extension calls this API directly from its popup/content scripts
 // (Manifest V3, so requests carry a chrome-extension:// origin, not a
@@ -162,7 +162,18 @@ function escapeHtmlSafe(value) {
     .replace(/"/g, '&quot;');
 }
 
-async function start() {
+// Database schema/seed init used to be awaited BEFORE app.listen() -- on at
+// least one deploy that left the process stuck between "Database schema
+// ensured." and ever calling listen() (whatever the exact cause -- a slow
+// or stuck seedMarcFrameworks() upsert, a transient pool issue, etc.),
+// which reads to Render as "no open port" and fails the deploy outright,
+// even though the app would likely have recovered on its own. None of this
+// work should ever be able to delay the HTTP server coming up: Render
+// (and any platform doing a port-open health check) needs to see a
+// listening socket promptly, and /health already independently reports
+// live DB status on every request regardless of what happened at boot --
+// it was never relying on this function having already run.
+async function initializeDatabase() {
   try {
     await ensureSchema();
   } catch (error) {
@@ -170,8 +181,9 @@ async function start() {
       code: error.code || null,
       message: error.message,
     });
-    // Still listen so /health can report the failure; request handlers that
-    // touch the DB will keep returning errors until connectivity/schema is fixed.
+    // Request handlers that touch the DB will keep returning errors until
+    // connectivity/schema is fixed; /health surfaces this independently.
+    return;
   }
 
   try {
@@ -190,10 +202,21 @@ async function start() {
     });
   }
 
-  startModelRefreshSchedule();
+  console.log('Database initialization completed.');
+}
 
-  app.listen(port, '0.0.0.0', () => {
-    console.log(`AutoCat backend listening on port ${port}`);
+function start() {
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`AutoCat backend listening on 0.0.0.0:${PORT}`);
+    // Fire-and-forget: intentionally not awaited so nothing DB/seed-related
+    // can ever delay or block the already-open port.
+    initializeDatabase();
+    startModelRefreshSchedule();
+  });
+
+  server.on('error', (error) => {
+    console.error('Failed to bind HTTP server:', { code: error.code || null, message: error.message });
+    process.exit(1);
   });
 }
 
