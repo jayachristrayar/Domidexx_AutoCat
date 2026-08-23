@@ -4,7 +4,6 @@
 // inline; see the PR that introduced this file for the full rationale.
 import OpenAI from 'openai';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from '../services/openaiModelSelector.js';
-import { findCandidateDdcNumbers } from '../services/ddcLookup.js';
 
 // NVIDIA's hosted NIM endpoint (integrate.api.nvidia.com/v1, matching
 // NVIDIA_BASE_URL from .env.example) is OpenAI-compatible via the standard
@@ -122,12 +121,15 @@ async function buildSystemPrompt({ skeleton, fieldsNeeded, normalizedBiblioData,
   return parts.join('\n\n');
 }
 
-function extractJson(text) {
+// Exported so other AI-driven services (e.g. ddcAiClassifier.js) can reuse
+// the same provider-selection/calling primitives instead of reimplementing
+// OpenAI/NVIDIA client setup a second time.
+export function extractJson(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
 }
 
-async function callOpenAi(systemPrompt) {
+export async function callOpenAi(systemPrompt) {
   const model = await getAvailableOpenAiModel();
   if (!model) throw new Error('no usable OpenAI model available');
   const client = getOpenAiClientForFallback();
@@ -137,7 +139,7 @@ async function callOpenAi(systemPrompt) {
   return { model, text: response.output_text ?? '' };
 }
 
-async function callNvidia(systemPrompt) {
+export async function callNvidia(systemPrompt) {
   const client = getNvidiaClient();
   if (!client) throw new Error('NVIDIA_API_KEY/NVIDIA_BASE_URL are not configured');
   const model = process.env.NVIDIA_MODEL || DEFAULT_NVIDIA_MODEL;
@@ -169,6 +171,14 @@ export async function draftFields({ skeleton, fieldsNeeded, normalizedBiblioData
   let ddcCandidates = [];
   if (fieldsNeeded.includes('082')) {
     const keywords = deriveDdcKeywords(normalizedBiblioData);
+    // Dynamic import: ddcLookup.js touches the Postgres pool at module load
+    // (db/index.js constructs it eagerly), which would otherwise make
+    // *every* consumer of this file's other exports (callOpenAi, callNvidia,
+    // extractJson, deriveDdcKeywords -- none of which need a database)
+    // impossible to import without DATABASE_URL set. Deferring the import
+    // to here, where a DB lookup is actually about to happen, keeps that
+    // failure scoped to just this DDC-candidate-grounding step.
+    const { findCandidateDdcNumbers } = await import('../services/ddcLookup.js');
     ddcCandidates = await findCandidateDdcNumbers(keywords);
   }
 

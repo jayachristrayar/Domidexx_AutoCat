@@ -624,6 +624,25 @@ button.full {
   color: var(--accent);
 }
 
+/* ---------- DDC evidence disclosure ---------- */
+
+.ddc-evidence {
+  margin-top: 10px;
+}
+
+.ddc-evidence summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--accent);
+}
+
+.ddc-evidence ul {
+  margin: 4px 0 8px 16px;
+  padding: 0;
+  font-size: 0.8rem;
+}
+
 .marc-lines {
   margin-top: 8px;
   display: flex;

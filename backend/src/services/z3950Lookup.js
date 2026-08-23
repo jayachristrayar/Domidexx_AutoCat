@@ -219,6 +219,22 @@ export function extractZ3950Fields(marcRecord) {
   const seriesField = [...getFields(fields, '490'), ...getFields(fields, '830')][0];
   const series = seriesField ? cleanPunctuation(getSubfieldValue(seriesField, 'a')) : null;
 
+  // Existing classification evidence (product spec: "external library
+  // classifications are evidence" -- collect them, but the DDC pipeline
+  // must never blindly copy them; see ddcClassificationService.js). 082 is
+  // an LC-assigned Dewey number when present; 092/090 are LC's own-use
+  // call-number fields (092 is the modern tag, 090 legacy) and sometimes
+  // carry a Dewey-shaped number too.
+  const existingClassifications = [];
+  for (const field of getFields(fields, '082')) {
+    const number = getSubfieldValue(field, 'a');
+    if (number) existingClassifications.push({ source: 'loc_marc_082', number: cleanPunctuation(number), edition: getSubfieldValue(field, '2') });
+  }
+  for (const field of [...getFields(fields, '092'), ...getFields(fields, '090')]) {
+    const number = getSubfieldValue(field, 'a');
+    if (number) existingClassifications.push({ source: 'loc_marc_local_call_number', number: cleanPunctuation(number), edition: null });
+  }
+
   return {
     title,
     subtitle,
@@ -234,5 +250,6 @@ export function extractZ3950Fields(marcRecord) {
     description,
     subjects,
     series,
+    existing_classifications: existingClassifications,
   };
 }
