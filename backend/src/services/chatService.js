@@ -60,6 +60,16 @@ const DDC_INTENT_RE = /\b(ddc|classification|dewey|call number|082)\b|should be|
 
 const WHY_RE = /^\s*(why|explain|justif)/i;
 const WRONG_BOOK_RE = /wrong book|not the (?:right|correct) (?:book|edition)|different (?:book|edition)|look for another edition/i;
+
+// "check/search/look .../find ... web/online/internet" -- a librarian
+// asking AutoCat to research the current ISBN on the web. Checked BEFORE
+// the plain web_lookup pattern below (deep_web_lookup is the more specific
+// match): "complete"/"entire"/"everywhere"/"all available sources"/"all
+// over the web" signal a deeper, multi-source research pass rather than
+// the normal single-pass lookup.
+const DEEP_WEB_LOOKUP_RE =
+  /\bcomplete(?:ly)?\b[\s\S]*\bweb\b|\bweb\b[\s\S]*\bcomplete(?:ly)?\b|search everywhere|all over the web|all available sources|entire web|research[\s\S]*\bcompletely\b/i;
+const WEB_LOOKUP_RE = /\b(check|search|look|find)\b[\s\S]*\b(web|online|internet)\b/i;
 const REANALYZE_RE = /reanaly[sz]e|re-?analy[sz]e|analy[sz]e (?:it |the book )?again|generate marc again|regenerate|redo|start over|try again|use the (?:table of contents|toc) more|reclassify/i;
 const REJECT_MARC_FIELD_RE = /do not use that metadata|ignore that (?:metadata|source)/i;
 
@@ -109,6 +119,9 @@ function parseIntent(message) {
   if (WHY_RE.test(text)) return { intent: 'explain' };
 
   if (WRONG_BOOK_RE.test(text)) return { intent: 'wrong_book' };
+
+  if (DEEP_WEB_LOOKUP_RE.test(text)) return { intent: 'deep_web_lookup' };
+  if (WEB_LOOKUP_RE.test(text)) return { intent: 'web_lookup' };
 
   // A message that both rejects the current number AND proposes a specific
   // replacement ("this DDC is wrong, use 025 instead") is an override, not
@@ -192,6 +205,32 @@ export function handleChatMessage({ message, context = {} } = {}) {
         intent: parsed.intent,
         request_relookup: true,
       };
+
+    // web_lookup / deep_web_lookup never fabricate a result themselves --
+    // they hand the current ISBN back to the extension's existing
+    // action-dispatch mechanism (the same one request_relookup/ddc_override/
+    // needs_reanalysis already use) as a `web_research` action, which the
+    // extension picks up and sends to the real backend research endpoint
+    // (POST /records/research/:isbn -> isbnLookup.js's
+    // lookupIsbnWebFallback/researchIsbnOnWeb -- the actual web-search
+    // service, reused as-is).
+    case 'web_lookup':
+    case 'deep_web_lookup': {
+      const deep = parsed.intent === 'deep_web_lookup';
+      if (!context.isbn) {
+        return {
+          reply: "I don't have an ISBN to research yet -- scan or enter one first, then ask me to check the web.",
+          intent: parsed.intent,
+        };
+      }
+      return {
+        reply: deep
+          ? `Researching ISBN ${context.isbn} across multiple web sources now -- this may take a moment.`
+          : `Checking the web for ISBN ${context.isbn} now.`,
+        intent: parsed.intent,
+        web_research: { isbn: context.isbn, deep },
+      };
+    }
 
     case 'override_ddc': {
       if (!parsed.number) {
@@ -278,7 +317,7 @@ export function handleChatMessage({ message, context = {} } = {}) {
 
     default:
       return {
-        reply: "I can help with things like: \"025 is wrong\", \"this DDC is wrong, use 332.6\", \"this is a novel\", \"this is mainly about investment\", \"the author is wrong, it's Jane Doe\", \"this is the wrong book\", \"why this number?\", or \"reclassify this book\". What would you like to change?",
+        reply: "I can help with things like: \"025 is wrong\", \"this DDC is wrong, use 332.6\", \"this is a novel\", \"this is mainly about investment\", \"the author is wrong, it's Jane Doe\", \"this is the wrong book\", \"why this number?\", \"reclassify this book\", \"check the web\", or \"check complete web to find this ISBN\". What would you like to change?",
         intent: 'unknown',
       };
   }

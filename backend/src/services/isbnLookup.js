@@ -281,6 +281,18 @@ function extractCitations(response) {
   return citations;
 }
 
+// Deep research runs a second web_search pass, which can easily surface the
+// same page again -- dedupe by URL so "Sources found" never lists a
+// citation twice.
+function dedupeCitations(citations) {
+  const seen = new Set();
+  return citations.filter((c) => {
+    if (!c.url || seen.has(c.url)) return false;
+    seen.add(c.url);
+    return true;
+  });
+}
+
 function extractJson(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
@@ -300,7 +312,7 @@ const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle"
 // mechanism, not a DDC-reasoning provider choice, and NVIDIA's chat
 // completions API has no equivalent built-in web-search tool to route
 // this through even if it were selected.
-export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
+export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {}) {
   const model = await getAvailableOpenAiModel();
   if (!model) {
     console.error(`ISBN web research skipped for ${isbn}: no usable OpenAI model available.`);
@@ -313,12 +325,13 @@ export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
     return null;
   }
 
+  const deepVariations = deep ? `, "${isbn} author", "${isbn} publisher", "${isbn} catalog", "${isbn} library"` : '';
   let searchResponse;
   try {
     searchResponse = await client.responses.create({
       model,
       tools: [{ type: 'web_search' }],
-      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title" -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
+      input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
     });
   } catch (error) {
     console.error(`ISBN web research: web_search call failed for ${isbn}: ${error.message}`);
@@ -326,8 +339,33 @@ export async function lookupIsbnWebFallback(isbn, { userId } = {}) {
   }
   await logApiUsage(userId, model, searchResponse.usage?.total_tokens);
 
-  const searchText = searchResponse.output_text ?? '';
-  const citations = extractCitations(searchResponse);
+  let searchText = searchResponse.output_text ?? '';
+  let citations = extractCitations(searchResponse);
+
+  if (deep) {
+    // A genuine second research pass, not a re-ask of the same question --
+    // explicitly targets the kind of authoritative sources a librarian
+    // would trust most, and is told what the first pass already found so
+    // it can confirm/add/conflict rather than repeat it. This is what
+    // "aggregate the available evidence" actually means here: real
+    // additional search coverage, not two calls that just produce the same
+    // single result twice.
+    try {
+      const crossCheckResponse = await client.responses.create({
+        model,
+        tools: [{ type: 'web_search' }],
+        input: `Specifically search library catalogs, WorldCat, national/university library records, and publisher or bookseller listings for ISBN ${isbn} to cross-check the research below. Report anything that confirms, adds new detail to, or conflicts with it, and cite sources.\n\nPrevious research:\n${searchText}`,
+      });
+      await logApiUsage(userId, model, crossCheckResponse.usage?.total_tokens);
+      searchText = `${searchText}\n\nAdditional cross-check research:\n${crossCheckResponse.output_text ?? ''}`;
+      citations = citations.concat(extractCitations(crossCheckResponse));
+      console.info(`ISBN web research: deep cross-check pass completed for ${isbn}`);
+    } catch (error) {
+      // Not fatal -- the primary research pass already succeeded; deep mode
+      // just doesn't get its extra coverage this time.
+      console.warn(`ISBN web research: deep cross-check pass failed for ${isbn}, continuing with primary research only: ${error.message}`);
+    }
+  }
 
   let structuredResponse;
   try {
@@ -389,13 +427,15 @@ ${searchText}`,
           .map((c) => ({ source: c.source || 'web_research', number: String(c.number), edition: null }))
       : [],
     conflicts: [],
-    // Internal audit tag only -- the /records/lookup/:isbn route strips this
-    // down to a bare "provenance": "unverified" before it ever reaches the
-    // client. citations/model/conflicts_found never leave the server.
+    // Internal audit detail -- /records/lookup/:isbn strips this down to a
+    // bare "provenance": "unverified" before it ever reaches the client.
+    // /records/research/:isbn (the chat "check the web" action) is the one
+    // place citation URLs/titles ARE deliberately surfaced to the librarian
+    // as "Sources found" -- model name never is, either way.
     sources: {
       method: 'web_search',
       model,
-      citations,
+      citations: dedupeCitations(citations),
       note: 'verify carefully, not confirmed against a structured bibliographic database',
     },
   };
@@ -407,7 +447,7 @@ ${searchText}`,
 // (structured bibliographic APIs remain the higher-trust source for
 // identity fields; web research fills gaps like description/subjects/TOC
 // that Open Library/Google Books commonly omit).
-function mergeStructuredWithWeb(structured, web) {
+export function mergeStructuredWithWeb(structured, web) {
   const merged = { ...structured };
   for (const field of TOP_LEVEL_FIELDS) {
     if (isEmptyValue(merged[field]) && !isEmptyValue(web[field])) {
@@ -537,6 +577,54 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
   // back anyway.
   if (cacheSource === 'not_found') {
     return result;
+  }
+
+  await pool.query(
+    `INSERT INTO isbn_cache (isbn, raw_json, source)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (isbn) DO UPDATE SET raw_json = EXCLUDED.raw_json, source = EXCLUDED.source, fetched_at = now()`,
+    [isbn, JSON.stringify(result), cacheSource]
+  );
+
+  return result;
+}
+
+// researchIsbnOnWeb -- the backend action behind the "check the web" /
+// "check complete web" chat intents (chatService.js's web_lookup /
+// deep_web_lookup). Reuses lookupIsbnWebFallback directly rather than
+// duplicating any research logic: this is the SAME web-research mechanism
+// the normal ISBN lookup uses, just invoked on demand regardless of
+// whether structured sources already ran or what they found, because the
+// librarian explicitly asked for a fresh web check.
+//
+// If a structured result is already cached for this ISBN, the web
+// research supplements it (never overwrites an already-vetted field) via
+// the same mergeStructuredWithWeb policy the main lookup pipeline uses,
+// and the merged result replaces the cache entry so a subsequent ordinary
+// lookup benefits too.
+export async function researchIsbnOnWeb(rawIsbn, { userId, deep = false } = {}) {
+  const isbn = normalizeIsbn(rawIsbn);
+  console.info(`ISBN chat-triggered ${deep ? 'deep ' : ''}web research for ${isbn}`);
+
+  const webResult = await lookupIsbnWebFallback(isbn, { userId, deep });
+  if (!webResult) {
+    console.warn(`ISBN chat-triggered web research found nothing for ${isbn}`);
+    return { isbn, not_found: true };
+  }
+
+  const cached = await pool.query(
+    `SELECT raw_json FROM isbn_cache WHERE isbn = $1 AND source IN ('merged', 'structured+web')`,
+    [isbn]
+  );
+
+  let result;
+  let cacheSource;
+  if (cached.rows.length > 0) {
+    result = mergeStructuredWithWeb(cached.rows[0].raw_json, webResult);
+    cacheSource = 'structured+web';
+  } else {
+    result = { ...webResult, partial: isPartial(webResult) };
+    cacheSource = 'web_search';
   }
 
   await pool.query(
