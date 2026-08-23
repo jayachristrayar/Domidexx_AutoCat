@@ -43,8 +43,12 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
       status: decision.classification_source === 'AI_ANALYZED' ? 'success' : 'failure',
     });
   }
+  // saveDdcDecision auto-accepts the recommendation as the current working
+  // classification (approval_status/approved_ddc set on the stored row) --
+  // return that stored version, not the pre-save `decision`, so the client
+  // never needs a separate approve call before it can generate MARC.
   const row=await saveDdcDecision({userId:req.user.userId,metadata,decision});
-  res.status(201).json({id:row.id,decision,model:providerToLabel(model)});
+  res.status(201).json({id:row.id,decision:row.decision_json,model:providerToLabel(model)});
 }));
 router.get('/:id', asyncHandler(async(req,res)=>{ const row=await getDdcDecision(req.params.id,req.user.userId); if(!row) return res.status(404).json({error:'DDC decision not found'}); res.json({id:row.id,decision:row.decision_json,marc082:toMarc082Contract(row)}); }));
 router.post('/:id/approve', asyncHandler(async(req,res)=>{ const row=await approveDdcDecision({id:req.params.id,userId:req.user.userId,action:req.body.action||'APPROVE',ddcNumber:req.body.ddc_number,approvedBy:req.body.approved_by||`user:${req.user.userId}`}); res.json({id:row.id,decision:row.decision_json,marc082:toMarc082Contract(row)}); }));

@@ -32,6 +32,7 @@ import {
   getFrameworkFieldTree,
   setFieldSetting,
   setSubfieldSetting,
+  seedMarcFrameworks,
 } from '../services/marcFrameworkService.js';
 import { usageSummary, listUsage, listUsageUsers } from '../services/usageService.js';
 
@@ -1227,7 +1228,23 @@ function decodeSubfieldCode(param) {
 router.get(
   '/frameworks',
   asyncHandler(async (_req, res) => {
-    const frameworks = await listFrameworks();
+    let frameworks = await listFrameworks();
+    let seedError = null;
+    // Self-healing: an empty table here means startup seeding either never
+    // ran against this database or failed silently (see server.js's own
+    // try/catch around seedMarcFrameworks()) -- rather than leaving the
+    // admin stuck reading a "run npm run seed:marc-frameworks" message they
+    // may have no shell access to act on, retry the same idempotent seed
+    // inline and show the real error if it still fails.
+    if (frameworks.length === 0) {
+      try {
+        await seedMarcFrameworks();
+        frameworks = await listFrameworks();
+      } catch (error) {
+        seedError = error.message;
+        console.error('Admin frameworks page: on-demand seed failed:', error);
+      }
+    }
     const rows = frameworks
       .map(
         (fw) => `<tr>
@@ -1238,6 +1255,9 @@ router.get(
         </tr>`
       )
       .join('');
+    const emptyMessage = seedError
+      ? `<tr><td colspan="4" class="muted">Automatic seeding failed: ${escapeHtml(seedError)}</td></tr>`
+      : '<tr><td colspan="4" class="muted">No frameworks seeded yet — run <code>npm run seed:marc-frameworks</code>.</td></tr>';
     res.send(
       layout({
         title: 'MARC Frameworks',
@@ -1248,7 +1268,7 @@ router.get(
           <div class="panel table-wrap">
             <table>
               <thead><tr><th>Name</th><th>Code</th><th>Type</th><th>Description</th></tr></thead>
-              <tbody>${rows || '<tr><td colspan="4" class="muted">No frameworks seeded yet — run <code>npm run seed:marc-frameworks</code>.</td></tr>'}</tbody>
+              <tbody>${rows || emptyMessage}</tbody>
             </table>
           </div>
         `,

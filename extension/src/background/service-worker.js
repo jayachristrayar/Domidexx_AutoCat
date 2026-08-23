@@ -211,37 +211,38 @@ async function actionRecommendDdc({ metadata, model }) {
   }
 }
 
+// This backs only the librarian's explicit DDC correction/override via Ask
+// AutoCat (e.g. "use 823.7") -- a fresh recommendation from /api/ddc/recommend
+// is already auto-accepted as the current working classification server-side
+// (ddcApprovalService.saveDdcDecision), so nothing in the normal lookup ->
+// classify -> generate-MARC path ever calls this.
 async function actionApproveDdc({ id, ddcNumber }) {
   if (id == null) {
     console.error('[AutoCat] approveDdc called without a decision id.');
-    return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
+    return { ok: false, code: 'DDC_UPDATE_FAILED', message: 'Could not update the DDC classification: no classification is loaded yet.' };
   }
   try {
     const response = await apiFetch(`/api/ddc/${encodeURIComponent(id)}/approve`, {
       method: 'POST',
-      // ddc_number is only sent when the cataloguer (via chat) is overriding
-      // AutoCat's own recommendation with a different, already-validated
-      // number; omitted, the backend approves the AI recommendation as-is.
       body: JSON.stringify(ddcNumber ? { action: 'APPROVE', ddc_number: ddcNumber } : { action: 'APPROVE' }),
     });
     const body = await readJson(response);
     if (!response.ok) {
-      // Give DDC-approval failures their own code/message rather than the
-      // generic bucket -- the two realistic causes here are the session
-      // having expired (handled by friendlyResultFor's 401/403 branch,
-      // which still applies) or the recommended number failing the
-      // backend's own DDC-reference validation (a real 4xx/5xx from
-      // ddcApprovalService.js) -- either way "approving the DDC" is what
-      // visibly failed, so say that specifically.
+      // Give this its own code rather than the generic bucket, but keep the
+      // real backend-provided reason (e.g. the specific DDC validation
+      // failure from ddcApprovalService.js) instead of a canned message --
+      // the librarian typed a specific number and needs to know why it
+      // didn't take, not just that "something" failed.
       const generic = friendlyResultFor(response, body);
       if (generic.code === 'AUTH_EXPIRED') return generic;
-      console.error('[AutoCat] DDC approval failed:', response.status, body?.error ?? body);
-      return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
+      console.error('[AutoCat] DDC update failed:', response.status, body?.error ?? body);
+      const reason = typeof body?.error === 'string' ? body.error : generic.message;
+      return { ok: false, code: 'DDC_UPDATE_FAILED', message: `Could not update the DDC classification: ${reason}` };
     }
     return { ok: true, data: body };
   } catch (error) {
-    console.error('[AutoCat] DDC approval request failed:', error);
-    return { ok: false, code: 'DDC_APPROVAL_FAILED', message: 'The DDC recommendation could not be approved. Please try again.' };
+    console.error('[AutoCat] DDC update request failed:', error);
+    return { ok: false, code: 'DDC_UPDATE_FAILED', message: `Could not update the DDC classification: ${error.message}` };
   }
 }
 

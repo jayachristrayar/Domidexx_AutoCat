@@ -402,6 +402,7 @@ function renderWorkspace(me) {
       <form id="chat-form" class="row">
         <label class="chat-input-label"><span class="sr-only">Message</span><input name="message" placeholder="Ask something…" autocomplete="off" /></label>
         <button type="submit" id="chat-send">Send</button>
+        <button type="button" id="chat-clear" class="secondary">Clear</button>
       </form>
       <div id="chat-status"></div>
     </div>
@@ -439,6 +440,12 @@ function renderWorkspace(me) {
     ddcDecision: null,
     ddcSource: 'ai', // 'ai' | 'cataloguer' -- section 41: keep these distinguishable
     marcResult: null,
+    // Set when Ask AutoCat just asked a follow-up question ("What is the
+    // correct author name?") -- so the librarian's next plain-text reply
+    // ("Emily Bronte") is understood as the answer to that question rather
+    // than falling through to the generic "I didn't understand" response.
+    // Cleared by Clear and once a reply consumes it (see chatService.js).
+    chatPendingField: null,
     // modelAccess holds only the generic MODEL_1/MODEL_2 labels the backend
     // sent -- never a real provider name. Defaults to whatever the account
     // is granted (MODEL_1 for every account unless an admin also granted
@@ -569,8 +576,12 @@ function renderWorkspace(me) {
   }
 
   // -- The single automatic workflow: lookup -> analyze -> classify ------
-  // -> approve -> generate MARC (product spec section 33). Re-entrant: also
-  // used by the chat panel to re-run analysis/MARC after a correction.
+  // -> generate MARC (product spec section 33). There is no separate
+  // "approve DDC" step here or anywhere in the UI: the backend already
+  // returns the recommendation auto-accepted as the current working
+  // classification (see ddcApprovalService.saveDdcDecision), so MARC
+  // generation follows immediately. Re-entrant: also used by the chat
+  // panel to re-run analysis/MARC after a correction.
   async function runDdcAndMarc() {
     ddcCard.hidden = false;
     ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
@@ -590,19 +601,6 @@ function renderWorkspace(me) {
 
     marcCard.hidden = false;
     marcStatus.innerHTML = stateHtml('loading', 'Preparing MARC…');
-    try {
-      // Auto-adopt AutoCat's own recommendation so MARC can be prepared in
-      // one pass; the librarian's real control point is Fill MARC + the
-      // manual Koha Save, and a chat correction can still override this
-      // before then (see applyDdcOverride below).
-      const approved = await api.approveDdc(state.ddcId);
-      state.ddcDecision = approved.decision;
-      renderDdcSection();
-    } catch (error) {
-      handleWorkflowError(error, marcStatus);
-      return;
-    }
-
     try {
       const marc = await api.generateMarc(state.metadata, state.ddcDecision);
       state.marcResult = marc;
@@ -726,6 +724,19 @@ function renderWorkspace(me) {
   const chatStatus = app.querySelector('#chat-status');
   const chatInput = app.querySelector('#chat-form input[name="message"]');
   const chatSend = app.querySelector('#chat-send');
+  const chatClear = app.querySelector('#chat-clear');
+
+  // Clear only wipes the visible conversation and the pending-follow-up
+  // marker -- it never touches the ISBN, book metadata, DDC recommendation,
+  // MARC record, session, or model selection (product spec: "Clear" is
+  // conversation-only, not a reset button).
+  chatClear.addEventListener('click', () => {
+    chatLog.innerHTML = '';
+    chatStatus.innerHTML = '';
+    state.chatPendingField = null;
+    chatInput.value = '';
+    chatInput.focus();
+  });
 
   function appendChatMessage(role, text) {
     const bubble = document.createElement('div');
@@ -842,10 +853,15 @@ function renderWorkspace(me) {
         metadata: state.metadata,
         ddc: state.ddcId != null ? { id: state.ddcId, decision: state.ddcDecision } : undefined,
         marc_ready: state.marcResult?.validation?.valid === true,
+        pending_field: state.chatPendingField,
       };
       const response = await api.chat(message, context);
       chatStatus.innerHTML = '';
       appendChatMessage('assistant', response.reply);
+      // A clarifying question sets this on its own response; anything else
+      // clears it, so a stale "waiting for an author name" marker never
+      // outlives the turn that set it.
+      state.chatPendingField = response.pending_field ?? null;
 
       if (response.request_relookup) {
         state.metadata = null;
