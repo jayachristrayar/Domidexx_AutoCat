@@ -12,7 +12,7 @@ const CATALOGUER_APPROVED = 'CATALOGUER_APPROVED';
 // the skeleton marcBuilder.js emits. Declared here so marcConsistency.js can
 // count them as builder-covered instead of flagging SUPPORTED_BUT_BUILDER_MISSING.
 export function getPipelineEmittedTags() {
-  return ['005'];
+  return ['005', '440'];
 }
 
 export function normalizeIsbn(value) {
@@ -59,6 +59,11 @@ export function normalizeMarcMetadata(input = {}) {
     publication_place: cleanText(metadata.publication_place),
     publish_date: cleanText(metadata.publish_date ?? metadata.publication_date),
     edition: cleanText(metadata.edition),
+    // A source occasionally nests series as { name } (e.g. Open Library's
+    // raw shape before extraction) rather than a plain string -- accept
+    // either, same defensive read the extension's own display code already
+    // does (sidepanel.js's bookDetailsHtml).
+    series: cleanText(typeof metadata.series === 'object' ? metadata.series?.name : metadata.series),
     language: cleanText(metadata.language ?? metadata.language_code),
     subjects: array(metadata.subjects ?? metadata.subject_headings).map(cleanText),
     description: cleanText(metadata.description ?? metadata.abstract),
@@ -190,6 +195,11 @@ function buildAdditionalFields(metadata, now) {
   if (hasMarcRule('005')) fields.push(controlField('005', build005(now)));
   const lang = languageCode(metadata.language);
   if (lang && hasMarcRule('041')) fields.push(dataField('041', [{ code: 'a', value: lang }]));
+  // 440 -- series (rules/marc_runtime_rules.json's series_policy: this
+  // AutoCat profile targets 440, never silently 490/8xx). Only generated
+  // when a source actually supplied a series title -- never fabricated;
+  // absent when the evidence simply doesn't include one.
+  if (metadata.series && hasMarcRule('440')) fields.push(dataField('440', [{ code: 'a', value: metadata.series }], [' ', '0']));
   if (metadata.description && hasMarcRule('520')) fields.push(dataField('520', [{ code: 'a', value: metadata.description }], [' ', ' ']));
   for (const note of metadata.notes) if (hasMarcRule('500')) fields.push(dataField('500', [{ code: 'a', value: note }]));
   if (metadata.bibliography_note && hasMarcRule('504')) fields.push(dataField('504', [{ code: 'a', value: metadata.bibliography_note }]));
@@ -318,7 +328,13 @@ export function validateProductionMarc(fields, { metadata = {}, ddcApproval = {}
     const lang = languageCode(metadata.language);
     if (!lang) warnings.push({ level: 'EVIDENCE', tag: '041', code: 'LANGUAGE_NOT_CODED', message: 'Language evidence was supplied but could not be mapped to a MARC code.' });
   }
-  for (const tag of ['246', '440']) if (!byTag[tag] && hasMarcRule(tag)) info.push({ level: 'CATALOGUING_PROFILE', tag, code: 'NOT_AUTOMATED', message: `${tag} remains controlled by runtime status and is not fabricated by P3.` });
+  if (!byTag['246'] && hasMarcRule('246')) info.push({ level: 'CATALOGUING_PROFILE', tag: '246', code: 'NOT_AUTOMATED', message: '246 remains controlled by runtime status and is not fabricated by P3.' });
+  // 440 IS generated automatically (see buildAdditionalFields) -- its
+  // absence here just means no source supplied series evidence for this
+  // record, never that the field is unimplemented. Informational only,
+  // never blocking: fabricating a series would violate the "never invent
+  // evidence" rule far more than simply having no series to report.
+  if (!byTag['440'] && hasMarcRule('440')) info.push({ level: 'CATALOGUING_PROFILE', tag: '440', code: 'NO_SERIES_EVIDENCE', message: 'No series evidence was found for this record -- 440 omitted, not fabricated.' });
   const fieldsResult = {};
   for (const f of fields) {
     const tag = normalizeMarcTag(f.tag);

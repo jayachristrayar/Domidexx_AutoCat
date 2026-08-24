@@ -69,7 +69,17 @@ function evidenceText(metadata = {}) {
 
 const FICTION_SUBJECT_RE = /\bfiction\b|\bnovel(?:s|la)?\b|short stories/i;
 const POETRY_RE = /\bpoetry\b|\bpoems?\b|\bverse\b/i;
-const DRAMA_RE = /\bdrama\b|\bplays?\b|\btheatre\b|\btheater\b/i;
+// "theatre"/"theater" deliberately excluded: overwhelmingly a discipline/
+// venue/subject-area word in real bibliographic metadata ("Theatre Studies",
+// "Performance Studies", a subject heading for a book ABOUT the performing
+// arts) rather than evidence the book itself IS a play -- keeping it here
+// previously misclassified nonfiction scholarship on theatre/performance
+// (e.g. a research-methods volume with a "Theatre" subject heading) as
+// literary drama (820s), the exact class of false positive this module's
+// own header comment (see "Wuthering Heights"/025 example) exists to avoid.
+// "drama"/"play(s)" are kept -- those words far more specifically name the
+// literary form itself, not just the surrounding discipline.
+const DRAMA_RE = /\bdrama\b|\bplays?\b/i;
 const NON_LITERARY_FORM_RE = /\bnonfiction\b|\btextbook\b|\breference work\b/i;
 
 const LANGUAGE_BLOCKS = [

@@ -15,8 +15,8 @@
     "koha_framework_shows": "440",
     "do_not_silently_replace_with": "490",
     "490_8xx_requires": "explicit cataloguing-policy change",
-    "status": "PLANNED",
-    "notes": "Target Koha 26.05 framework exposes 440 SERIES -- TITLE. AutoCat keeps 440 as the series target. Builder/mapper for 440 are not yet implemented."
+    "status": "SUPPORTED",
+    "notes": "Target Koha 26.05 framework exposes 440 SERIES -- TITLE. AutoCat keeps 440 as the series target. marcPipeline.js's buildAdditionalFields generates 440$a from normalizedBiblioData.series when a source supplied one; omitted (never fabricated) when no series evidence exists."
   },
   "rules": [
     {
@@ -438,7 +438,7 @@
       "tag": "440",
       "label": "Series — Title",
       "description": "Series statement/title as exposed by the target Koha framework. Policy field for this AutoCat profile.",
-      "status": "PLANNED",
+      "status": "SUPPORTED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": true,
       "required": false,
@@ -462,7 +462,7 @@
         "notes": "Do NOT map to 490 unless an explicit cataloguing-policy change is approved."
       },
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "SERIES POLICY: Koha framework shows 440. AutoCat retains 440 as the target. Builder and mapper for 440 are not implemented in P1 — status is PLANNED, not SUPPORTED."
+      "notes": "SERIES POLICY: Koha framework shows 440. AutoCat retains 440 as the target. Generated from normalizedBiblioData.series (marcPipeline.js's buildAdditionalFields) when a source supplied series evidence; $n/$p/$v/$x are not currently populated by any source and stay unset rather than fabricated."
     },
     {
       "tag": "500",

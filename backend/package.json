@@ -11,7 +11,7 @@
     "test:access": "node scripts/testUserAccess.js",
     "test:p1": "node scripts/testMarcRulesP1.js",
     "consistency:marc": "node scripts/marcConsistencyReport.js",
-    "test": "npm run test:p0 && npm run test:access && npm run test:activation && npm run test:p1 && npm run test:p2 && npm run test:literary-ddc && npm run test:ai-ddc && npm run test:chat && npm run test:web-scrape && npm run test:research-agent && npm run test:page-evidence && npm run test:usage-isbn",
+    "test": "npm run test:p0 && npm run test:access && npm run test:activation && npm run test:p1 && npm run test:p2 && npm run test:literary-ddc && npm run test:ai-ddc && npm run test:chat && npm run test:web-scrape && npm run test:research-agent && npm run test:page-evidence && npm run test:usage-isbn && npm run test:marc-completeness",
     "test:web-scrape": "node scripts/testWebScrapeFallback.js",
     "test:research-agent": "node scripts/testResearchAgent.js",
     "test:page-evidence": "node scripts/testPageEvidence.js",
@@ -25,7 +25,8 @@
     "test:literary-ddc": "node scripts/testLiteraryDdcP7.js",
     "test:ai-ddc": "node scripts/testAiDdcClassificationP8.js",
     "test:activation": "node scripts/testAccountActivationP9.js",
-    "test:usage-isbn": "node scripts/testUsageIsbnP10.js"
+    "test:usage-isbn": "node scripts/testUsageIsbnP10.js",
+    "test:marc-completeness": "node scripts/testMarcCompletenessP11.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

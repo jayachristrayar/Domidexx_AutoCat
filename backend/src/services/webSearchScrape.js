@@ -213,6 +213,11 @@ const FIELD_PATTERNS = {
   // Publisher" that most publisher/bookseller pages still print somewhere
   // in their bibliographic details.
   publicationPlaceLabel: /(?:place of publication|published in|city of publication)\s*:?\s*([A-Z][A-Za-z.\- ]{1,40}?)(?:\.\s|\.$|,|;|\s{2,}|$)/i,
+  // An explicit "Series:" label -- same conservative approach as
+  // publicationPlaceLabel: only an unambiguous, labeled statement, never a
+  // guess from a bare phrase that happens to look series-like elsewhere on
+  // the page.
+  seriesLabel: /series\s*:\s*([A-Z][\w&.,'\- ]{1,80}?)(?:\.\s|\.$|,|;|\s{2,}|$)/i,
 };
 
 function stripTags(html) {
@@ -310,6 +315,10 @@ export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
   const publishDate = jsonLd?.datePublished || bodyText.match(FIELD_PATTERNS.publish_date)?.[0] || null;
   const pages = jsonLd?.numberOfPages || bodyText.match(FIELD_PATTERNS.pages)?.[1] || null;
   const language = jsonLd?.inLanguage || bodyText.match(FIELD_PATTERNS.language)?.[1] || null;
+  // schema.org's Book type nests series membership under isPartOf (a
+  // CreativeWorkSeries) -- checked before the labeled-text fallback, same
+  // priority order as publisher/place above.
+  const series = jsonLd?.isPartOf?.name || bodyText.match(FIELD_PATTERNS.seriesLabel)?.[1] || null;
 
   // Digits-only comparison so "978-1-032-76922-6" in the page still matches
   // a plain "9781032769226" candidate, and vice versa.
@@ -329,6 +338,7 @@ export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
     language: language ? String(language).trim() : null,
     description: jsonLd?.description || metaDescription || null,
     subjects: jsonLd?.genre ? (Array.isArray(jsonLd.genre) ? jsonLd.genre : [jsonLd.genre]) : [],
+    series: series ? String(series).trim() : null,
     existing_classifications: extractDdcMentions(bodyText).map((number) => ({ number, source: 'web_scrape', edition: null })),
     isbn_confirmed: jsonLd?.isbn ? String(jsonLd.isbn) : null,
     isbn_found_in_page: isbnFoundInPage,
@@ -440,6 +450,7 @@ function mergePageFields(pages) {
     language: pick('language'),
     description: pick('description'),
     subjects: pickArray('subjects'),
+    series: pick('series'),
     existing_classifications: pages.flatMap((p) => p.extractedData.existing_classifications ?? []),
   };
 }
@@ -535,7 +546,7 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
       physical_description: { pages: merged.pages, dimensions: null },
       description: merged.description,
       subjects: merged.subjects,
-      series: null,
+      series: merged.series,
       language: merged.language,
       table_of_contents: null,
       existing_classifications: merged.existing_classifications,
