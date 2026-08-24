@@ -2,9 +2,10 @@ import pool from '../db/index.js';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
 import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
 import { recordUsage } from './usageService.js';
-import { webSearchAndScrape } from './webSearchScrape.js';
+import { webSearchAndScrape, fetchPageMetadata } from './webSearchScrape.js';
 import { fetchOpenLibrary, fetchGoogleBooks } from './structuredSources.js';
 import { runAgenticResearch } from '../llm/researchAgent.js';
+import { assertFetchableUrl } from './urlSafety.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
 
@@ -579,6 +580,109 @@ function isPartial(merged) {
   return ENRICHMENT_FIELDS.filter((field) => isEmptyValue(merged[field])).length >= ENRICHMENT_FIELDS.length - 1;
 }
 
+// validatePageEvidence(data, variants, pageUrl) -- pure (no network), so it
+// can be unit-tested directly with a synthetic extractPageMetadata()-shaped
+// object instead of needing a live/mocked HTTP fetch. Returns the same
+// normalized-evidence shape every other extractor in this file returns, or
+// null when the page doesn't validate as evidence for this ISBN.
+export function validatePageEvidence(data, variants, pageUrl) {
+  if (!data) return null;
+  const confirmedIsbn = data.isbn_confirmed ? String(data.isbn_confirmed).replace(/[-\s]/g, '').toUpperCase() : null;
+  const confirmedMismatch = confirmedIsbn && !variants.some((v) => v.toUpperCase() === confirmedIsbn);
+  const validated = !confirmedMismatch && (data.isbn_found_in_page || Boolean(confirmedIsbn));
+  if (!validated) {
+    console.warn(
+      `ISBN lookup: current page ${pageUrl} does not appear to be about ISBN ${variants[0]}${confirmedMismatch ? ` (page is for ${confirmedIsbn})` : ''}, discarding as evidence`
+    );
+    return null;
+  }
+  if (!data.title && !data.description) {
+    console.warn(`ISBN lookup: current page ${pageUrl} matched the ISBN but had no usable title/description`);
+    return null;
+  }
+
+  console.info(`ISBN lookup: current-page evidence validated for ${variants[0]} from ${pageUrl}`);
+  return {
+    title: data.title,
+    subtitle: data.subtitle,
+    authors: data.authors ?? [],
+    editors: [],
+    illustrators: [],
+    translators: [],
+    publisher: data.publisher,
+    publish_date: data.publish_date,
+    edition: data.edition,
+    physical_description: { pages: data.pages, dimensions: null },
+    description: data.description,
+    subjects: data.subjects ?? [],
+    series: null,
+    language: data.language,
+    table_of_contents: null,
+    existing_classifications: data.existing_classifications ?? [],
+    sources: { method: 'browser_page', url: pageUrl },
+  };
+}
+
+// fetchPageEvidence(pageUrl, variants) -- product spec item 4: "the current
+// browser page must also be used". The extension sends the URL of the
+// librarian's active tab along with every lookup (see records.js); if
+// that page is genuinely about the requested ISBN, its extracted metadata
+// becomes a high-value evidence source -- most directly, it means a
+// librarian who is LITERALLY LOOKING AT the publisher's page for this book
+// never sees "no reliable metadata found" just because search engines or
+// an AI provider had a bad day, since this fetch doesn't depend on either.
+//
+// Never trusted blindly: assertFetchableUrl blocks anything that isn't a
+// plain public http(s) URL (the SSRF guard -- this is the one fetch target
+// in the whole pipeline that came directly from client input, unlike every
+// other URL here which came from a search WE issued); validatePageEvidence
+// then discards it unless it actually mentions the requested ISBN (product
+// spec item 5). Never fatal to the overall lookup: any failure here is
+// caught and logged, never thrown up to the caller.
+async function fetchPageEvidence(pageUrl, variants) {
+  if (!pageUrl) return null;
+  try {
+    await assertFetchableUrl(pageUrl);
+  } catch (error) {
+    console.warn(`ISBN lookup: current-page URL rejected (${error.message}), skipping page evidence`);
+    return null;
+  }
+
+  let data;
+  try {
+    data = await fetchPageMetadata(pageUrl, { isbnCandidates: variants });
+  } catch (error) {
+    console.warn(`ISBN lookup: failed to fetch current-page evidence at ${pageUrl}: ${error.message}`);
+    return null;
+  }
+
+  return validatePageEvidence(data, variants, pageUrl);
+}
+
+// mergePageEvidence -- same "fill gaps only, never overwrite" policy as
+// mergeStructuredWithWeb, folding validated current-page evidence into the
+// structured-sources result BEFORE the needsWebResearch decision. This is
+// what lets a good browser-page match short-circuit the rest of the
+// pipeline entirely (no search engines, no AI provider needed) when the
+// librarian is already looking at the book's own page.
+export function mergePageEvidence(merged, pageEvidence) {
+  if (!pageEvidence) return merged;
+  const next = { ...merged };
+  for (const field of TOP_LEVEL_FIELDS) {
+    if (isEmptyValue(next[field]) && !isEmptyValue(pageEvidence[field])) next[field] = pageEvidence[field];
+  }
+  const physicalDescription = { ...next.physical_description };
+  for (const field of PHYSICAL_FIELDS) {
+    if (isEmptyValue(physicalDescription[field]) && !isEmptyValue(pageEvidence.physical_description?.[field])) {
+      physicalDescription[field] = pageEvidence.physical_description[field];
+    }
+  }
+  next.physical_description = physicalDescription;
+  next.existing_classifications = [...(next.existing_classifications ?? []), ...(pageEvidence.existing_classifications ?? [])];
+  next.sources = { ...next.sources, current_page: pageEvidence.sources };
+  return next;
+}
+
 // subscriptionTier is accepted for parity with the caller/session shape but
 // no longer gates the web-search fallback -- every configured lookup method
 // (structured sources, then AI-assisted web research) is attempted for
@@ -598,9 +702,13 @@ function isPartial(merged) {
 // tradeoff, not a bypass: whichever model's own research fills the cache
 // first, the underlying evidence itself doesn't change by re-asking a
 // different model to research the exact same ISBN a second time.
-export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider, ownApiConfig } = {}) {
+// `pageUrl` (product spec item 4) -- the librarian's active browser tab
+// URL, sent by the extension with every lookup (see records.js). When it
+// genuinely relates to this ISBN, its extracted evidence is folded in
+// before the needsWebResearch decision below -- see fetchPageEvidence.
+export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider, ownApiConfig, pageUrl } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
-  console.info(`ISBN lookup: received ${isbn} (model=${provider ?? 'default'})`);
+  console.info(`ISBN lookup: received ${isbn} (model=${provider ?? 'default'}${pageUrl ? ', with current-page context' : ''})`);
 
   // A failed/not-found lookup must never become a permanent "successful"
   // cache entry -- excluding source = 'not_found' here means a stale
@@ -630,9 +738,14 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
 
   // Timed and run concurrently (product spec item 2/6/23) -- structured
   // sources never wait on each other, and the total time here is bounded by
-  // the single slowest of them, not their sum.
+  // the single slowest of them, not their sum. The current-page fetch (if
+  // any) runs in this same batch -- it's a single, independently-timed
+  // fetch, never blocking or blocked by the structured-source calls.
   const structuredStartedAt = Date.now();
-  const settled = await Promise.allSettled(sourceCalls.map(([, fn]) => tryVariants(variants, fn)));
+  const [settled, pageEvidence] = await Promise.all([
+    Promise.allSettled(sourceCalls.map(([, fn]) => tryVariants(variants, fn))),
+    fetchPageEvidence(pageUrl, variants),
+  ]);
   console.info(`ISBN lookup: structured sources for ${isbn} took ${Date.now() - structuredStartedAt}ms (parallel)`);
 
   const rawBySource = {};
@@ -647,7 +760,15 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
     }
   });
 
-  const merged = mergeSources(isbn, rawBySource);
+  const structuredOnly = mergeSources(isbn, rawBySource);
+  const hasStructuredApiTitle = Boolean(structuredOnly.title);
+  const merged = mergePageEvidence(structuredOnly, pageEvidence);
+  const usedPageEvidence = Boolean(merged.sources.current_page);
+  // 'structured' (APIs only), 'page' (current-page evidence is what
+  // actually supplied the title -- structured APIs had nothing), or
+  // 'structured+page' (both contributed) -- see records.js/marcPipeline.js
+  // for how this feeds the client-facing provenance signal.
+  const structuredMethod = !usedPageEvidence ? 'structured' : hasStructuredApiTitle ? 'structured+page' : 'page';
   const hasStructuredTitle = Boolean(merged.title);
   // DDC 23 classification needs actual subject/content evidence (product
   // spec item 4), not just bare bibliographic identity -- a structured hit
@@ -662,9 +783,9 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
   let cacheSource;
 
   if (!needsWebResearch) {
-    result = { ...merged, sources: { ...merged.sources, method: 'structured' }, partial: isPartial(merged) };
+    result = { ...merged, sources: { ...merged.sources, method: structuredMethod }, partial: isPartial(merged) };
     cacheSource = 'merged';
-    console.info(`ISBN lookup: resolved ${isbn} from structured sources${result.partial ? ' (partial)' : ''}`);
+    console.info(`ISBN lookup: resolved ${isbn} from ${structuredMethod} sources${result.partial ? ' (partial)' : ''}`);
   } else {
     console.info(
       `ISBN lookup: ${hasStructuredTitle ? 'structured sources lack content evidence for' : 'no structured title for'} ${isbn}, running web research`
@@ -682,11 +803,12 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
       cacheSource = 'web_search';
       console.info(`ISBN lookup: resolved ${isbn} via web research${result.partial ? ' (partial)' : ''}`);
     } else if (hasStructuredTitle) {
-      // Structured gave a real (if thin) result and web research found
-      // nothing more to add -- still genuine data, better than nothing.
-      result = { ...merged, sources: { ...merged.sources, method: 'structured' }, partial: true };
+      // Structured/page evidence gave a real (if thin) result and web
+      // research found nothing more to add -- still genuine data, better
+      // than nothing.
+      result = { ...merged, sources: { ...merged.sources, method: structuredMethod }, partial: true };
       cacheSource = 'merged';
-      console.warn(`ISBN lookup: web research found nothing to add for ${isbn}, keeping thin structured result`);
+      console.warn(`ISBN lookup: web research found nothing to add for ${isbn}, keeping thin ${structuredMethod} result`);
     } else {
       result = { ...emptyNormalizedRecord(isbn), not_found: true, sources: { method: 'none' } };
       cacheSource = 'not_found';

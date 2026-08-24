@@ -228,7 +228,17 @@ function extractDdcMentions(text) {
   return [...new Set(matches)];
 }
 
-export function extractPageMetadata(html, url) {
+// `isbnCandidates` (product spec item 5: "search result validation") --
+// digits-only ISBN-10/ISBN-13 forms to check for literally in the page's
+// text. A publisher/library/bookseller page for a specific book almost
+// always prints its own ISBN somewhere (a product spec sheet, a details
+// table, a citation block); this is a cheap, reliable, source-agnostic way
+// to confirm a fetched page actually is about the requested book rather
+// than a same-title different-edition or an unrelated page a search
+// engine happened to surface. Returned as `isbn_found_in_page` so callers
+// (isbnLookup.js's fetchPageEvidence, webSearchAndScrape's accept/reject
+// step) can validate before trusting a page's extracted fields.
+export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
   const title = firstMatch(html, /<title[^>]*>([^<]+)<\/title>/i);
   const metaDescription =
     firstMatch(html, /<meta[^>]*name="description"[^>]*content="([^"]*)"/i) ||
@@ -244,9 +254,15 @@ export function extractPageMetadata(html, url) {
   const pages = jsonLd?.numberOfPages || bodyText.match(FIELD_PATTERNS.pages)?.[1] || null;
   const language = jsonLd?.inLanguage || bodyText.match(FIELD_PATTERNS.language)?.[1] || null;
 
+  // Digits-only comparison so "978-1-032-76922-6" in the page still matches
+  // a plain "9781032769226" candidate, and vice versa.
+  const digitsOnlyBody = bodyText.replace(/[^0-9Xx]/g, '');
+  const isbnFoundInPage = isbnCandidates.some((candidate) => candidate && digitsOnlyBody.includes(String(candidate).toUpperCase()));
+
   return {
     url,
     title: jsonLd?.name || ogTitle || title || null,
+    subtitle: jsonLd?.alternativeHeadline || null,
     authors: jsonLdAuthorNames(jsonLd),
     publisher: publisher ? String(publisher).trim() : null,
     publish_date: publishDate ? String(publishDate).trim() : null,
@@ -257,6 +273,7 @@ export function extractPageMetadata(html, url) {
     subjects: jsonLd?.genre ? (Array.isArray(jsonLd.genre) ? jsonLd.genre : [jsonLd.genre]) : [],
     existing_classifications: extractDdcMentions(bodyText).map((number) => ({ number, source: 'web_scrape', edition: null })),
     isbn_confirmed: jsonLd?.isbn ? String(jsonLd.isbn) : null,
+    isbn_found_in_page: isbnFoundInPage,
   };
 }
 
@@ -300,13 +317,13 @@ export async function searchWeb(query) {
 // caller (a tool-executor in researchAgent.js, or webSearchAndScrape below)
 // is expected to catch this per-page, never let one bad page abort a whole
 // research pass.
-export async function fetchPageMetadata(url) {
+export async function fetchPageMetadata(url, { isbnCandidates = [] } = {}) {
   const response = await fetchWithTimeout(url, { timeoutMs: PAGE_TIMEOUT_MS });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const contentType = response.headers.get('content-type') ?? '';
   if (!contentType.includes('text/html')) throw new Error(`non-HTML content-type: ${contentType}`);
   const html = await response.text();
-  return extractPageMetadata(html, url);
+  return extractPageMetadata(html, url, { isbnCandidates });
 }
 
 // -- Orchestration ----------------------------------------------------------
@@ -327,9 +344,17 @@ function isEmptyValue(value) {
 // mergePageFields -- same "first non-empty wins, ordered by trust" merge
 // policy isbnLookup.js already uses for structured sources, applied here
 // across the scraped pages ordered by DOMAIN_TIERS (product spec item 9:
-// "cross-check information across multiple sources").
+// "cross-check information across multiple sources"). A page that actually
+// had the requested ISBN printed on it (isbn_found_in_page/isbn_confirmed)
+// outranks domain tier -- confirmed relevance to THIS book beats a merely
+// higher-trust domain that might be about a different edition.
 function mergePageFields(pages) {
-  const ordered = [...pages].sort((a, b) => a.tier - b.tier);
+  const ordered = [...pages].sort((a, b) => {
+    const aConfirmed = a.extractedData.isbn_found_in_page ? 0 : 1;
+    const bConfirmed = b.extractedData.isbn_found_in_page ? 0 : 1;
+    if (aConfirmed !== bConfirmed) return aConfirmed - bConfirmed;
+    return a.tier - b.tier;
+  });
   const pick = (field) => {
     for (const page of ordered) {
       const value = page.extractedData[field];
@@ -347,6 +372,7 @@ function mergePageFields(pages) {
 
   return {
     title: pick('title'),
+    subtitle: pick('subtitle'),
     authors: pickArray('authors'),
     publisher: pick('publisher'),
     publish_date: pick('publish_date'),
@@ -394,16 +420,28 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
 
     console.info(`ISBN web scrape: ${candidates.length} candidate pages selected for ${isbn} (from ${seen.size} unique results)`);
 
-    const fetched = await settleAll(candidates, (candidate) => fetchPageMetadata(candidate.url));
+    const fetched = await settleAll(candidates, (candidate) => fetchPageMetadata(candidate.url, { isbnCandidates: variants }));
 
     const accepted = [];
     let rejectedCount = 0;
     fetched.forEach((result) => {
-      if (result.ok && result.value && (result.value.title || result.value.description)) {
-        accepted.push({ tier: result.item.tier, url: result.item.url, resultTitle: result.item.title, extractedData: result.value });
+      const data = result.value;
+      // Product spec item 5: only accept a page as evidence for THIS ISBN if
+      // it actually relates to it -- either the ISBN itself appears on the
+      // page (isbn_found_in_page, or a matching isbn_confirmed from JSON-LD),
+      // or the page names a different ISBN explicitly (isbn_confirmed set but
+      // not matching any variant), in which case it's rejected outright even
+      // if it superficially has a title/description -- that's a different
+      // book/edition, not supporting evidence for this one.
+      const confirmedIsbn = data?.isbn_confirmed ? String(data.isbn_confirmed).replace(/[-\s]/g, '').toUpperCase() : null;
+      const confirmedMismatch = confirmedIsbn && !variants.some((v) => v.toUpperCase() === confirmedIsbn);
+      if (result.ok && data && (data.title || data.description) && !confirmedMismatch) {
+        accepted.push({ tier: result.item.tier, url: result.item.url, resultTitle: result.item.title, extractedData: data });
       } else {
         rejectedCount += 1;
-        const reason = result.error?.message ?? 'no usable metadata on page';
+        const reason = confirmedMismatch
+          ? `page is for a different ISBN (${confirmedIsbn})`
+          : result.error?.message ?? 'no usable metadata on page';
         console.warn(`ISBN web scrape: rejected ${result.item.url} for ${isbn}: ${reason}`);
       }
     });
@@ -426,7 +464,7 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
     return {
       isbn,
       title: merged.title,
-      subtitle: null,
+      subtitle: merged.subtitle,
       authors: merged.authors,
       editors: [],
       illustrators: [],

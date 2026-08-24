@@ -160,9 +160,29 @@ async function actionGetMe() {
   }
 }
 
+// currentTabUrl() -- the librarian's active tab URL, when there is a
+// plain http(s) one to report (product spec item 4: "the current browser
+// page must also be used" as ISBN research evidence). Never throws and
+// never blocks the lookup on failure -- a librarian on a chrome:// page,
+// a new tab, or one chrome.tabs just can't report on right now simply
+// means no page context is sent, same as before this feature existed.
+async function currentTabUrl() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab?.url && /^https?:\/\//i.test(tab.url) ? tab.url : null;
+  } catch (error) {
+    debugLog('currentTabUrl failed, continuing without page context', error);
+    return null;
+  }
+}
+
 async function actionLookupIsbn({ isbn, model }) {
   try {
-    const query = model ? `?model=${encodeURIComponent(model)}` : '';
+    const pageUrl = await currentTabUrl();
+    const params = new URLSearchParams();
+    if (model) params.set('model', model);
+    if (pageUrl) params.set('pageUrl', pageUrl);
+    const query = params.toString() ? `?${params.toString()}` : '';
     const response = await apiFetch(`/records/lookup/${encodeURIComponent(isbn)}${query}`);
     const body = await readJson(response);
     if (!response.ok) return friendlyResultFor(response, body);

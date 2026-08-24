@@ -86,7 +86,7 @@ function toClientResponse(result) {
   if (result.not_found) {
     response.not_found = true;
   } else {
-    response.provenance = ['web_search', 'web_scrape', 'agent_research'].includes(result.sources?.method)
+    response.provenance = ['web_search', 'web_scrape', 'agent_research', 'page'].includes(result.sources?.method)
       ? 'unverified'
       : 'catalog_match';
     response.partial = Boolean(result.partial);
@@ -142,10 +142,19 @@ router.get(
     }
 
     const { provider, ownApiConfig } = await resolveResearchProvider(req);
+    // pageUrl (product spec item 4) -- the extension's current active-tab
+    // URL, when it has one to send. Real validation (must be a fetchable
+    // public http(s) URL) happens server-side in isbnLookup.js's
+    // fetchPageEvidence via the SSRF guard; here we only bound its length
+    // so an oversized/garbage query param can't be used to waste effort
+    // before that check even runs.
+    const rawPageUrl = typeof req.query?.pageUrl === 'string' ? req.query.pageUrl : '';
+    const pageUrl = rawPageUrl && rawPageUrl.length <= 2048 ? rawPageUrl : undefined;
     const result = await lookupIsbn(parsed.data.isbn, req.user.subscriptionTier, {
       userId: req.user.userId,
       provider,
       ownApiConfig,
+      pageUrl,
     });
     res.json(toClientResponse(result));
   })
