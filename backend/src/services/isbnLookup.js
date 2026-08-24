@@ -289,8 +289,8 @@ function emptyNormalizedRecord(isbn) {
   };
 }
 
-function logApiUsage(userId, model, tokensUsed) {
-  return recordUsage({ userId, provider: 'openai', model, requestType: 'ISBN', tokensUsed, status: 'success' });
+function logApiUsage(userId, isbn, model, tokensUsed) {
+  return recordUsage({ userId, isbn, provider: 'openai', model, requestType: 'ISBN', tokensUsed, status: 'success' });
 }
 
 function extractCitations(response) {
@@ -382,7 +382,7 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
     return null;
   }
   console.info(`ISBN web research: primary search pass for ${isbn} took ${Date.now() - searchStartedAt}ms`);
-  await logApiUsage(userId, model, searchResponse.usage?.total_tokens);
+  await logApiUsage(userId, isbn, model, searchResponse.usage?.total_tokens);
 
   let searchText = searchResponse.output_text ?? '';
   let citations = extractCitations(searchResponse);
@@ -405,7 +405,7 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
         },
         { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
       );
-      await logApiUsage(userId, model, crossCheckResponse.usage?.total_tokens);
+      await logApiUsage(userId, isbn, model, crossCheckResponse.usage?.total_tokens);
       searchText = `${searchText}\n\nAdditional cross-check research:\n${crossCheckResponse.output_text ?? ''}`;
       citations = citations.concat(extractCitations(crossCheckResponse));
       console.info(`ISBN web research: deep cross-check pass for ${isbn} took ${Date.now() - crossCheckStartedAt}ms`);
@@ -437,7 +437,7 @@ ${searchText}`,
     return null;
   }
   console.info(`ISBN web research: JSON formatting pass for ${isbn} took ${Date.now() - structuringStartedAt}ms`);
-  await logApiUsage(userId, model, structuredResponse.usage?.total_tokens);
+  await logApiUsage(userId, isbn, model, structuredResponse.usage?.total_tokens);
 
   let parsed;
   try {

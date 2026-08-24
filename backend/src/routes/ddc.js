@@ -44,6 +44,7 @@ async function handleOwnModelRecommend(req, res) {
   if (decision.ai_attempted) {
     recordUsage({
       userId: req.user.userId,
+      isbn: metadata.isbn ?? null,
       provider: 'own',
       model: decision.ai_model,
       requestType: 'DDC',
@@ -88,6 +89,7 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
   if (decision.ai_attempted) {
     recordUsage({
       userId: req.user.userId,
+      isbn: metadata.isbn ?? null,
       provider,
       model: decision.ai_model,
       requestType: 'DDC',

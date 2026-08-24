@@ -19,25 +19,44 @@ const KNOWN_STATUSES = new Set(['success', 'failure']);
 
 // Never throws -- a logging failure must never break the AI request it's
 // describing. Swallows and logs to stderr instead.
-export async function recordUsage({ userId, provider, model, requestType, tokensUsed = null, status = 'success' }) {
+//
+// isbn -- which book this request was for (product spec: every AI/API call
+// made as part of an ISBN workflow -- lookup, DDC, MARC generation, Ask
+// AutoCat with an active book -- must carry the ISBN through to the usage
+// log). Optional/null: a request genuinely not tied to a book (e.g. Ask
+// AutoCat with nothing loaded yet) legitimately has none -- never fabricated.
+export async function recordUsage({ userId, isbn = null, provider, model, requestType, tokensUsed = null, status = 'success' }) {
   try {
     await pool.query(
-      `INSERT INTO api_usage (user_id, provider, model, request_type, tokens_used, status)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [userId ?? null, provider, model ?? null, requestType, tokensUsed, status]
+      `INSERT INTO api_usage (user_id, isbn, provider, model, request_type, tokens_used, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId ?? null, isbn ?? null, provider, model ?? null, requestType, tokensUsed, status]
     );
   } catch (error) {
     console.error(`usageService.recordUsage failed (provider=${provider}, requestType=${requestType}): ${error.message}`);
   }
 }
 
-function buildFilterConditions({ userId, provider, status, since, until }) {
+// Same normalization isbnLookup.js's normalizeIsbn uses -- strips hyphens/
+// spaces so "978-1-032-76922-6" and "9781032769226" match the same rows,
+// without needing a second normalized column.
+function normalizeIsbnFilter(value) {
+  const stripped = String(value ?? '').replace(/[-\s]/g, '').trim();
+  return stripped || undefined;
+}
+
+function buildFilterConditions({ userId, isbn, provider, status, since, until }) {
   const conditions = [];
   const values = [];
   let i = 1;
   if (userId) {
     conditions.push(`au.user_id = $${i++}`);
     values.push(userId);
+  }
+  const normalizedIsbn = normalizeIsbnFilter(isbn);
+  if (normalizedIsbn) {
+    conditions.push(`au.isbn = $${i++}`);
+    values.push(normalizedIsbn);
   }
   if (provider && KNOWN_PROVIDERS.has(provider)) {
     conditions.push(`au.provider = $${i++}`);
@@ -61,12 +80,12 @@ function buildFilterConditions({ userId, provider, status, since, until }) {
 // listUsage -- the admin Usage page's "live activity" feed, newest first.
 // All filters optional; an unrecognized provider/status value is ignored
 // rather than erroring, so a stray query param can't 500 the page.
-export async function listUsage({ userId, provider, status, since, until, limit = 100 } = {}) {
-  const { where, values, nextIndex } = buildFilterConditions({ userId, provider, status, since, until });
+export async function listUsage({ userId, isbn, provider, status, since, until, limit = 100 } = {}) {
+  const { where, values, nextIndex } = buildFilterConditions({ userId, isbn, provider, status, since, until });
   values.push(Math.min(Number(limit) || 100, 500));
 
   const { rows } = await pool.query(
-    `SELECT au.id, au.user_id, u.email, u.autocat_user_id, au.provider, au.model,
+    `SELECT au.id, au.user_id, u.email, u.autocat_user_id, au.isbn, au.provider, au.model,
             au.request_type, au.tokens_used, au.status, au.created_at
      FROM api_usage au
      LEFT JOIN users u ON u.id = au.user_id
@@ -82,8 +101,8 @@ export async function listUsage({ userId, provider, status, since, until, limit 
 // users) for the admin Usage page, honoring the same filters as listUsage
 // (minus limit) so the cards match whatever the activity feed below them is
 // currently showing.
-export async function usageSummary({ userId, provider, status, since, until } = {}) {
-  const { where, values } = buildFilterConditions({ userId, provider, status, since, until });
+export async function usageSummary({ userId, isbn, provider, status, since, until } = {}) {
+  const { where, values } = buildFilterConditions({ userId, isbn, provider, status, since, until });
 
   const [{ rows: byProvider }, { rows: activeUsers }] = await Promise.all([
     pool.query(`SELECT au.provider, count(*) AS count FROM api_usage au ${where} GROUP BY au.provider`, values),
@@ -100,6 +119,29 @@ export async function usageSummary({ userId, provider, status, since, until } = 
     openaiRequests: Number(byProvider.find((r) => r.provider === 'openai')?.count ?? 0),
     ownRequests: Number(byProvider.find((r) => r.provider === 'own')?.count ?? 0),
     activeUsers: Number(activeUsers[0]?.count ?? 0),
+  };
+}
+
+// usageOverviewStats -- today's real operational counts for the admin
+// Overview dashboard (product spec item 16: replace the old "MARC records
+// stored" tile, which measured a cataloguing-history database AutoCat no
+// longer keeps, with genuine usage-log-derived activity figures instead).
+export async function usageOverviewStats() {
+  const { rows } = await pool.query(
+    `SELECT
+       count(*) AS api_calls_today,
+       count(DISTINCT isbn) FILTER (WHERE isbn IS NOT NULL) AS isbns_processed_today,
+       count(*) FILTER (WHERE status = 'success') AS success_today,
+       count(*) FILTER (WHERE status = 'failure') AS failed_today
+     FROM api_usage
+     WHERE created_at >= date_trunc('day', now())`
+  );
+  const row = rows[0] ?? {};
+  return {
+    apiCallsToday: Number(row.api_calls_today ?? 0),
+    isbnsProcessedToday: Number(row.isbns_processed_today ?? 0),
+    successToday: Number(row.success_today ?? 0),
+    failedToday: Number(row.failed_today ?? 0),
   };
 }
 

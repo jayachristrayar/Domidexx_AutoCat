@@ -12,15 +12,9 @@ router.get(
   requireSession,
   asyncHandler(async (req, res) => {
     const result = await pool.query(
-      `SELECT u.email, u.autocat_user_id, u.status, u.model_access, i.name AS institution_name,
-              ds.ui_state_json, ds.updated_at AS draft_state_updated_at,
-              mr.id AS marc_record_id, mr.isbn, mr.marc_json, mr.marc_text,
-              mr.status AS marc_record_status,
-              mr.created_at AS marc_record_created_at, mr.updated_at AS marc_record_updated_at
+      `SELECT u.email, u.autocat_user_id, u.status, u.model_access, i.name AS institution_name
        FROM users u
        LEFT JOIN institutions i ON i.id = u.institution_id
-       LEFT JOIN draft_state ds ON ds.user_id = u.id
-       LEFT JOIN marc_records mr ON mr.id = ds.marc_record_id
        WHERE u.id = $1`,
       [req.user.userId]
     );
@@ -29,24 +23,6 @@ router.get(
     if (!row) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    const draftState = row.draft_state_updated_at
-      ? {
-          ui_state: row.ui_state_json,
-          updated_at: row.draft_state_updated_at,
-          marc_record: row.marc_record_id
-            ? {
-                id: row.marc_record_id,
-                isbn: row.isbn,
-                marc_json: row.marc_json,
-                marc_text: row.marc_text,
-                status: row.marc_record_status,
-                created_at: row.marc_record_created_at,
-                updated_at: row.marc_record_updated_at,
-              }
-            : null,
-        }
-      : null;
 
     // own_api is the same safe/masked shape ownApi.js's own GET / returns
     // (never a plaintext key) -- included here too so the side panel knows
@@ -66,7 +42,6 @@ router.get(
       model_access: modelAccessToLabels(row.model_access),
       own_api: ownApi,
       institution_name: row.institution_name,
-      draft_state: draftState,
     });
   })
 );

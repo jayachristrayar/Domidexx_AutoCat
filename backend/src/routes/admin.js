@@ -34,11 +34,9 @@ import {
   setSubfieldSetting,
   seedMarcFrameworks,
 } from '../services/marcFrameworkService.js';
-import { usageSummary, listUsage, listUsageUsers } from '../services/usageService.js';
+import { usageSummary, listUsage, listUsageUsers, usageOverviewStats } from '../services/usageService.js';
 
 const router = Router();
-
-const RECORDS_PAGE_SIZE = 50;
 
 
 function adminConfigErrorMessage() {
@@ -110,7 +108,6 @@ function escapeHtml(value) {
 const NAV_ITEMS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/users', label: 'Users' },
-  { href: '/admin/records', label: 'Records' },
   { href: '/admin/usage', label: 'Usage' },
   { href: '/admin/rules', label: 'Rules' },
   { href: '/admin/frameworks', label: 'MARC Frameworks' },
@@ -218,13 +215,13 @@ router.use(requireAdminSession);
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    let userStatusRows, marcRecordRows, ddcRows, ddcCount, usage, dbUp;
+    let userStatusRows, ddcRows, ddcCount, usage, overview, dbUp;
     try {
-      [{ rows: userStatusRows }, { rows: marcRecordRows }, { rows: ddcRows }, usage, dbUp] = await Promise.all([
+      [{ rows: userStatusRows }, { rows: ddcRows }, usage, overview, dbUp] = await Promise.all([
         pool.query(`SELECT status, count(*) FROM users GROUP BY status`),
-        pool.query(`SELECT status, count(*) FROM marc_records GROUP BY status`),
         pool.query(`SELECT count(*) FROM ddc_decisions`),
         usageSummary(),
+        usageOverviewStats(),
         checkDatabase().catch(() => false),
       ]);
       ddcCount = Number(ddcRows[0]?.count ?? 0);
@@ -235,7 +232,6 @@ router.get(
 
     const byStatus = Object.fromEntries(userStatusRows.map((r) => [r.status, Number(r.count)]));
     const totalUsers = userStatusRows.reduce((sum, r) => sum + Number(r.count), 0);
-    const totalMarcRecords = marcRecordRows.reduce((sum, r) => sum + Number(r.count), 0);
     const config = getConfigStatus();
 
     const statTile = (label, value) => `<div class="panel stat-panel"><span class="stat-label">${escapeHtml(label)}</span><span class="stat-value">${value}</span></div>`;
@@ -247,7 +243,7 @@ router.get(
         activeHref: '/admin',
         body: `
           <h2>Overview</h2>
-          <p class="lede">Real counts from Postgres -- no placeholder numbers.</p>
+          <p class="lede">Real counts from Postgres -- no placeholder numbers. AutoCat does not keep a permanent cataloguing-record history; these are operational figures from the AI usage log (see <a href="/admin/usage">Usage</a>).</p>
 
           <h3 class="panel-title">Users</h3>
           <div class="grid-4">
@@ -257,20 +253,20 @@ router.get(
             ${statTile('Disabled', (byStatus.DISABLED ?? 0) + (byStatus.REJECTED ?? 0))}
           </div>
 
-          <h3 class="panel-title">Cataloguing</h3>
+          <h3 class="panel-title">Cataloguing activity (today)</h3>
           <div class="grid-4">
-            ${statTile('MARC records completed', marcRecordRows.find((r) => r.status === 'COMPLETED')?.count ?? 0)}
-            ${statTile('MARC generations (total)', totalMarcRecords)}
-            ${statTile('DDC analyses', ddcCount)}
-            ${statTile('Needs review', marcRecordRows.find((r) => r.status === 'NEEDS_REVIEW')?.count ?? 0)}
+            ${statTile('ISBNs processed', overview.isbnsProcessedToday)}
+            ${statTile('API calls', overview.apiCallsToday)}
+            ${statTile('Successful requests', overview.successToday)}
+            ${statTile('Failed requests', overview.failedToday)}
           </div>
 
-          <h3 class="panel-title">AI requests</h3>
+          <h3 class="panel-title">AI requests (all time)</h3>
           <div class="grid-4">
             ${statTile('Total', usage.totalRequests)}
             ${statTile('NVIDIA', usage.nvidiaRequests)}
             ${statTile('OpenAI', usage.openaiRequests)}
-            ${statTile('Active users', usage.activeUsers)}
+            ${statTile('DDC analyses', ddcCount)}
           </div>
 
           <div class="panel">
@@ -283,7 +279,7 @@ router.get(
 
           <div class="panel">
             <h3 class="panel-title">Quick links</h3>
-            <p class="muted"><a href="/admin/users">Manage users</a> · <a href="/admin/records">Review records</a> · <a href="/admin/usage">Usage</a> · <a href="/health">System health JSON</a></p>
+            <p class="muted"><a href="/admin/users">Manage users</a> · <a href="/admin/usage">Usage</a> · <a href="/health">System health JSON</a></p>
           </div>
         `,
       })
@@ -407,7 +403,7 @@ function manageDialogHtml(user) {
       <h4 class="manage-section-title">Actions</h4>
       <div class="manage-actions">
         ${statusActionsHtml(user)}
-        <form method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? MARC records are kept but detached.');">
+        <form method="POST" action="/admin/users/${user.id}/delete" onsubmit="return confirm('Delete this account permanently? Their AI usage history will also be removed.');">
           <button type="submit" class="btn btn-danger-outline">Delete account</button>
         </form>
       </div>
@@ -838,157 +834,11 @@ router.get(
   })
 );
 
-// ---------------------------------------------------------------------
-// Records
-// ---------------------------------------------------------------------
-
-function extractTitleFromMarcJson(marcJson) {
-  if (!Array.isArray(marcJson)) return null;
-  const field245 = marcJson.find((field) => field.tag === '245');
-  const subfieldA = field245?.subfields?.find((subfield) => subfield.code === 'a')?.value;
-  return subfieldA ? subfieldA.replace(/[\s/:;,.]+$/, '') : null;
-}
-
-// The DDC number attached to this record, if 082$a was actually present
-// (i.e. the DDC decision was approved before this generation) -- not every
-// generated record has one (a NEEDS_REVIEW draft made before DDC approval
-// won't), so the Records page must show that honestly rather than guessing.
-function extractDdcFromMarcJson(marcJson) {
-  if (!Array.isArray(marcJson)) return null;
-  const field082 = marcJson.find((field) => field.tag === '082');
-  return field082?.subfields?.find((subfield) => subfield.code === 'a')?.value ?? null;
-}
-
-function marcRecordDisplayId(id) {
-  return `MARC-${String(id).padStart(4, '0')}`;
-}
-
-function recordStatusBadgeClass(status) {
-  if (status === 'COMPLETED') return 'badge-ok';
-  if (status === 'NEEDS_REVIEW') return 'badge-warn';
-  return 'badge';
-}
-
-router.get(
-  '/records',
-  asyncHandler(async (req, res) => {
-    const page = Math.max(1, Number(req.query.page) || 1);
-    const offset = (page - 1) * RECORDS_PAGE_SIZE;
-
-    const [{ rows: records }, { rows: countRows }] = await Promise.all([
-      pool.query(
-        `SELECT r.id, r.isbn, r.marc_json, r.status, r.created_at, u.autocat_user_id
-         FROM marc_records r
-         LEFT JOIN users u ON u.id = r.user_id
-         ORDER BY r.created_at DESC
-         LIMIT $1 OFFSET $2`,
-        [RECORDS_PAGE_SIZE, offset]
-      ),
-      pool.query('SELECT count(*) FROM marc_records'),
-    ]);
-
-    const total = Number(countRows[0].count);
-    const totalPages = Math.max(1, Math.ceil(total / RECORDS_PAGE_SIZE));
-
-    const rows = records
-      .map((record) => {
-        const title = extractTitleFromMarcJson(record.marc_json) ?? '<span class="muted">(no title)</span>';
-        const ddc = extractDdcFromMarcJson(record.marc_json);
-        return `<tr>
-          <td><a href="/admin/records/${record.id}">${marcRecordDisplayId(record.id)}</a></td>
-          <td>${escapeHtml(record.isbn ?? '—')}</td>
-          <td>${title}</td>
-          <td>${ddc ? escapeHtml(ddc) : '<span class="muted">—</span>'}</td>
-          <td>${escapeHtml(record.autocat_user_id ?? '—')}</td>
-          <td><span class="badge ${recordStatusBadgeClass(record.status)}">${escapeHtml(record.status)}</span></td>
-          <td>${new Date(record.created_at).toLocaleDateString()}</td>
-        </tr>`;
-      })
-      .join('');
-
-    const pagination = `
-      <div class="pagination">
-        ${page > 1 ? `<a href="/admin/records?page=${page - 1}">&larr; Newer</a>` : '<span class="muted">&larr; Newer</span>'}
-        <span>Page ${page} of ${totalPages}</span>
-        ${page < totalPages ? `<a href="/admin/records?page=${page + 1}">Older &rarr;</a>` : '<span class="muted">Older &rarr;</span>'}
-      </div>`;
-
-    res.send(
-      layout({
-        title: 'Records',
-        activeHref: '/admin/records',
-        body: `
-          <h2>Records</h2>
-          <p class="lede">${total} MARC record${total === 1 ? '' : 's'} generated by AutoCat. An ISBN lookup on its own is never stored here -- only an actual "Generate MARC" action is.</p>
-          <div class="panel table-wrap">
-          <table>
-            <thead><tr><th>MARC ID</th><th>ISBN</th><th>Title</th><th>DDC</th><th>User ID</th><th>Status</th><th>Created</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="7" class="muted">No MARC records generated yet.</td></tr>'}</tbody>
-          </table>
-          </div>
-          ${pagination}
-        `,
-      })
-    );
-  })
-);
-
-router.get(
-  '/records/:id',
-  asyncHandler(async (req, res) => {
-    const recordId = Number(req.params.id);
-    if (!Number.isInteger(recordId)) {
-      return res.status(400).send('Invalid record id.');
-    }
-
-    const { rows: recordRows } = await pool.query(
-      `SELECT r.id, r.isbn, r.marc_json, r.marc_text, r.status, r.created_at, u.email AS user_email, u.autocat_user_id
-       FROM marc_records r
-       LEFT JOIN users u ON u.id = r.user_id
-       WHERE r.id = $1`,
-      [recordId]
-    );
-    const record = recordRows[0];
-    if (!record) {
-      return res.status(404).send('Record not found.');
-    }
-
-    const { rows: edits } = await pool.query(
-      'SELECT user_prompt, created_at FROM record_edits WHERE marc_record_id = $1 ORDER BY created_at ASC',
-      [recordId]
-    );
-
-    const editsHtml = edits
-      .map(
-        (edit) => `<tr>
-          <td>${new Date(edit.created_at).toLocaleString()}</td>
-          <td>${escapeHtml(edit.user_prompt ?? '—')}</td>
-        </tr>`
-      )
-      .join('');
-
-    const ddc = extractDdcFromMarcJson(record.marc_json);
-
-    res.send(
-      layout({
-        title: marcRecordDisplayId(record.id),
-        activeHref: '/admin/records',
-        body: `
-          <p><a href="/admin/records">&larr; Back to records</a></p>
-          <h2>${marcRecordDisplayId(record.id)} <span class="badge ${recordStatusBadgeClass(record.status)}">${escapeHtml(record.status)}</span></h2>
-          <p class="muted">ISBN: ${escapeHtml(record.isbn ?? '—')} &middot; DDC: ${escapeHtml(ddc ?? '—')} &middot; User: ${escapeHtml(record.autocat_user_id ?? '—')} (${escapeHtml(record.user_email ?? 'deleted account')}) &middot; Created: ${new Date(record.created_at).toLocaleString()}</p>
-          <h3>MARC data</h3>
-          <pre>${escapeHtml(record.marc_text ?? '(no marc_text recorded)')}</pre>
-          <h3>Edit history</h3>
-          <table>
-            <thead><tr><th>When</th><th>User prompt</th></tr></thead>
-            <tbody>${editsHtml || '<tr><td colspan="2" class="muted">No edits recorded.</td></tr>'}</tbody>
-          </table>
-        `,
-      })
-    );
-  })
-);
+// AutoCat no longer keeps a permanent generated-MARC record history, so the
+// old Records page is gone -- redirect any bookmark/link straight to Usage,
+// the closest equivalent (per-request audit trail) that still exists.
+router.get('/records', (_req, res) => res.redirect('/admin/usage'));
+router.get('/records/:id', (_req, res) => res.redirect('/admin/usage'));
 
 // ---------------------------------------------------------------------
 // Usage
@@ -998,6 +848,7 @@ function usageFiltersFromQuery(query) {
   const userId = Number(query.user_id);
   return {
     userId: Number.isInteger(userId) && userId > 0 ? userId : undefined,
+    isbn: typeof query.isbn === 'string' && query.isbn.trim() ? query.isbn.trim() : undefined,
     provider: ['nvidia', 'openai', 'own'].includes(query.provider) ? query.provider : undefined,
     status: ['success', 'failure'].includes(query.status) ? query.status : undefined,
     since: query.since ? new Date(query.since).toISOString() : undefined,
@@ -1006,12 +857,13 @@ function usageFiltersFromQuery(query) {
 }
 
 function usageRowsHtml(rows) {
-  if (rows.length === 0) return '<tr><td colspan="8" class="muted">No matching requests yet.</td></tr>';
+  if (rows.length === 0) return '<tr><td colspan="9" class="muted">No matching requests yet.</td></tr>';
   return rows
     .map(
       (row) => `<tr>
         <td>${escapeHtml(row.email ?? 'unknown')}</td>
         <td>${escapeHtml(row.autocat_user_id ?? '—')}</td>
+        <td>${escapeHtml(row.isbn ?? '—')}</td>
         <td><span class="badge">${escapeHtml(row.provider === 'openai' ? 'OpenAI' : row.provider === 'own' ? 'Own API' : 'NVIDIA')}</span></td>
         <td>${escapeHtml(row.model ?? '—')}</td>
         <td>${escapeHtml(row.request_type)}</td>
@@ -1074,6 +926,7 @@ router.get(
                 <option value="">All users</option>
                 ${users.map((u) => `<option value="${u.id}" ${filters.userId === u.id ? 'selected' : ''}>${escapeHtml(u.autocat_user_id ?? '')} — ${escapeHtml(u.email)}</option>`).join('')}
               </select>
+              <input type="text" name="isbn" value="${escapeHtml(req.query.isbn || '')}" placeholder="ISBN" title="ISBN" size="14" />
               <select name="provider">
                 <option value="">All providers</option>
                 <option value="nvidia" ${filters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
@@ -1095,7 +948,7 @@ router.get(
           <div class="panel table-wrap">
             <h3 class="panel-title">Live activity</h3>
             <table>
-              <thead><tr><th>User</th><th>ID</th><th>Provider</th><th>Model</th><th>Request</th><th>Tokens</th><th>Time</th><th>Status</th></tr></thead>
+              <thead><tr><th>User</th><th>ID</th><th>ISBN</th><th>Provider</th><th>Model</th><th>Request</th><th>Tokens</th><th>Time</th><th>Status</th></tr></thead>
               <tbody id="usage-rows">${usageRowsHtml(rows)}</tbody>
             </table>
           </div>

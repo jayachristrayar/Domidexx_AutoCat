@@ -52,7 +52,8 @@ async function withTempDatabase(run) {
 async function main() {
   await withTempDatabase(async (databaseUrl) => {
     // Partial schema that mirrors the suspected production failure mode:
-    // auth tables exist, marc_records does not, until ensureSchema repairs it.
+    // auth tables exist, api_usage/isbn_cache/etc. do not, until ensureSchema
+    // repairs it.
     const partial = new pg.Pool({ connectionString: databaseUrl, ssl: false });
     await partial.query(`
       CREATE TABLE institutions (
@@ -159,7 +160,7 @@ async function main() {
       const html = await dash.text();
       assert.equal(dash.status, 200, html.slice(0, 200));
       assert.match(html, /Overview|Dashboard|users/i);
-      assert.match(html, /MARC records|Library users/i);
+      assert.match(html, /ISBNs processed|Cataloguing activity/i);
       assert.doesNotMatch(html, /Internal server error/);
       console.log('PASS authenticated GET /admin renders dashboard');
 

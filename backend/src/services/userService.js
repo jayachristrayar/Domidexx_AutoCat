@@ -214,10 +214,7 @@ export async function deleteUser(userId) {
   try {
     await client.query('BEGIN');
     await client.query('DELETE FROM sessions WHERE user_id = $1', [userId]);
-    await client.query('DELETE FROM draft_state WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM api_usage WHERE user_id = $1', [userId]);
-    // Keep MARC records for audit, but detach the deleted account.
-    await client.query('UPDATE marc_records SET user_id = NULL WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     await client.query('COMMIT');
   } catch (error) {

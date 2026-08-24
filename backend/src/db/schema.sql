@@ -35,25 +35,17 @@ CREATE TABLE IF NOT EXISTS isbn_cache (
   fetched_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS marc_records (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id),
-  isbn TEXT,
-  marc_json JSONB NOT NULL,
-  marc_text TEXT,
-  status TEXT NOT NULL DEFAULT 'draft',
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS record_edits (
-  id SERIAL PRIMARY KEY,
-  marc_record_id INTEGER REFERENCES marc_records(id),
-  user_prompt TEXT,
-  diff_json JSONB,
-  provider_used TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
+-- Generated MARC is a temporary cataloguing operation, never a permanently
+-- stored record (product spec: "AutoCat does not maintain a cataloguing-
+-- record history" -- what the admin needs is the AI *usage* trail, tracked
+-- separately below in api_usage, not a copy of every book ever generated).
+-- These tables used to hold that history; DROP them outright (not just stop
+-- writing to them) so no MARC-record data lingers in the database. Order
+-- matters: drop the tables that reference marc_records(id) before
+-- marc_records itself.
+DROP TABLE IF EXISTS record_edits;
+DROP TABLE IF EXISTS draft_state;
+DROP TABLE IF EXISTS marc_records;
 
 CREATE TABLE IF NOT EXISTS api_usage (
   id SERIAL PRIMARY KEY,
@@ -74,16 +66,15 @@ CREATE TABLE IF NOT EXISTS api_usage (
 ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS model TEXT;
 ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS request_type TEXT NOT NULL DEFAULT 'ISBN';
 ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'success';
+-- Which book this request was for -- the whole point of the Usage page
+-- being an audit trail: "which ISBN did this user/provider/model/request
+-- touch, and when". NULL for rows from before this column existed, and for
+-- any request genuinely not tied to an active ISBN (e.g. Ask AutoCat with
+-- no book loaded) -- never backfilled/guessed for old rows.
+ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS isbn TEXT;
 CREATE INDEX IF NOT EXISTS api_usage_created_at_idx ON api_usage (created_at DESC);
 CREATE INDEX IF NOT EXISTS api_usage_user_id_idx ON api_usage (user_id);
-
-CREATE TABLE IF NOT EXISTS draft_state (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id) UNIQUE,
-  marc_record_id INTEGER REFERENCES marc_records(id),
-  ui_state_json JSONB,
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
+CREATE INDEX IF NOT EXISTS api_usage_isbn_idx ON api_usage (isbn);
 
 CREATE TABLE IF NOT EXISTS ddc_relative_index (
   id SERIAL PRIMARY KEY,

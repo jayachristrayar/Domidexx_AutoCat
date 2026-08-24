@@ -192,6 +192,7 @@ export async function runAgenticResearch({ isbn, variants = [isbn], provider, ow
 
     await recordUsage({
       userId,
+      isbn,
       provider,
       model,
       requestType: 'ISBN',
