@@ -44,7 +44,12 @@ export const login = (email, password) => call('login', { email, password });
 export const signup = (email, password, institutionSlug) => call('signup', { email, password, institutionSlug });
 export const logout = () => call('logout', {});
 export const getMe = () => call('getMe', {});
-export const lookupIsbn = (isbn) => call('lookupIsbn', { isbn });
+// `model` (MODEL_1/MODEL_2/MODEL_OWN) ties the research stage to whichever
+// model the librarian currently has selected -- each selected model
+// performs its own web research as part of the same cataloguing workflow,
+// rather than research always running through one fixed provider
+// regardless of which model was picked.
+export const lookupIsbn = (isbn, model) => call('lookupIsbn', { isbn, model });
 export const researchIsbnWeb = (isbn, deep) => call('researchIsbnWeb', { isbn, deep });
 export const recommendDdc = (metadata, model) => call('recommendDdc', { metadata, model });
 export const approveDdc = (id, ddcNumber) => call('approveDdc', { id, ddcNumber });

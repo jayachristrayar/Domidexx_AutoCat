@@ -160,9 +160,10 @@ async function actionGetMe() {
   }
 }
 
-async function actionLookupIsbn({ isbn }) {
+async function actionLookupIsbn({ isbn, model }) {
   try {
-    const response = await apiFetch(`/records/lookup/${encodeURIComponent(isbn)}`);
+    const query = model ? `?model=${encodeURIComponent(model)}` : '';
+    const response = await apiFetch(`/records/lookup/${encodeURIComponent(isbn)}${query}`);
     const body = await readJson(response);
     if (!response.ok) return friendlyResultFor(response, body);
     return { ok: true, data: body };

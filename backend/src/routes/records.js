@@ -5,6 +5,9 @@ import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { lookupIsbn, researchIsbnOnWeb } from '../services/isbnLookup.js';
 import { generateMarcRecord } from '../services/marcPipeline.js';
+import { resolveAuthorizedModel, toProviderId } from '../services/modelAccess.js';
+import { labelToProvider } from '../services/modelLabels.js';
+import { getOwnApiConfig } from '../services/ownApiService.js';
 
 const router = Router();
 
@@ -83,12 +86,50 @@ function toClientResponse(result) {
   if (result.not_found) {
     response.not_found = true;
   } else {
-    response.provenance =
-      result.sources?.method === 'web_search' || result.sources?.method === 'web_scrape' ? 'unverified' : 'catalog_match';
+    response.provenance = ['web_search', 'web_scrape', 'agent_research'].includes(result.sources?.method)
+      ? 'unverified'
+      : 'catalog_match';
     response.partial = Boolean(result.partial);
   }
 
   return response;
+}
+
+// resolveResearchProvider -- ties the ISBN research stage to the SAME
+// model the librarian currently has selected in the Side Panel (product
+// spec: "each selected model must independently perform the complete
+// research and cataloguing workflow"), via the exact MODEL_1/MODEL_2/
+// MODEL_OWN -> provider resolution ddc.js already uses for /ddc/recommend.
+//
+// Deliberately never turns an authorization problem into a failed lookup,
+// though: an unauthorized/unconfigured model just means research proceeds
+// without that model's own agentic capability (isbnLookup.js's
+// researchWebForIsbn falls back to its provider-agnostic default) --
+// hard-blocking the ISBN box itself over a model-access issue would fail
+// product spec's "ISBN box must remain usable" requirement for a problem
+// the librarian can't fix from this screen. /ddc/recommend (unchanged)
+// still enforces this strictly, since that's the point real provider
+// access is actually granted or denied.
+async function resolveResearchProvider(req) {
+  const requestedLabel = String(req.query?.model || '').trim().toUpperCase();
+  if (!requestedLabel) return {};
+
+  if (requestedLabel === 'MODEL_OWN') {
+    const ownConfig = await getOwnApiConfig(req.user.userId);
+    if (!ownConfig) {
+      console.warn(`ISBN lookup: MODEL_OWN requested for user ${req.user.userId} but not configured, proceeding without agentic research`);
+      return {};
+    }
+    return { provider: 'own', ownApiConfig: ownConfig };
+  }
+
+  try {
+    const model = resolveAuthorizedModel(req.user.modelAccess, labelToProvider(requestedLabel));
+    return { provider: toProviderId(model) };
+  } catch (error) {
+    console.warn(`ISBN lookup: ${requestedLabel} not authorized for user ${req.user.userId} (${error.message}), proceeding without agentic research`);
+    return {};
+  }
 }
 
 router.get(
@@ -100,8 +141,11 @@ router.get(
       return res.status(400).json({ error: parsed.error.flatten() });
     }
 
+    const { provider, ownApiConfig } = await resolveResearchProvider(req);
     const result = await lookupIsbn(parsed.data.isbn, req.user.subscriptionTier, {
       userId: req.user.userId,
+      provider,
+      ownApiConfig,
     });
     res.json(toClientResponse(result));
   })
