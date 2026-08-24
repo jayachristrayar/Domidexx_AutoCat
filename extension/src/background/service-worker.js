@@ -203,6 +203,12 @@ async function actionRecommendDdc({ metadata, model }) {
       if (response.status === 403 && body?.error_class === 'model_access_error') {
         return { ok: false, code: 'MODEL_NOT_AUTHORIZED', message: body.error, contactEmail: body.contact_email, requestedModel: model };
       }
+      // Same reasoning as MODEL_NOT_AUTHORIZED above, for Your Own Model:
+      // "not connected yet" is an expected, non-session state, not a reason
+      // to sign the librarian out.
+      if (response.status === 403 && body?.error_class === 'own_api_not_configured') {
+        return { ok: false, code: 'OWN_API_NOT_CONFIGURED', message: body.error };
+      }
       return friendlyResultFor(response, body);
     }
     return { ok: true, data: body };
@@ -277,6 +283,53 @@ async function actionChat({ message, context }) {
   }
 }
 
+// "Your Own Model" -- additive third AI option (see backend/src/routes/ownApi.js).
+// Every function here sends only baseUrl/apiKey; the backend re-tests
+// before ever persisting anything, so a stale key can't get saved by
+// skipping the UI's own Test Connection step. The API key itself is never
+// logged here, and readJson/friendlyResultFor never echo request bodies
+// back into a result, so it can't leak into console output either.
+async function actionGetOwnApiStatus() {
+  try {
+    const response = await apiFetch('/api/own-model');
+    const body = await readJson(response);
+    if (!response.ok) return friendlyResultFor(response, body);
+    return { ok: true, data: body };
+  } catch (error) {
+    return networkErrorResult(error);
+  }
+}
+
+async function actionTestOwnApi({ baseUrl, apiKey }) {
+  try {
+    const response = await apiFetch('/api/own-model/test', {
+      method: 'POST',
+      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
+    });
+    const body = await readJson(response);
+    if (!response.ok) return friendlyResultFor(response, body);
+    // Body is always { ok, message } here, win or lose -- surface both, the
+    // Side Panel decides how to render "Connection failed" vs "successful".
+    return { ok: true, data: body };
+  } catch (error) {
+    return networkErrorResult(error);
+  }
+}
+
+async function actionSaveOwnApi({ baseUrl, apiKey }) {
+  try {
+    const response = await apiFetch('/api/own-model', {
+      method: 'POST',
+      body: JSON.stringify({ base_url: baseUrl, api_key: apiKey }),
+    });
+    const body = await readJson(response);
+    if (!response.ok) return friendlyResultFor(response, body);
+    return { ok: true, data: body };
+  } catch (error) {
+    return networkErrorResult(error);
+  }
+}
+
 const API_ACTIONS = {
   login: actionLogin,
   signup: actionSignup,
@@ -288,6 +341,9 @@ const API_ACTIONS = {
   approveDdc: actionApproveDdc,
   generateMarc: actionGenerateMarc,
   chat: actionChat,
+  getOwnApiStatus: actionGetOwnApiStatus,
+  testOwnApi: actionTestOwnApi,
+  saveOwnApi: actionSaveOwnApi,
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

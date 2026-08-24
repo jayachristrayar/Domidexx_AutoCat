@@ -557,11 +557,13 @@ button.full,
 
 .model-buttons {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .model-btn {
   flex: 1;
+  min-width: 84px;
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);

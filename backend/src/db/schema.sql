@@ -282,3 +282,28 @@ CREATE INDEX IF NOT EXISTS marc_subfields_field_idx ON marc_subfields (field_id,
 CREATE INDEX IF NOT EXISTS marc_indicators_field_idx ON marc_indicators (field_id, position);
 CREATE INDEX IF NOT EXISTS framework_field_settings_framework_idx ON framework_field_settings (framework_id, display_order);
 CREATE INDEX IF NOT EXISTS framework_subfield_settings_setting_idx ON framework_subfield_settings (framework_field_setting_id, display_order);
+
+-- ---------------------------------------------------------------------
+-- "Your Own Model" -- a per-user, self-supplied OpenAI-compatible
+-- endpoint (product spec: additive third AI option alongside Model 1/
+-- Model 2, never replacing either). One row per user; api_key_encrypted
+-- is AES-256-GCM ciphertext (see services/ownApiCrypto.js), never a
+-- plaintext key -- api_key_last4 is stored only so the settings UI can
+-- redisplay a masked "••••••1234" without ever decrypting on read.
+-- discovered_model is the model id auto-discovered from the endpoint's
+-- own /models listing at Test Connection time (the product spec
+-- explicitly forbids asking the user to name a model), used for the
+-- actual chat-completions calls.
+-- ---------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS own_api_configs (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  base_url TEXT NOT NULL,
+  api_key_encrypted TEXT NOT NULL,
+  api_key_last4 TEXT,
+  discovered_model TEXT,
+  last_test_status TEXT,
+  last_test_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);

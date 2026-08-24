@@ -380,8 +380,9 @@ function manageDialogHtml(user) {
       <dl class="manage-facts">
         <dt>NVIDIA</dt><dd><span class="badge badge-ok">Enabled</span></dd>
         <dt>OpenAI</dt><dd><span class="badge ${hasOpenAi ? 'badge-ok' : 'badge-off'}">${hasOpenAi ? 'Enabled' : 'Disabled'}</span></dd>
+        <dt>Own API</dt><dd><span class="badge ${user.own_api_connected ? 'badge-ok' : 'badge-off'}">${user.own_api_connected ? '✓ Connected' : 'Not configured'}</span></dd>
       </dl>
-      <p class="muted" style="font-size:0.82rem">Driven automatically by Subscription -- FREE enables NVIDIA only, PAID enables both.</p>
+      <p class="muted" style="font-size:0.82rem">NVIDIA/OpenAI are driven automatically by Subscription -- FREE enables NVIDIA only, PAID enables both. Own API is connected independently by the user in their extension settings; the API key itself is never visible here.</p>
 
       <h4 class="manage-section-title">Account</h4>
       <form class="stack-form" method="POST" action="/admin/users/${user.id}/tier">
@@ -427,6 +428,7 @@ function renderUsersPage({ users, formError, notice }) {
         <td>${escapeHtml(user.institution_name ?? '—')}</td>
         <td><span class="badge">${escapeHtml(user.subscription_tier.toUpperCase())}</span></td>
         <td>${escapeHtml(aiAccessLabel)}</td>
+        <td><span class="badge ${user.own_api_connected ? 'badge-ok' : 'badge-off'}">${user.own_api_connected ? '✓ Connected' : 'Not configured'}</span></td>
         <td><span class="badge ${status.className}">${status.label}</span></td>
         <td>${escapeHtml(lastSeen)}</td>
         <td><button type="button" class="btn btn-secondary" onclick="document.getElementById('manage-${user.id}').showModal()">Manage</button></td>
@@ -463,8 +465,8 @@ function renderUsersPage({ users, formError, notice }) {
         <div class="panel users-list table-wrap">
           <h3 class="panel-title">Users (${users.length})</h3>
           <table>
-            <thead><tr><th>ID</th><th>Email</th><th>Institution</th><th>Type</th><th>AI access</th><th>Status</th><th>Last active</th><th>Action</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="8" class="muted">No users yet.</td></tr>'}</tbody>
+            <thead><tr><th>ID</th><th>Email</th><th>Institution</th><th>Type</th><th>AI access</th><th>Own API</th><th>Status</th><th>Last active</th><th>Action</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="9" class="muted">No users yet.</td></tr>'}</tbody>
           </table>
         </div>
       </div>
@@ -479,11 +481,13 @@ router.get(
       `SELECT u.id, u.email, u.subscription_tier, u.autocat_user_id, u.model_access,
               u.created_at, u.is_active, u.status, u.device_limit, u.expires_at,
               i.name AS institution_name,
-              MAX(s.last_seen_at) AS last_seen_at
+              MAX(s.last_seen_at) AS last_seen_at,
+              (oa.user_id IS NOT NULL) AS own_api_connected
        FROM users u
        LEFT JOIN institutions i ON i.id = u.institution_id
        LEFT JOIN sessions s ON s.user_id = u.id
-       GROUP BY u.id, i.name
+       LEFT JOIN own_api_configs oa ON oa.user_id = u.id
+       GROUP BY u.id, i.name, oa.user_id
        ORDER BY (u.status = 'PENDING') DESC, u.created_at DESC`
     );
 
@@ -994,7 +998,7 @@ function usageFiltersFromQuery(query) {
   const userId = Number(query.user_id);
   return {
     userId: Number.isInteger(userId) && userId > 0 ? userId : undefined,
-    provider: ['nvidia', 'openai'].includes(query.provider) ? query.provider : undefined,
+    provider: ['nvidia', 'openai', 'own'].includes(query.provider) ? query.provider : undefined,
     status: ['success', 'failure'].includes(query.status) ? query.status : undefined,
     since: query.since ? new Date(query.since).toISOString() : undefined,
     until: query.until ? new Date(query.until).toISOString() : undefined,
@@ -1008,7 +1012,7 @@ function usageRowsHtml(rows) {
       (row) => `<tr>
         <td>${escapeHtml(row.email ?? 'unknown')}</td>
         <td>${escapeHtml(row.autocat_user_id ?? '—')}</td>
-        <td><span class="badge">${escapeHtml(row.provider === 'openai' ? 'OpenAI' : 'NVIDIA')}</span></td>
+        <td><span class="badge">${escapeHtml(row.provider === 'openai' ? 'OpenAI' : row.provider === 'own' ? 'Own API' : 'NVIDIA')}</span></td>
         <td>${escapeHtml(row.model ?? '—')}</td>
         <td>${escapeHtml(row.request_type)}</td>
         <td>${row.tokens_used != null ? Number(row.tokens_used).toLocaleString() : '—'}</td>
@@ -1059,6 +1063,7 @@ router.get(
             <div class="panel stat-panel"><span class="stat-label">Total requests</span><span class="stat-value" id="stat-total">${summary.totalRequests}</span></div>
             <div class="panel stat-panel"><span class="stat-label">NVIDIA requests</span><span class="stat-value" id="stat-nvidia">${summary.nvidiaRequests}</span></div>
             <div class="panel stat-panel"><span class="stat-label">OpenAI requests</span><span class="stat-value" id="stat-openai">${summary.openaiRequests}</span></div>
+            <div class="panel stat-panel"><span class="stat-label">Own API requests</span><span class="stat-value" id="stat-own">${summary.ownRequests}</span></div>
             <div class="panel stat-panel"><span class="stat-label">Active users</span><span class="stat-value" id="stat-active">${summary.activeUsers}</span></div>
           </div>
 
@@ -1073,6 +1078,7 @@ router.get(
                 <option value="">All providers</option>
                 <option value="nvidia" ${filters.provider === 'nvidia' ? 'selected' : ''}>NVIDIA</option>
                 <option value="openai" ${filters.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                <option value="own" ${filters.provider === 'own' ? 'selected' : ''}>Own API</option>
               </select>
               <select name="status">
                 <option value="">Any status</option>
@@ -1105,6 +1111,7 @@ router.get(
                   document.getElementById('stat-total').textContent = data.summary.totalRequests;
                   document.getElementById('stat-nvidia').textContent = data.summary.nvidiaRequests;
                   document.getElementById('stat-openai').textContent = data.summary.openaiRequests;
+                  document.getElementById('stat-own').textContent = data.summary.ownRequests;
                   document.getElementById('stat-active').textContent = data.summary.activeUsers;
                   document.getElementById('usage-rows').innerHTML = data.rowsHtml;
                 } catch {

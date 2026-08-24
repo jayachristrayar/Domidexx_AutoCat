@@ -26,6 +26,7 @@ import recordsRouter from './routes/records.js';
 import ddcRouter from './routes/ddc.js';
 import marcFrameworksRouter from './routes/marcFrameworks.js';
 import chatRouter from './routes/chat.js';
+import ownApiRouter from './routes/ownApi.js';
 import { startModelRefreshSchedule } from './services/openaiModelSelector.js';
 import { seedMarcFrameworks } from './services/marcFrameworkService.js';
 
@@ -115,6 +116,7 @@ app.use('/records', extensionCors, recordsRouter);
 app.use('/api/ddc', extensionCors, ddcRouter);
 app.use('/api/marc-frameworks', extensionCors, marcFrameworksRouter);
 app.use('/api/chat', extensionCors, chatRouter);
+app.use('/api/own-model', extensionCors, ownApiRouter);
 
 app.use((err, req, res, _next) => {
   if (err instanceof CorsOriginError) {
