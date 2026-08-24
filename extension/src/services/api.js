@@ -50,3 +50,9 @@ export const recommendDdc = (metadata, model) => call('recommendDdc', { metadata
 export const approveDdc = (id, ddcNumber) => call('approveDdc', { id, ddcNumber });
 export const generateMarc = (metadata, ddcApproval) => call('generateMarc', { metadata, ddcApproval });
 export const chat = (message, context) => call('chat', { message, context });
+
+// "Your Own Model" -- additive third AI option, alongside (never replacing)
+// Model 1/Model 2 above.
+export const getOwnApiStatus = () => call('getOwnApiStatus', {});
+export const testOwnApi = (baseUrl, apiKey) => call('testOwnApi', { baseUrl, apiKey });
+export const saveOwnApi = (baseUrl, apiKey) => call('saveOwnApi', { baseUrl, apiKey });

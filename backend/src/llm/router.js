@@ -188,6 +188,81 @@ export async function callNvidia(systemPrompt) {
   }
 }
 
+// ---------------------------------------------------------------------
+// "Your Own Model" -- a per-user, self-supplied API endpoint (product spec:
+// additive third AI option, entirely separate from Model 1/Model 2 above,
+// neither of which this section touches). NVIDIA's own hosted endpoint
+// (getNvidiaClient above) is itself just an OpenAI-Chat-Completions-
+// compatible API under a different base URL/key -- the same standard this
+// section targets is already proven to work for one of the two existing
+// providers, which is why Chat Completions (not the newer, OpenAI-only
+// Responses API callOpenAi uses) is the right generic target here: it's
+// the broadly-adopted standard self-hosted/third-party OpenAI-compatible
+// endpoints (Ollama, vLLM, LM Studio, OpenRouter, Together, Groq, etc.)
+// actually implement.
+//
+// The product spec explicitly forbids asking the user to name a model, so
+// there is no user-supplied model id to send. Every OpenAI-compatible
+// server also implements GET /models -- used here both to verify the
+// base URL/key actually work (Test Connection) and to discover a model id
+// to use for real calls, persisted on the account (see
+// ownApiService.saveOwnApiConfig) rather than re-discovered on every
+// request.
+// ---------------------------------------------------------------------
+const OWN_API_TEST_TIMEOUT_MS = 15_000;
+
+// testOwnApiConnection({ baseUrl, apiKey }) -- returns { ok, model } on
+// success (model is the first id GET /models returned, for the caller to
+// persist), or { ok: false, reason } on failure. Never throws -- a bad
+// URL/key is an expected, normal outcome here, not an exceptional one.
+export async function testOwnApiConnection({ baseUrl, apiKey }) {
+  if (!baseUrl || !apiKey) {
+    return { ok: false, reason: 'API Base URL and API Key are both required.' };
+  }
+  let client;
+  try {
+    client = new OpenAI({ apiKey, baseURL: baseUrl, timeout: OWN_API_TEST_TIMEOUT_MS, maxRetries: 0 });
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+  try {
+    const list = await client.models.list();
+    const models = list.data ?? [];
+    if (models.length === 0) {
+      return { ok: false, reason: 'The API responded, but listed no available models.' };
+    }
+    return { ok: true, model: models[0].id };
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+}
+
+// callOwnApi(systemPrompt, { baseUrl, apiKey, model }) -- same call shape
+// (systemPrompt in, { model, text } out) as callOpenAi/callNvidia above, so
+// ddcAiClassifier.classifyWithAi's callModel override (see routes/ddc.js)
+// can use whichever of the three interchangeably.
+export async function callOwnApi(systemPrompt, { baseUrl, apiKey, model }) {
+  if (!baseUrl || !apiKey) throw new Error('Your Own Model is not configured');
+  if (!model) throw new Error('Your Own Model has no usable model id -- test the connection again');
+
+  const client = new OpenAI({ apiKey, baseURL: baseUrl, timeout: CLIENT_TIMEOUT_MS, maxRetries: 1 });
+  const startedAt = Date.now();
+  try {
+    const response = await client.chat.completions.create(
+      {
+        model,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: 'Return the JSON now.' }],
+      },
+      { timeout: COMPLETION_TIMEOUT_MS, maxRetries: 0 }
+    );
+    console.info(`llm/router: Own API completion (${model}) took ${Date.now() - startedAt}ms`);
+    return { model, text: response.choices?.[0]?.message?.content ?? '' };
+  } catch (error) {
+    console.error(`llm/router: Own API completion (${model}) failed after ${Date.now() - startedAt}ms: ${error.message}`);
+    throw error;
+  }
+}
+
 // draftFields({ skeleton, fieldsNeeded, normalizedBiblioData, ruleProfile,
 // provider }) -- drafts the MARC fields marcBuilder.js's buildSkeleton()
 // left in fields_needing_llm (082, 1xx, 6xx, 520, 7xx). provider is

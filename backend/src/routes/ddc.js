@@ -2,14 +2,63 @@ import { Router } from 'express';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { recommendDdc } from '../services/ddcClassificationService.js';
+import { classifyWithAi } from '../services/ddcAiClassifier.js';
 import { searchDdc } from '../services/ddcKnowledgeBase.js';
 import { approveDdcDecision, getDdcDecision, saveDdcDecision, toMarc082Contract } from '../services/ddcApprovalService.js';
 import { resolveAuthorizedModel, toProviderId, ModelNotAuthorizedError, CONTACT_EMAIL } from '../services/modelAccess.js';
 import { labelToProvider, providerToLabel } from '../services/modelLabels.js';
 import { recordUsage } from '../services/usageService.js';
+import { getOwnApiConfig } from '../services/ownApiService.js';
+import { callOwnApi } from '../llm/router.js';
 const router=Router(); router.use(requireSession);
 router.get('/search', asyncHandler(async(req,res)=>res.json({results:await searchDdc(req.query.q, Number(req.query.limit)||20)})));
+
+// "Your Own Model" branch -- entirely separate from the Model 1/Model 2
+// path below (which is completely untouched): the client's model field is
+// 'MODEL_OWN' instead of the usual MODEL_1/MODEL_2, so this is checked
+// BEFORE resolveAuthorizedModel/toProviderId ever run, and neither of those
+// (nor the FREE/PAID model_access grant they enforce) applies here at all
+// -- an own-API connection is usable the moment the account has configured
+// one, independent of subscription tier. Reuses the exact same
+// recommendDdc()/classifyWithAi() pipeline Model 1/Model 2 use (same DDC 23
+// prompt, same candidate grounding, same rule-based validation/fallback,
+// same auto-accept-on-save) via classifyWithAi's existing `callModel`
+// override -- never a separate/simplified AI workflow.
+async function handleOwnModelRecommend(req, res) {
+  const metadata = req.body?.metadata || req.body || {};
+  const ownConfig = await getOwnApiConfig(req.user.userId);
+  if (!ownConfig) {
+    return res.status(403).json({
+      error: 'Your Own Model is not connected yet. Add your API Base URL and API Key in AI Model settings.',
+      error_class: 'own_api_not_configured',
+    });
+  }
+
+  const startedAt = Date.now();
+  const decision = await recommendDdc(metadata, {
+    provider: 'own',
+    classifyWithAiFn: (args) => classifyWithAi({ ...args, callModel: (prompt) => callOwnApi(prompt, ownConfig) }),
+  });
+  console.info(`ddc/recommend: classification for user ${req.user.userId} via own model took ${Date.now() - startedAt}ms (source=${decision.classification_source})`);
+
+  if (decision.ai_attempted) {
+    recordUsage({
+      userId: req.user.userId,
+      provider: 'own',
+      model: decision.ai_model,
+      requestType: 'DDC',
+      status: decision.classification_source === 'AI_ANALYZED' ? 'success' : 'failure',
+    });
+  }
+
+  const row = await saveDdcDecision({ userId: req.user.userId, metadata, decision });
+  res.status(201).json({ id: row.id, decision: row.decision_json, model: 'MODEL_OWN' });
+}
+
 router.post('/recommend', asyncHandler(async(req,res)=>{
+  if (String(req.body?.model || '').trim().toUpperCase() === 'MODEL_OWN') {
+    return handleOwnModelRecommend(req, res);
+  }
   const metadata=req.body?.metadata||req.body||{};
   // Never trust the extension's own model selection -- verify it against
   // this account's server-side model_access grant before any provider is

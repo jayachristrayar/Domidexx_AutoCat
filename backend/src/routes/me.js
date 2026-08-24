@@ -3,6 +3,7 @@ import pool from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { modelAccessToLabels } from '../services/modelLabels.js';
+import { getOwnApiStatus } from '../services/ownApiService.js';
 
 const router = Router();
 
@@ -47,6 +48,12 @@ router.get(
         }
       : null;
 
+    // own_api is the same safe/masked shape ownApi.js's own GET / returns
+    // (never a plaintext key) -- included here too so the side panel knows
+    // on load whether "Your Own Model" is already connected, without a
+    // second round trip on every page open.
+    const ownApi = await getOwnApiStatus(req.user.userId);
+
     // Only safe, extension-facing fields -- never API keys, provider
     // credentials, internal subscription tier, or anything else a librarian
     // isn't meant to see (product spec section 10/20). model_access is
@@ -57,6 +64,7 @@ router.get(
       autocat_user_id: row.autocat_user_id,
       status: row.status,
       model_access: modelAccessToLabels(row.model_access),
+      own_api: ownApi,
       institution_name: row.institution_name,
       draft_state: draftState,
     });

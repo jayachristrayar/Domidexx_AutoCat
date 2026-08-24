@@ -11,7 +11,10 @@
 // was, and whether it succeeded.
 import pool from '../db/index.js';
 
-const KNOWN_PROVIDERS = new Set(['nvidia', 'openai']);
+// 'own' -- "Your Own Model" usage (product spec: tracked separately from,
+// never mixed into, the existing NVIDIA/OpenAI figures -- see
+// usageSummary's ownRequests below).
+const KNOWN_PROVIDERS = new Set(['nvidia', 'openai', 'own']);
 const KNOWN_STATUSES = new Set(['success', 'failure']);
 
 // Never throws -- a logging failure must never break the AI request it's
@@ -95,6 +98,7 @@ export async function usageSummary({ userId, provider, status, since, until } = 
     totalRequests,
     nvidiaRequests: Number(byProvider.find((r) => r.provider === 'nvidia')?.count ?? 0),
     openaiRequests: Number(byProvider.find((r) => r.provider === 'openai')?.count ?? 0),
+    ownRequests: Number(byProvider.find((r) => r.provider === 'own')?.count ?? 0),
     activeUsers: Number(activeUsers[0]?.count ?? 0),
   };
 }

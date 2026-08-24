@@ -26,6 +26,7 @@ export const REQUIRED_TABLES = [
   'marc_indicators',
   'framework_field_settings',
   'framework_subfield_settings',
+  'own_api_configs',
 ];
 
 function buildPoolConfig() {
@@ -148,6 +149,7 @@ export function getConfigStatus() {
     'NVIDIA_MODEL',
     'GOOGLE_BOOKS_API_KEY',
     'LIBRARYTHING_API_KEY',
+    'OWN_API_ENCRYPTION_KEY',
     'NODE_ENV',
   ];
   return Object.fromEntries(keys.map((key) => [key, process.env[key] ? 'SET' : 'NOT SET']));

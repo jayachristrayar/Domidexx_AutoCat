@@ -203,18 +203,24 @@ function kohaStatusHtml(state) {
 // Admin Panel is the only place that shows real provider configuration.
 // ---------------------------------------------------------------------
 
-const ALL_MODELS = ['MODEL_1', 'MODEL_2'];
-const MODEL_DISPLAY_NAMES = { MODEL_1: 'Model 1', MODEL_2: 'Model 2' };
+// MODEL_OWN is additive (product spec: a third option alongside, never
+// replacing, Model 1/Model 2) -- its availability is never governed by
+// modelAccess/the admin FREE/PAID grant those two use, only by whether the
+// librarian has connected their own API (see ownModelSettingsHtml below),
+// so it never carries the "locked" treatment MODEL_1/MODEL_2 do.
+const ALL_MODELS = ['MODEL_1', 'MODEL_2', 'MODEL_OWN'];
+const MODEL_DISPLAY_NAMES = { MODEL_1: 'Model 1', MODEL_2: 'Model 2', MODEL_OWN: 'Your Own Model' };
 
-// Two buttons, always both shown -- the active one carries a checkmark, an
-// unauthorized one carries a lock icon (still clickable: clicking it shows
-// the "not available" message rather than silently doing nothing).
+// Three buttons, always all shown -- the active one carries a checkmark, an
+// unauthorized Model 1/2 carries a lock icon (still clickable: clicking it
+// shows the "not available" message rather than silently doing nothing).
 function modelButtonsHtml(modelAccess, selected) {
   const access = Array.isArray(modelAccess) && modelAccess.length > 0 ? modelAccess : ['MODEL_1'];
   return `
     <div class="model-buttons" id="model-buttons">
       ${ALL_MODELS.map((model) => {
-        const available = access.includes(model);
+        const isOwn = model === 'MODEL_OWN';
+        const available = isOwn || access.includes(model);
         const active = model === selected;
         const classes = ['model-btn'];
         if (active) classes.push('active');
@@ -222,6 +228,29 @@ function modelButtonsHtml(modelAccess, selected) {
         return `<button type="button" class="${classes.join(' ')}" data-model="${model}">${escapeHtml(MODEL_DISPLAY_NAMES[model])}${active ? ' <span class="model-check">✓</span>' : ''}${!available ? ' <span class="model-lock">🔒</span>' : ''}</button>`;
       }).join('')}
     </div>
+  `;
+}
+
+// ---------------------------------------------------------------------
+// "Your Own Model" settings -- shown only while MODEL_OWN is selected
+// (product spec: keep the model selector simple, no large settings
+// screen). Only ever asks for API Base URL + API Key, per spec section
+// "YOUR OWN MODEL" -- never a provider/model/tier field.
+// ---------------------------------------------------------------------
+
+function ownModelSettingsHtml(status) {
+  const connected = Boolean(status?.configured);
+  return `
+    <p class="section-title">Your Own Model</p>
+    ${connected ? '<p class="muted">✓ Own API connected</p>' : '<p class="hint">Connect any OpenAI-compatible API -- self-hosted or third-party.</p>'}
+    <label><span>API Base URL</span><input type="text" id="own-api-base-url" placeholder="https://api.example.com/v1" value="${escapeHtml(status?.base_url || '')}" autocomplete="off" /></label>
+    <label><span>API Key</span><input type="password" id="own-api-key" placeholder="${connected ? escapeHtml(status.api_key_masked) : 'sk-...'}" autocomplete="off" /></label>
+    ${connected ? '<p class="hint">Re-enter both fields to update your connection.</p>' : ''}
+    <div class="row">
+      <button type="button" id="own-api-test" class="secondary">Test Connection</button>
+      <button type="button" id="own-api-save" disabled>Save</button>
+    </div>
+    <div id="own-api-status"></div>
   `;
 }
 
@@ -366,6 +395,7 @@ function renderWorkspace(me) {
     <div class="card" id="model-card">
       <p class="section-title">AI Model</p>
       <div id="model-buttons-wrap">${modelButtonsHtml(me.model_access, (me.model_access && me.model_access[0]) || 'MODEL_1')}</div>
+      <div id="own-model-settings" hidden></div>
       <div id="model-status"></div>
     </div>
 
@@ -462,19 +492,114 @@ function renderWorkspace(me) {
     // below, never inferred or silently swapped by the extension itself.
     modelAccess: Array.isArray(me.model_access) && me.model_access.length > 0 ? me.model_access : ['MODEL_1'],
     selectedModel: (me.model_access && me.model_access[0]) || 'MODEL_1',
+    // Comes straight from /me's own_api field (never a plaintext key --
+    // see backend/src/services/ownApiService.getOwnApiStatus) so the panel
+    // knows on load whether Your Own Model is already connected, without a
+    // second round trip.
+    ownApiStatus: me.own_api || { configured: false },
   };
 
   const modelStatus = app.querySelector('#model-status');
   const modelButtonsWrap = app.querySelector('#model-buttons-wrap');
+  const ownModelSettingsEl = app.querySelector('#own-model-settings');
 
   function renderModelButtons() {
     modelButtonsWrap.innerHTML = modelButtonsHtml(state.modelAccess, state.selectedModel);
+  }
+
+  // Test Connection must succeed in THIS edit session before Save is
+  // enabled (product spec: "After successful testing, allow: [Save]") --
+  // tracked here rather than trusting a previously-saved `configured: true`
+  // status, since the fields may have just been edited to something
+  // untested.
+  let ownApiTestPassed = false;
+
+  function renderOwnModelSettings() {
+    const isOwn = state.selectedModel === 'MODEL_OWN';
+    ownModelSettingsEl.hidden = !isOwn;
+    if (!isOwn) return;
+    ownApiTestPassed = false;
+    ownModelSettingsEl.innerHTML = ownModelSettingsHtml(state.ownApiStatus);
+
+    const baseUrlInput = ownModelSettingsEl.querySelector('#own-api-base-url');
+    const apiKeyInput = ownModelSettingsEl.querySelector('#own-api-key');
+    const testButton = ownModelSettingsEl.querySelector('#own-api-test');
+    const saveButton = ownModelSettingsEl.querySelector('#own-api-save');
+    const ownApiStatusEl = ownModelSettingsEl.querySelector('#own-api-status');
+
+    // Any edit after a successful test invalidates it -- Save must not stay
+    // enabled for fields the librarian has since changed.
+    [baseUrlInput, apiKeyInput].forEach((input) =>
+      input.addEventListener('input', () => {
+        ownApiTestPassed = false;
+        saveButton.disabled = true;
+      })
+    );
+
+    testButton.addEventListener('click', async () => {
+      const baseUrl = baseUrlInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+      if (!baseUrl || !apiKey) {
+        ownApiStatusEl.innerHTML = stateHtml('error', 'API Base URL and API Key are both required.');
+        return;
+      }
+      testButton.disabled = true;
+      ownApiStatusEl.innerHTML = stateHtml('loading', 'Testing connection…');
+      try {
+        const result = await api.testOwnApi(baseUrl, apiKey);
+        if (result.ok) {
+          ownApiTestPassed = true;
+          saveButton.disabled = false;
+          ownApiStatusEl.innerHTML = stateHtml('success', '✓ Connection successful');
+        } else {
+          ownApiTestPassed = false;
+          saveButton.disabled = true;
+          ownApiStatusEl.innerHTML = stateHtml('error', result.message || 'Connection failed. Please check your API Base URL or API Key.');
+        }
+      } catch (error) {
+        if (error.code === 'AUTH_EXPIRED') { stopKohaStatusWatch(); renderAuth(error.message); return; }
+        ownApiTestPassed = false;
+        saveButton.disabled = true;
+        ownApiStatusEl.innerHTML = stateHtml('error', 'Connection failed. Please check your API Base URL or API Key.');
+      } finally {
+        testButton.disabled = false;
+      }
+    });
+
+    saveButton.addEventListener('click', async () => {
+      if (!ownApiTestPassed) return;
+      const baseUrl = baseUrlInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+      saveButton.disabled = true;
+      ownApiStatusEl.innerHTML = stateHtml('loading', 'Saving…');
+      try {
+        state.ownApiStatus = await api.saveOwnApi(baseUrl, apiKey);
+        ownApiStatusEl.innerHTML = stateHtml('success', '✓ Own API connected');
+        renderOwnModelSettings();
+      } catch (error) {
+        if (error.code === 'AUTH_EXPIRED') { stopKohaStatusWatch(); renderAuth(error.message); return; }
+        saveButton.disabled = false;
+        ownApiStatusEl.innerHTML = stateHtml('error', error.message || 'Connection failed. Please check your API Base URL or API Key.');
+      }
+    });
   }
 
   modelButtonsWrap.addEventListener('click', (event) => {
     const button = event.target.closest('.model-btn');
     if (!button) return;
     const requested = button.dataset.model;
+
+    // Your Own Model is never gated by modelAccess (see modelButtonsHtml) --
+    // selecting it just opens its settings; whether it's actually usable
+    // depends on whether it's connected, shown inside that panel itself.
+    if (requested === 'MODEL_OWN') {
+      state.selectedModel = requested;
+      modelStatus.innerHTML = '';
+      renderModelButtons();
+      renderOwnModelSettings();
+      return;
+    }
+
     if (!state.modelAccess.includes(requested)) {
       // Client-side only -- no backend call needed to know a model this
       // account isn't authorized for is unavailable. Exact wording and
@@ -487,6 +612,7 @@ function renderWorkspace(me) {
     }
     state.selectedModel = requested;
     modelStatus.innerHTML = '';
+    ownModelSettingsEl.hidden = true;
     renderModelButtons();
   });
 
@@ -583,6 +709,14 @@ function renderWorkspace(me) {
         ${stateHtml('error', `${escapeHtml(modelName)} is not available for your account. Please contact the administrator to upgrade access.`)}
         <p class="hint">Contact: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
       `;
+      newLookupButton.hidden = false;
+      return;
+    }
+    // Your Own Model was selected but never successfully connected --
+    // direct the librarian back to the settings panel rather than showing
+    // a generic failure (this is not a session or provider outage).
+    if (error.code === 'OWN_API_NOT_CONFIGURED') {
+      targetEl.innerHTML = stateHtml('error', error.message || 'Your Own Model is not connected yet. Add your API Base URL and API Key above.');
       newLookupButton.hidden = false;
       return;
     }
