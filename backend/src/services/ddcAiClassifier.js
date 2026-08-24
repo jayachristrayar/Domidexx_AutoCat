@@ -12,7 +12,7 @@
 import { callOpenAi, callNvidia, extractJson } from '../llm/router.js';
 
 const RESPONSE_SHAPE =
-  '{"ddc": string, "class_name": string, "work_type": string, "confidence": "HIGH"|"MEDIUM"|"LOW", "why": string, "number_breakdown": [{"number": string, "meaning": string}], "evidence": string[], "sources": string[]}';
+  '{"ddc": string, "class_name": string, "work_type": string, "confidence": "HIGH"|"MEDIUM"|"LOW", "why": string, "number_breakdown": [{"number": string, "meaning": string}], "evidence": string[], "sources": string[], "alternatives_considered": [{"number": string, "class_name": string, "why_not_selected": string}]}';
 
 function clean(value) {
   return String(value ?? '').trim();
@@ -66,7 +66,9 @@ export function buildDdcAnalysisPrompt(metadata, candidates = [], correction = n
       'literary tradition (e.g. American English, British/English, German, French...) if literary; subject; historical or literary period where applicable; ' +
       'intended intellectual purpose; and the specific content evidence supporting all of the above. Only then determine the relevant DDC 23 hierarchy and the ' +
       'MOST SPECIFIC valid DDC 23 number the evidence actually supports -- never stop at a bare main class (000/100/200/.../900) or an intermediate number when ' +
-      'the evidence supports something more specific, and never invent a decimal digit the evidence does not support.'
+      'the evidence supports something more specific, and never invent a decimal digit the evidence does not support. ' +
+      'Also identify 1-3 other DDC 23 numbers you seriously considered and rejected for this book (genuinely close alternatives from the same or an adjacent ' +
+      'hierarchy, not arbitrary numbers), and state specifically why the evidence favors your chosen number over each of them.'
   );
   parts.push(`Respond with strict JSON matching exactly this shape, no markdown fences, no commentary: ${RESPONSE_SHAPE}`);
   parts.push(`Book bibliographic data:\n${summarizeBibliographicData(metadata)}`);
@@ -118,6 +120,11 @@ export function parseAiDdcResponse(text) {
       : [],
     evidence: arr(parsed.evidence).map(clean).filter(Boolean),
     sources: arr(parsed.sources).map(clean).filter(Boolean),
+    alternatives_considered: Array.isArray(parsed.alternatives_considered)
+      ? parsed.alternatives_considered
+          .map((row) => ({ number: clean(row?.number), class_name: clean(row?.class_name) || null, why_not_selected: clean(row?.why_not_selected) || null }))
+          .filter((row) => row.number)
+      : [],
   };
 }
 

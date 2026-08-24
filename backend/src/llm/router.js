@@ -16,7 +16,7 @@ import { getAvailableOpenAiModel, getOpenAiClientForFallback } from '../services
 // for a provider this task doesn't otherwise touch would be scope well
 // beyond "ground the 082 instruction in real candidates." NVIDIA_MODEL is a
 // plain env var instead, with a documented default.
-const DEFAULT_NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
+export const DEFAULT_NVIDIA_MODEL = 'meta/llama-3.3-70b-instruct';
 
 // See openaiModelSelector.js's CLIENT_TIMEOUT_MS for why this exists at
 // all: an unbounded provider call (the SDK's own default is 10 minutes)
@@ -31,7 +31,10 @@ const CLIENT_TIMEOUT_MS = 55_000;
 const COMPLETION_TIMEOUT_MS = 20_000;
 
 let nvidiaClient = null;
-function getNvidiaClient() {
+// Exported so llm/researchAgent.js can reuse the exact same NVIDIA client
+// setup for its own agentic (tool-calling) research calls, rather than
+// duplicating API-key/base-URL wiring a second time.
+export function getNvidiaClient() {
   if (!process.env.NVIDIA_API_KEY || !process.env.NVIDIA_BASE_URL) return null;
   if (!nvidiaClient) {
     nvidiaClient = new OpenAI({

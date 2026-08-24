@@ -260,6 +260,55 @@ export function extractPageMetadata(html, url) {
   };
 }
 
+// -- Composable primitives for agentic tool use ---------------------------
+//
+// searchWeb/fetchPageMetadata (below) are the SAME search-engine/scrape
+// mechanics webSearchAndScrape uses internally, exported individually so
+// llm/researchAgent.js can expose them as function-calling tools -- the
+// selected AI model (NVIDIA/Own API) decides what to search and which page
+// to fetch, one call at a time, rather than this module deciding
+// everything up front and handing the model a finished summary. See
+// researchAgent.js for how these are wired into that tool-use loop.
+
+// searchWeb(query) -- runs one query against every configured search engine
+// in parallel, isolated per engine (one blocked/failing engine never stops
+// the others), and returns a deduped, tier-ordered result list. Never
+// throws -- an engine failure just means fewer results, not a tool error.
+export async function searchWeb(query) {
+  const engineResults = await settleAll(SEARCH_ENGINES, async ([name, fn]) => {
+    try {
+      return await fn(query);
+    } catch (error) {
+      console.warn(`ISBN web scrape: ${name} search failed for "${query}": ${error.message}`);
+      return [];
+    }
+  });
+  const seen = new Set();
+  return engineResults
+    .flatMap((r) => r.value ?? [])
+    .filter((r) => {
+      if (SKIP_HOST_PATTERN.test(r.url) || seen.has(r.url)) return false;
+      seen.add(r.url);
+      return true;
+    })
+    .map((r) => ({ title: r.title, url: r.url, tier: tierFor(r.url) }))
+    .sort((a, b) => a.tier - b.tier);
+}
+
+// fetchPageMetadata(url) -- fetches one URL and extracts its bibliographic
+// metadata. Throws (rather than returning null) on any failure -- the
+// caller (a tool-executor in researchAgent.js, or webSearchAndScrape below)
+// is expected to catch this per-page, never let one bad page abort a whole
+// research pass.
+export async function fetchPageMetadata(url) {
+  const response = await fetchWithTimeout(url, { timeoutMs: PAGE_TIMEOUT_MS });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('text/html')) throw new Error(`non-HTML content-type: ${contentType}`);
+  const html = await response.text();
+  return extractPageMetadata(html, url);
+}
+
 // -- Orchestration ----------------------------------------------------------
 
 function buildQueries(isbn, variants) {
@@ -324,21 +373,9 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
     const queries = buildQueries(isbn, variants);
     console.info(`ISBN web scrape: running ${queries.length} search queries for ${isbn}`);
 
-    const engineResults = await settleAll(SEARCH_ENGINES, async ([name, fn]) => {
-      const perEngine = [];
-      for (const query of queries) {
-        try {
-          perEngine.push(...(await fn(query)));
-        } catch (error) {
-          console.warn(`ISBN web scrape: ${name} search failed for "${query}": ${error.message}`);
-        }
-      }
-      return perEngine;
-    });
-
-    const rawResults = engineResults.flatMap((r) => r.value ?? []);
-    const enginesUsed = engineResults.filter((r) => r.ok).length;
-    console.info(`ISBN web scrape: ${rawResults.length} raw search results from ${enginesUsed}/${SEARCH_ENGINES.length} engines for ${isbn}`);
+    const perQuery = await settleAll(queries, (query) => searchWeb(query));
+    const rawResults = perQuery.flatMap((r) => r.value ?? []);
+    console.info(`ISBN web scrape: ${rawResults.length} raw search results for ${isbn}`);
 
     if (rawResults.length === 0) {
       console.warn(`ISBN web scrape: no search results found for ${isbn} (all search engines failed or blocked)`);
@@ -348,25 +385,16 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
     const seen = new Set();
     const candidates = rawResults
       .filter((r) => {
-        if (SKIP_HOST_PATTERN.test(r.url)) return false;
         if (seen.has(r.url)) return false;
         seen.add(r.url);
         return true;
       })
-      .map((r) => ({ ...r, tier: tierFor(r.url) }))
       .sort((a, b) => a.tier - b.tier)
       .slice(0, MAX_PAGES_TO_FETCH);
 
     console.info(`ISBN web scrape: ${candidates.length} candidate pages selected for ${isbn} (from ${seen.size} unique results)`);
 
-    const fetched = await settleAll(candidates, async (candidate) => {
-      const response = await fetchWithTimeout(candidate.url, { timeoutMs: PAGE_TIMEOUT_MS });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const contentType = response.headers.get('content-type') ?? '';
-      if (!contentType.includes('text/html')) throw new Error(`non-HTML content-type: ${contentType}`);
-      const html = await response.text();
-      return extractPageMetadata(html, candidate.url);
-    });
+    const fetched = await settleAll(candidates, (candidate) => fetchPageMetadata(candidate.url));
 
     const accepted = [];
     let rejectedCount = 0;

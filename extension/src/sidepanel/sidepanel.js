@@ -338,7 +338,10 @@ function ddcHtml(decision, source) {
       </div>
     ` : ''}
 
-    ${decision.alternatives?.length ? `
+    ${decision.alternatives_considered?.length ? `
+      <p class="result-heading">Alternative numbers considered</p>
+      <ul>${decision.alternatives_considered.slice(0, 3).map((a) => `<li><strong>${escapeHtml(a.number)}</strong>${a.class_name ? ` — ${escapeHtml(a.class_name)}` : ''}: ${escapeHtml(a.why_not_selected || '')}</li>`).join('')}</ul>
+    ` : decision.alternatives?.length ? `
       <p class="result-heading">Alternative considered</p>
       <ul>${decision.alternatives.slice(0, 2).map((a) => `<li><strong>${escapeHtml(a.number)}</strong> — ${escapeHtml(a.label)}: ${escapeHtml(a.reason_rejected || a.reason_considered || '')}</li>`).join('')}</ul>
     ` : ''}
@@ -819,7 +822,7 @@ function renderWorkspace(me) {
     marcCard.hidden = true;
     lookupStatus.innerHTML = stateHtml('loading', 'Looking up this ISBN…');
     try {
-      const body = await api.lookupIsbn(normalized);
+      const body = await api.lookupIsbn(normalized, state.selectedModel);
       if (myLookupId !== state.lookupId) return; // superseded or cancelled
       if (body.not_found) {
         lookupStatus.innerHTML = notFoundHtml();

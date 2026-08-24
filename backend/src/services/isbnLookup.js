@@ -3,9 +3,10 @@ import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiMod
 import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
 import { recordUsage } from './usageService.js';
 import { webSearchAndScrape } from './webSearchScrape.js';
+import { fetchOpenLibrary, fetchGoogleBooks } from './structuredSources.js';
+import { runAgenticResearch } from '../llm/researchAgent.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
-const FETCH_TIMEOUT_MS = 8000;
 
 // Priority order used when sources disagree on a field. z3950 (Library of
 // Congress, via Z39.50) goes first: a LOC MARC record is the gold-standard
@@ -70,37 +71,6 @@ async function tryVariants(variants, fn) {
   }
   if (lastError) throw lastError;
   return null;
-}
-
-async function fetchWithTimeout(url, timeoutMs = FETCH_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function fetchOpenLibrary(isbn) {
-  const url = `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    throw new Error(`Open Library responded with ${response.status}`);
-  }
-  const body = await response.json();
-  return body[`ISBN:${isbn}`] ?? null;
-}
-
-async function fetchGoogleBooks(isbn) {
-  const key = process.env.GOOGLE_BOOKS_API_KEY;
-  const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}${key ? `&key=${key}` : ''}`;
-  const response = await fetchWithTimeout(url);
-  if (!response.ok) {
-    throw new Error(`Google Books responded with ${response.status}`);
-  }
-  const body = await response.json();
-  return body.items?.[0]?.volumeInfo ?? null;
 }
 
 // TODO: wire up real LibraryThing metadata once access is sorted out.
@@ -523,21 +493,45 @@ ${searchText}`,
 }
 
 // researchWebForIsbn -- the single entry point for "go find this on the
-// open web" (product spec items 4-8: "search the public web using the
-// ISBN", "if one source fails, continue researching"). Tries the
-// AI-assisted web_search stage first (lookupIsbnWebFallback -- higher
-// quality when OPENAI_API_KEY/web_search are available, since the model
-// itself reasons over and cross-checks what it finds), and only when that
-// stage is unavailable or genuinely finds nothing falls back to a direct,
-// key-less search-engine + page-scrape pass (webSearchAndScrape). Neither
-// stage failing is allowed to be the single point of failure the product
-// spec calls out -- a book with real web presence should surface from
-// whichever stage actually has working network/API access right now.
-async function researchWebForIsbn(isbn, variants, { userId, deep = false } = {}) {
-  const aiResult = await lookupIsbnWebFallback(isbn, { userId, deep });
-  if (aiResult) return aiResult;
+// open web" (product spec: "each selected model must independently perform
+// the complete research and cataloguing workflow" -- Model 1/Model 2/Model 3
+// each do their OWN web research, using tools the app provides, rather than
+// all reasoning over one shared, model-agnostic scrape). `provider` is the
+// SAME 'nvidia' | 'openai' | 'own' value ddc.js already resolves from the
+// librarian's Model 1/Model 2/Your Own Model selection -- this is what ties
+// research to whichever model is actually selected:
+//
+//   - 'openai' -> lookupIsbnWebFallback, which already has the model doing
+//     its own research via OpenAI's hosted web_search tool (the model picks
+//     the queries and reads the results itself -- this was already correct).
+//   - 'nvidia' / 'own' -> runAgenticResearch (llm/researchAgent.js): that
+//     model has no hosted browsing tool, so it's given function-calling
+//     tools (search_web/fetch_page/lookup_structured_apis) and runs its own
+//     tool-use loop, deciding what to search and which pages to read, same
+//     as the OpenAI path conceptually just implemented via explicit tools.
+//   - no provider given (legacy callers -- e.g. the chat "check the web"
+//     action, which isn't tied to a cataloguing model selection) -- falls
+//     back to the OpenAI path when available, same as before this change.
+//
+// Whichever stage that provider's own research produces nothing usable
+// from, webSearchAndScrape (key-less search+scrape, no AI involved) is the
+// final, provider-agnostic safety net -- so one provider's research failing
+// is never the single point of failure, but it is always tried LAST, never
+// used to bypass the selected model's own research capability.
+async function researchWebForIsbn(isbn, variants, { userId, deep = false, provider, ownApiConfig } = {}) {
+  let modelResult = null;
+  if (provider === 'nvidia' || provider === 'own') {
+    try {
+      modelResult = await runAgenticResearch({ isbn, variants, provider, ownApiConfig, userId });
+    } catch (error) {
+      console.error(`ISBN lookup: agentic research via ${provider} failed for ${isbn}: ${error.message}`);
+    }
+  } else {
+    modelResult = await lookupIsbnWebFallback(isbn, { userId, deep });
+  }
+  if (modelResult) return modelResult;
 
-  console.info(`ISBN lookup: AI web research unavailable or empty for ${isbn}, falling back to direct web search/scrape`);
+  console.info(`ISBN lookup: ${provider ?? 'default'} model research unavailable or empty for ${isbn}, falling back to direct web search/scrape`);
   try {
     return await webSearchAndScrape(isbn, variants);
   } catch (error) {
@@ -591,9 +585,22 @@ function isPartial(merged) {
 // every user before giving up, per the "no source left untried" requirement.
 // Kept as a parameter (currently unused) in case a future cost-control
 // decision needs it again, rather than changing the call signature twice.
-export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
+// `provider` ('nvidia' | 'openai' | 'own', matching modelAccess.js's
+// toProviderId) is the librarian's currently-selected cataloguing model --
+// threaded through to researchWebForIsbn so THAT model is the one whose own
+// web research/tool-use runs when structured sources aren't enough, per the
+// "each selected model must independently perform the complete research and
+// cataloguing workflow" requirement. `ownApiConfig` is required alongside
+// provider === 'own' (the account's saved Base URL/API key -- see
+// ownApiService.getOwnApiConfig). Omitting provider (legacy callers) keeps
+// the pre-existing OpenAI-first behavior. Cache entries are still shared
+// across providers/ISBN only (not per-model) -- a deliberate cost/latency
+// tradeoff, not a bypass: whichever model's own research fills the cache
+// first, the underlying evidence itself doesn't change by re-asking a
+// different model to research the exact same ISBN a second time.
+export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider, ownApiConfig } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
-  console.info(`ISBN lookup: received ${isbn}`);
+  console.info(`ISBN lookup: received ${isbn} (model=${provider ?? 'default'})`);
 
   // A failed/not-found lookup must never become a permanent "successful"
   // cache entry -- excluding source = 'not_found' here means a stale
@@ -662,7 +669,7 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     console.info(
       `ISBN lookup: ${hasStructuredTitle ? 'structured sources lack content evidence for' : 'no structured title for'} ${isbn}, running web research`
     );
-    const webResult = await researchWebForIsbn(isbn, variants, { userId });
+    const webResult = await researchWebForIsbn(isbn, variants, { userId, provider, ownApiConfig });
     if (webResult && hasStructuredTitle) {
       // Structured sources already vetted title/author/etc -- web research
       // only supplements whatever they didn't cover (description, subjects,

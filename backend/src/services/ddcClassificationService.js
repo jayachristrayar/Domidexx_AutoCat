@@ -85,6 +85,7 @@ function fromAi(ai, ruleBased) {
     work_type: ai.work_type || (ruleBased.analysis.literary ? ruleBased.analysis.literary.work_type : 'NONFICTION_OR_UNKNOWN'),
     classification_source: 'AI_ANALYZED',
     model: ai.model,
+    alternatives_considered: ai.alternatives_considered ?? [],
   };
 }
 
@@ -100,6 +101,7 @@ function fromRuleBased(ruleBased) {
     work_type: analysis.literary ? analysis.literary.work_type : 'NONFICTION_OR_UNKNOWN',
     classification_source: 'RULE_BASED',
     model: null,
+    alternatives_considered: [],
   };
 }
 
@@ -145,6 +147,12 @@ export async function recommendDdc(metadata = {}, { classifyWithAiFn = classifyW
     justification: chosen.justification,
     why: chosen.justification,
     alternatives: ruleBased.alternatives,
+    // AI-stated "close numbers considered and rejected, and why" (product
+    // spec: "ALTERNATIVE NUMBERS CONSIDERED / WHY THEY WERE NOT SELECTED")
+    // -- distinct from `alternatives` above, which is the deterministic
+    // rule-based engine's own near-miss candidates, always present
+    // regardless of whether AI classification ran.
+    alternatives_considered: chosen.alternatives_considered ?? [],
     classification_source: chosen.classification_source,
     ai_attempted: attempted,
     ai_model: chosen.model,
@@ -181,6 +189,7 @@ function buildInsufficientEvidenceDecision(ruleBased) {
     justification: 'Insufficient bibliographic evidence for confident classification.',
     why: 'Insufficient bibliographic evidence for confident classification.',
     alternatives: [],
+    alternatives_considered: [],
     classification_source: 'INSUFFICIENT_EVIDENCE',
     ai_attempted: false,
     ai_model: null,
