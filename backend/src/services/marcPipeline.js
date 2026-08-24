@@ -45,6 +45,30 @@ function cleanText(value) { return String(value ?? '').trim(); }
 function array(value) { return Array.isArray(value) ? value.filter(Boolean) : value ? [value] : []; }
 function first(value) { return array(value)[0] ?? null; }
 
+// A research/AI step occasionally returns a "description" that is really
+// just a citation artifact -- literally "Source title: <title>" or "Title:
+// <title>" -- or a bare restatement of the title/series (with nothing else
+// added), never an actual summary of the book's content. 520$a must never
+// contain that: it's not evidence of what the book is ABOUT, just an echo
+// of a field this record already has elsewhere. Rejected here (returns '')
+// rather than passed through -- 520 is simply omitted when this is all that
+// was supplied, exactly like any other genuinely-missing evidence case,
+// never patched with a fabricated summary.
+const JUNK_DESCRIPTION_PREFIX_RE = /^(?:source\s+title|title|book\s+title)\s*:/i;
+
+function sanitizeDescription(description, title) {
+  const text = cleanText(description);
+  if (!text) return '';
+  if (JUNK_DESCRIPTION_PREFIX_RE.test(text)) return '';
+  const bareTitle = cleanText(title).toLowerCase();
+  // Strip a trailing "(Series Name)" parenthetical before comparing -- a
+  // description that's just "<Title> (<Series>)" carries no more content
+  // than the title alone.
+  const withoutTrailingParens = text.replace(/\s*\([^()]*\)\s*$/, '').trim();
+  if (bareTitle && withoutTrailingParens.toLowerCase() === bareTitle) return '';
+  return text;
+}
+
 export function normalizeMarcMetadata(input = {}) {
   const metadata = input.metadata ?? input;
   const normalized = {
@@ -66,7 +90,7 @@ export function normalizeMarcMetadata(input = {}) {
     series: cleanText(typeof metadata.series === 'object' ? metadata.series?.name : metadata.series),
     language: cleanText(metadata.language ?? metadata.language_code),
     subjects: array(metadata.subjects ?? metadata.subject_headings).map(cleanText),
-    description: cleanText(metadata.description ?? metadata.abstract),
+    description: sanitizeDescription(metadata.description ?? metadata.abstract, metadata.title),
     notes: array(metadata.notes).map(cleanText),
     bibliography_note: cleanText(metadata.bibliography_note),
     awards: array(metadata.awards).map(cleanText),
@@ -255,6 +279,22 @@ export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(
   return { ok: true, errors: [], info: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
 }
 
+// The final MARC field array must always be in numeric tag order (000,
+// 005, 008, 020, ..., 856, 942) regardless of what order the skeleton
+// builder / AI reasoning / DDC step happened to push fields in -- upstream
+// this is currently assembled as skeleton fields, then evidence-driven
+// fields (440/500/520/650/856/100/700 -- 100 notably pushed AFTER 650/700),
+// then 082 last, none of which is numeric order. Consumers (marcPreview,
+// the Koha fill plan, the admin record view) must never rely on that
+// incidental construction order, and a librarian-facing preview listing
+// 700 before 100 before 245 reads as broken even when every field is
+// individually correct. Array.prototype.sort is stable (ECMA-262 since
+// ES2019), so repeatable tags (multiple 650/700) keep their original
+// relative order -- never reordered or deduplicated against each other.
+function sortFieldsByTag(fields) {
+  return [...fields].sort((a, b) => Number(normalizeMarcTag(a.tag)) - Number(normalizeMarcTag(b.tag)));
+}
+
 function toStructuredRecord(fields) {
   const leader = fields.find((f) => normalizeMarcTag(f.tag) === '000');
   return {
@@ -302,10 +342,15 @@ export function generateMarcRecord(input = {}, options = {}) {
   const ddcErrors = ddc.errors;
   const ddcInfo = ddc.info ?? [];
   if (ddc.ok) fields.push(ddc.field);
+  // Canonical numeric tag order from here on -- every downstream consumer
+  // (validation, the structured record, the preview, the Koha fill plan)
+  // reads this same sorted array, so there is exactly one field order, not
+  // a different one per consumer.
+  const sortedFields = sortFieldsByTag(fields);
   const ddcApproval = input.ddc_approval ?? input.ddcDecision ?? {};
-  const validation = validateProductionMarc(fields, { metadata, ddcApproval, ddcErrors, ddcInfo });
-  const marcRecord = toStructuredRecord(fields);
-  const result = { metadata, marc_record: marcRecord, fields, validation, preview: marcPreview(fields, validation), provenance: fields.map((f) => ({ tag: normalizeMarcTag(f.tag), source: f.source, provenance: f.provenance })), conflicts, status: validation.valid ? 'READY_FOR_KOHA' : 'REQUIRES_CATALOGUER_REVIEW' };
+  const validation = validateProductionMarc(sortedFields, { metadata, ddcApproval, ddcErrors, ddcInfo });
+  const marcRecord = toStructuredRecord(sortedFields);
+  const result = { metadata, marc_record: marcRecord, fields: sortedFields, validation, preview: marcPreview(sortedFields, validation), provenance: sortedFields.map((f) => ({ tag: normalizeMarcTag(f.tag), source: f.source, provenance: f.provenance })), conflicts, status: validation.valid ? 'READY_FOR_KOHA' : 'REQUIRES_CATALOGUER_REVIEW' };
   // P4: only offer a Koha fill plan once the record validates. An invalid
   // record must not produce fill instructions.
   result.koha_fill = validation.valid ? buildKohaFillPlan(result, { ddcApproval }) : null;
