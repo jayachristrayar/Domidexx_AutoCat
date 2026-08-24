@@ -81,6 +81,35 @@ async function clearPersistedLookupState() {
   }
 }
 
+// ---------------------------------------------------------------------
+// Pipeline-job pointer (chrome.storage.session) -- product spec section 22.
+// The actual lookup -> DDC -> MARC chain runs in the background service
+// worker (see service-worker.js's startPipeline/runPipeline), not here, so
+// it survives a tab switch or the panel being closed mid-lookup. This file
+// only remembers WHICH job to poll: on boot, if a job here is still
+// running, the panel resumes polling it instead of losing the in-flight
+// work or starting a duplicate lookup.
+// ---------------------------------------------------------------------
+const PIPELINE_JOB_STORAGE_KEY = 'autocat_pipeline_job_pointer';
+
+async function persistPipelineJobPointer(jobId, isbn) {
+  try {
+    await chrome.storage.session.set({ [PIPELINE_JOB_STORAGE_KEY]: jobId ? { jobId, isbn } : null });
+  } catch (error) {
+    debugLog('persistPipelineJobPointer failed', error);
+  }
+}
+
+async function loadPipelineJobPointer() {
+  try {
+    const result = await chrome.storage.session.get(PIPELINE_JOB_STORAGE_KEY);
+    return result?.[PIPELINE_JOB_STORAGE_KEY] ?? null;
+  } catch (error) {
+    debugLog('loadPipelineJobPointer failed', error);
+    return null;
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -788,6 +817,56 @@ function renderWorkspace(me) {
     renderMarcSection();
   })();
 
+  // Resume a research pipeline job that was still running in the background
+  // worker when the panel was last closed (product spec section 22:
+  // "closing/reopening the Side Panel does not terminate research"). The
+  // job kept running the whole time this panel was gone -- this just
+  // re-attaches polling to it instead of losing that progress or starting
+  // a duplicate lookup for the same ISBN. Fire-and-forget, same as the
+  // restore block above.
+  (async () => {
+    const pointer = await loadPipelineJobPointer();
+    if (!pointer?.jobId) return;
+    // A newer lookup may already be running/loaded by the time this
+    // resolves -- never clobber it with a stale background job.
+    if (state.lookupId !== 0 || state.metadata) return;
+    let job;
+    try {
+      job = await api.getPipelineStatus(pointer.jobId);
+    } catch (error) {
+      debugLog('resume pipeline: job no longer available', error);
+      persistPipelineJobPointer(null, null);
+      return;
+    }
+    if (job.status !== 'running') {
+      // Already finished (or was cancelled) while the panel was closed --
+      // nothing left to resume; the pointer is stale, clear it.
+      persistPipelineJobPointer(null, null);
+      return;
+    }
+    if (state.lookupId !== 0 || state.metadata) return;
+
+    const myLookupId = ++state.lookupId;
+    lookupInFlight = true;
+    state.isbn = pointer.isbn;
+    isbnInput.value = pointer.isbn;
+    bookCard.hidden = true;
+    ddcCard.hidden = true;
+    marcCard.hidden = true;
+    lookupSubmit.hidden = true;
+    cancelLookupButton.hidden = false;
+    lookupStatus.innerHTML = stateHtml('loading', 'Resuming research for this ISBN…');
+    try {
+      await pollPipeline(pointer.jobId, myLookupId);
+    } finally {
+      if (myLookupId === state.lookupId) {
+        lookupInFlight = false;
+        resetLookupButtons();
+        focusIsbnInputIfIdle();
+      }
+    }
+  })();
+
   const RETRY_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-lookup">Retry lookup</button>';
   const RETRY_ANALYSIS_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-analysis">Retry analysis</button>';
 
@@ -849,6 +928,110 @@ function renderWorkspace(me) {
     resetLookupButtons();
   }
 
+  // pollPipeline -- the single UI-update engine for the background research
+  // pipeline (product spec section 22). The actual lookup -> DDC -> MARC
+  // work runs in the service worker (see service-worker.js's runPipeline),
+  // completely independent of this panel's lifecycle -- switching tabs
+  // never touches it, and closing/reopening the panel just re-attaches to
+  // the same jobId instead of losing or duplicating the work (see the
+  // boot-time resume block below). This function only polls for progress
+  // and updates the DOM as each stage completes; it applies each stage's
+  // result at most once (the *Applied flags), so re-polling the same
+  // snapshot is always safe.
+  //
+  // myLookupId is the lookupId this call belongs to (captured by the
+  // caller); if state.lookupId has moved on by the time a poll resolves --
+  // a newer ISBN lookup started, or Cancel was clicked -- this stale
+  // result is discarded rather than overwriting a newer lookup's UI
+  // (product spec item 13).
+  const PIPELINE_POLL_INTERVAL_MS = 1200;
+
+  async function pollPipeline(jobId, myLookupId) {
+    let lookupApplied = false;
+    let ddcApplied = false;
+    let marcApplied = false;
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (myLookupId !== state.lookupId) return; // superseded or cancelled
+
+      let job;
+      try {
+        job = await api.getPipelineStatus(jobId);
+      } catch (error) {
+        if (myLookupId !== state.lookupId) return;
+        const targetEl = ddcApplied ? marcStatus : lookupApplied ? ddcStatus : lookupStatus;
+        handleWorkflowError(error, targetEl, lookupApplied ? { retryFn: () => runDdcAndMarc(state.lookupId) } : { withRetry: true });
+        if (!lookupApplied) bindRetry(state.isbn);
+        persistPipelineJobPointer(null, null);
+        return;
+      }
+      if (myLookupId !== state.lookupId) return;
+
+      if (!lookupApplied && job.lookup) {
+        lookupApplied = true;
+        if (job.lookup.not_found) {
+          lookupStatus.innerHTML = notFoundHtml();
+          bindRetry(job.isbn);
+          persistPipelineJobPointer(null, null);
+          return;
+        }
+        state.isbn = job.isbn;
+        state.metadata = job.lookup;
+        lookupStatus.innerHTML = job.lookup.partial
+          ? stateHtml('info', 'Partial metadata found -- some fields could not be verified.')
+          : '';
+        renderBook();
+        persistLookupState(state);
+        ddcCard.hidden = false;
+        ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
+        marcCard.hidden = true;
+        state.marcResult = null;
+      }
+
+      if (job.status === 'error') {
+        const targetEl = job.stage === 'lookup' ? lookupStatus : job.stage === 'ddc' ? ddcStatus : marcStatus;
+        const error = new Error(job.error?.message || 'Something went wrong. Please try again.');
+        error.code = job.error?.code;
+        if (job.stage === 'lookup') {
+          handleWorkflowError(error, targetEl, { withRetry: true });
+          bindRetry(job.isbn);
+        } else {
+          handleWorkflowError(error, targetEl, { retryFn: () => runDdcAndMarc(state.lookupId) });
+        }
+        persistPipelineJobPointer(null, null);
+        return;
+      }
+
+      if (!ddcApplied && job.ddc) {
+        ddcApplied = true;
+        state.ddcId = job.ddc.id;
+        state.ddcDecision = job.ddc.decision;
+        state.ddcSource = 'ai';
+        renderDdcSection();
+        persistLookupState(state);
+        marcCard.hidden = false;
+        marcStatus.innerHTML = stateHtml('loading', 'Preparing MARC…');
+      }
+
+      if (!marcApplied && job.marc) {
+        marcApplied = true;
+        if (job.metadata) state.metadata = job.metadata;
+        state.marcResult = job.marc;
+        renderMarcSection();
+        persistLookupState(state);
+      }
+
+      if (job.status === 'done' || job.status === 'cancelled') {
+        if (myLookupId === state.lookupId) resetLookupButtons();
+        persistPipelineJobPointer(null, null);
+        return;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, PIPELINE_POLL_INTERVAL_MS));
+    }
+  }
+
   // -- The single automatic workflow: analyze -> classify -> generate MARC
   // (product spec section 33). There is no separate "approve DDC" step here
   // or anywhere in the UI: the backend already returns the recommendation
@@ -856,13 +1039,8 @@ function renderWorkspace(me) {
   // ddcApprovalService.saveDdcDecision), so MARC generation follows
   // immediately. Re-entrant: used by a fresh lookup, the chat panel (after
   // a correction), and the "Retry analysis" button -- always against
-  // whatever state.metadata already holds, never re-running web research.
-  //
-  // myLookupId is the lookupId this call belongs to (captured by the
-  // caller); if state.lookupId has moved on by the time an awaited step
-  // resolves -- a newer ISBN lookup started, or Cancel was clicked -- this
-  // stale result is discarded rather than overwriting a newer lookup's UI
-  // (product spec item 13).
+  // whatever state.metadata already holds, never re-running web research
+  // (resumeMetadata below skips the pipeline's lookup stage entirely).
   async function runDdcAndMarc(myLookupId) {
     cancelLookupButton.hidden = false;
     lookupSubmit.hidden = true;
@@ -870,46 +1048,18 @@ function renderWorkspace(me) {
     ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
     marcCard.hidden = true;
     state.marcResult = null;
-    let recommendation;
+    let jobId;
     try {
-      recommendation = await api.recommendDdc(state.metadata, state.selectedModel);
+      const started = await api.startPipeline(state.isbn, state.selectedModel, state.metadata);
+      jobId = started.jobId;
     } catch (error) {
       if (myLookupId !== state.lookupId) return;
       handleWorkflowError(error, ddcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
       return;
     }
     if (myLookupId !== state.lookupId) return;
-    state.ddcId = recommendation.id;
-    state.ddcDecision = recommendation.decision;
-    state.ddcSource = 'ai';
-    renderDdcSection();
-    persistLookupState(state);
-
-    // The whole-book DDC analysis is the one place in this workflow the
-    // selected model reasons over the complete evidence -- when web/page
-    // research didn't already establish a place of publication, and the
-    // model found one directly stated in that evidence (never guessed --
-    // see ddcAiClassifier.js's buildDdcAnalysisPrompt), fold it in now so
-    // MARC 260$a gets the real place instead of falling through to the
-    // AACR2 "[S.l.]" placeholder. Never overwrites an already-known value.
-    if (!state.metadata.publication_place && state.ddcDecision?.publication_place) {
-      state.metadata = { ...state.metadata, publication_place: state.ddcDecision.publication_place };
-    }
-
-    marcCard.hidden = false;
-    marcStatus.innerHTML = stateHtml('loading', 'Preparing MARC…');
-    try {
-      const marc = await api.generateMarc(state.metadata, state.ddcDecision);
-      if (myLookupId !== state.lookupId) return;
-      state.marcResult = marc;
-      renderMarcSection();
-      persistLookupState(state);
-    } catch (error) {
-      if (myLookupId !== state.lookupId) return;
-      handleWorkflowError(error, marcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
-      return;
-    }
-    if (myLookupId === state.lookupId) resetLookupButtons();
+    await persistPipelineJobPointer(jobId, state.isbn);
+    await pollPipeline(jobId, myLookupId);
   }
 
   // Single entry point for starting a lookup, whatever triggered it (Look
@@ -954,22 +1104,16 @@ function renderWorkspace(me) {
     ddcCard.hidden = true;
     marcCard.hidden = true;
     lookupStatus.innerHTML = stateHtml('loading', 'Looking up this ISBN…');
+    // The whole lookup -> DDC -> MARC chain runs in the background service
+    // worker from here on (product spec section 22) -- startPipeline
+    // returns as soon as the job is created, not once the research is
+    // done, so the tab/panel is never what's "waiting" on the network.
     try {
-      const body = await api.lookupIsbn(normalized, state.selectedModel);
+      const started = await api.startPipeline(normalized, state.selectedModel);
       if (myLookupId !== state.lookupId) return; // superseded or cancelled
-      if (body.not_found) {
-        lookupStatus.innerHTML = notFoundHtml();
-        bindRetry(normalized);
-        return;
-      }
       state.isbn = normalized;
-      state.metadata = body;
-      lookupStatus.innerHTML = body.partial
-        ? stateHtml('info', 'Partial metadata found -- some fields could not be verified.')
-        : '';
-      renderBook();
-      persistLookupState(state);
-      await runDdcAndMarc(myLookupId);
+      await persistPipelineJobPointer(started.jobId, normalized);
+      await pollPipeline(started.jobId, myLookupId);
     } catch (error) {
       if (myLookupId !== state.lookupId) return; // superseded or cancelled
       handleWorkflowError(error, lookupStatus, { withRetry: true });
@@ -1017,6 +1161,13 @@ function renderWorkspace(me) {
     lookupStatus.innerHTML = stateHtml('info', 'Lookup cancelled.');
     ddcCard.hidden = true;
     marcCard.hidden = true;
+    // Tells the background worker to stop the job too, not just this
+    // panel's polling loop -- otherwise a cancelled lookup would keep
+    // burning AI/web-research calls for a result nobody will ever see.
+    loadPipelineJobPointer().then((pointer) => {
+      if (pointer?.jobId) api.cancelPipeline(pointer.jobId).catch(() => {});
+    });
+    persistPipelineJobPointer(null, null);
     focusIsbnInputIfIdle();
   });
 
@@ -1056,6 +1207,7 @@ function renderWorkspace(me) {
         ${stateHtml(failed || conflicts ? 'info' : 'success', filled ? `MARC fields filled — ${summary}` : 'No new fields were filled')}
         <p class="hint">Nothing was saved -- review the fields in Koha, then save manually.</p>
         ${conflicts ? `<div class="result"><p class="result-heading">Needs your review</p><ul>${result.conflicts.map((c) => `<li>${escapeHtml(c.tag)}${c.subfield ? `$${escapeHtml(c.subfield)}` : ''}: Koha already has “${escapeHtml(c.existing)}”, AutoCat suggests “${escapeHtml(c.proposed)}”</li>`).join('')}</ul></div>` : ''}
+        ${failed ? `<div class="result"><p class="result-heading">Failed to fill</p><ul>${result.failed.map((f) => `<li>${escapeHtml(f.tag ?? '?')}${f.subfield ? `$${escapeHtml(f.subfield)}` : ''}: ${escapeHtml(f.reason ?? 'unknown error')}</li>`).join('')}</ul></div>` : ''}
       `;
     } catch (error) {
       fillStatus.innerHTML = stateHtml('error', error.message);

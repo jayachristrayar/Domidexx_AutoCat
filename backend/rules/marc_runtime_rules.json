@@ -435,6 +435,81 @@
       "notes": null
     },
     {
+      "tag": "336",
+      "label": "Content Type",
+      "description": "RDA content type describing the fundamental form of communication (e.g. text).",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": true, "required_when_present": false },
+          "b": { "repeatable": true, "required_when_present": false },
+          "2": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Generated with the fixed RDA value text/txt/rdacontent for every record — AutoCat only catalogues printed monographs, so this is a cataloguing convention, not evidence extracted per-book."
+    },
+    {
+      "tag": "337",
+      "label": "Media Type",
+      "description": "RDA media type describing the intermediation device required to view/play/run/operate the content.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": true, "required_when_present": false },
+          "b": { "repeatable": true, "required_when_present": false },
+          "2": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Generated with the fixed RDA value unmediated/n/rdamedia for every record, for the same reason as 336."
+    },
+    {
+      "tag": "338",
+      "label": "Carrier Type",
+      "description": "RDA carrier type describing the storage medium and housing format of the carrier.",
+      "status": "SUPPORTED",
+      "field_type": "VARIABLE_FIELD",
+      "repeatable": true,
+      "required": false,
+      "generation_method": "mechanical",
+      "validation": {
+        "indicators": [" ", " "],
+        "subfields": {
+          "a": { "repeatable": true, "required_when_present": false },
+          "b": { "repeatable": true, "required_when_present": false },
+          "2": { "repeatable": false, "required_when_present": false }
+        }
+      },
+      "ai_assisted": false,
+      "evidence_required": false,
+      "cataloguer_review_required": false,
+      "koha_supported": true,
+      "koha_mapping": { "kind": "VARIABLE_FIELD", "primary_subfield": "a" },
+      "profile": "AACR2 + ISBD + MARC21 + Koha",
+      "notes": "Generated with the fixed RDA value volume/nc/rdacarrier for every record, for the same reason as 336."
+    },
+    {
       "tag": "440",
       "label": "Series — Title",
       "description": "Series statement/title as exposed by the target Koha framework. Policy field for this AutoCat profile.",

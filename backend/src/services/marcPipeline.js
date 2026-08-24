@@ -12,7 +12,7 @@ const CATALOGUER_APPROVED = 'CATALOGUER_APPROVED';
 // the skeleton marcBuilder.js emits. Declared here so marcConsistency.js can
 // count them as builder-covered instead of flagging SUPPORTED_BUT_BUILDER_MISSING.
 export function getPipelineEmittedTags() {
-  return ['005', '440'];
+  return ['005', '336', '337', '338', '440'];
 }
 
 export function normalizeIsbn(value) {
@@ -251,9 +251,34 @@ function build700Fields(metadata) {
   return fields;
 }
 
+// RDA 336/337/338 -- content/media/carrier type. Unlike every other field
+// in this function, these are never derived from research evidence: they
+// describe the fundamental FORM of the resource (text, printed, bound
+// volume), not a fact about this particular book, so there is nothing here
+// to fabricate. AutoCat only ever catalogues printed monographs (the whole
+// pipeline -- 300$a page counts, [S.l.]/AACR2-style 260, etc. -- already
+// assumes this), so the standard RDA vocabulary for a physical printed
+// book applies uniformly, exactly like 008's fixed-field defaults
+// (RULE_DERIVED, not SOURCE_DERIVED). Terms/codes are the controlled RDA
+// content/media/carrier lists (https://www.loc.gov/standards/valuelist/).
+function build336to338Fields() {
+  const fields = [];
+  if (hasMarcRule('336')) {
+    fields.push(dataField('336', [{ code: 'a', value: 'text' }, { code: 'b', value: 'txt' }, { code: '2', value: 'rdacontent' }], [' ', ' '], 'rule', RULE_DERIVED));
+  }
+  if (hasMarcRule('337')) {
+    fields.push(dataField('337', [{ code: 'a', value: 'unmediated' }, { code: 'b', value: 'n' }, { code: '2', value: 'rdamedia' }], [' ', ' '], 'rule', RULE_DERIVED));
+  }
+  if (hasMarcRule('338')) {
+    fields.push(dataField('338', [{ code: 'a', value: 'volume' }, { code: 'b', value: 'nc' }, { code: '2', value: 'rdacarrier' }], [' ', ' '], 'rule', RULE_DERIVED));
+  }
+  return fields;
+}
+
 function buildAdditionalFields(metadata, now) {
   const fields = [];
   if (hasMarcRule('005')) fields.push(controlField('005', build005(now)));
+  fields.push(...build336to338Fields());
   const lang = languageCode(metadata.language);
   if (lang && hasMarcRule('041')) fields.push(dataField('041', [{ code: 'a', value: lang }]));
   // 440 -- series (rules/marc_runtime_rules.json's series_policy: this
