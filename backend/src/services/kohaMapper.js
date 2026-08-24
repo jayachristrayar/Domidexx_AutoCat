@@ -121,6 +121,24 @@ function toFillSubfields(field) {
  *   (same shape passed into generateMarcRecord's ddc_approval).
  * @returns {{ fields: object[], skipped: object[], notes: object[], ddc_gate: object, generated_at: string }}
  */
+// Control fields (000/005/008) render in Koha's advanced MARC editor
+// through per-position plugin widgets (marc21_leader.pl, marc21_field_008.pl
+// -- a grid of dropdowns/selects), not a single free-text value input. There
+// is no verified, safe way for the generic DOM writer to populate that grid,
+// so these must never be sent through the normal write path -- attempting it
+// always ends in a spurious "value_input_not_found" failure. Skip them
+// cleanly instead: Koha itself manages the leader/005 transaction stamp, and
+// 008 is left for the cataloguer (or a future dedicated fixed-field handler)
+// rather than fabricated or forced through the wrong writer.
+const KOHA_FILL_UNSUPPORTED_CONTROL_FIELDS = new Set(['000', '005', '008']);
+
+// 942 is a Koha-local, per-institution field (item type defaults etc.) that
+// requires explicit, verified framework configuration before AutoCat can
+// safely write it. It is excluded from automatic fill entirely -- even
+// though the current builders never generate it -- so a future generation
+// path can never accidentally push it into the Koha editor unconfigured.
+const KOHA_LOCAL_FIELDS_EXCLUDED_FROM_AUTOFILL = new Set(['942']);
+
 export function buildKohaFillPlan(marcResult, options = {}) {
   const ddcApproval = options.ddcApproval ?? {};
   const fields = [];
@@ -131,6 +149,16 @@ export function buildKohaFillPlan(marcResult, options = {}) {
   for (const field of marcResult?.fields ?? []) {
     const tag = normalizeMarcTag(field?.tag);
     if (!tag) continue;
+
+    if (KOHA_FILL_UNSUPPORTED_CONTROL_FIELDS.has(tag)) {
+      skipped.push({ tag, reason: 'control_field_not_automated' });
+      continue;
+    }
+
+    if (KOHA_LOCAL_FIELDS_EXCLUDED_FROM_AUTOFILL.has(tag)) {
+      skipped.push({ tag, reason: 'koha_local_field_excluded' });
+      continue;
+    }
 
     if (!canMapTag(tag)) {
       skipped.push({ tag, reason: 'not_koha_mapped' });

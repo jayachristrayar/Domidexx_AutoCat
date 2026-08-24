@@ -403,6 +403,43 @@ async function findActiveKohaTab() {
   return { tab, error: null };
 }
 
+// Resolves the tab a Koha action must run against. When the Side Panel
+// supplies an explicit `tabId` (the tab it was on when the lookup started --
+// see actionCaptureSourceTab / state.sourceTabId in sidepanel.js), that
+// EXACT tab is used, never whatever tab merely happens to be active right
+// now -- this is what stops Fill MARC from writing into an unrelated tab the
+// librarian switched to while research/AI reasoning was still running.
+// Falls back to the active-tab lookup only when no source tab was ever
+// captured (e.g. Detect MARC fields, called before any lookup exists).
+async function findTargetKohaTab(tabId) {
+  if (tabId == null) return findActiveKohaTab();
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch (error) {
+    debugLog('stored source tab no longer exists', error);
+    return { tab: null, error: { ok: false, code: 'KOHA_TAB_UNAVAILABLE', message: 'The original Koha cataloguing tab is no longer available. Open the Koha cataloguing page to fill this MARC record.' } };
+  }
+  if (!tab?.id || !tab.url || !tab.url.includes(KOHA_ADDBIBLIO_PATH)) {
+    return { tab: null, error: { ok: false, code: 'KOHA_TAB_UNAVAILABLE', message: 'The original Koha cataloguing tab is no longer available. Open the Koha cataloguing page to fill this MARC record.' } };
+  }
+  return { tab, error: null };
+}
+
+// Called once, when a lookup starts, so the Side Panel can remember exactly
+// which tab it was working against (section 49/60 of the pipeline spec:
+// "Koha tab context must be preserved" / "multiple Koha tabs"). Returns null
+// (never an error) when the current tab simply isn't a Koha cataloguing
+// page -- that's a normal case, not a failure, since a librarian may start a
+// lookup before opening Koha at all.
+async function actionCaptureSourceTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab?.id && tab.url && tab.url.includes(KOHA_ADDBIBLIO_PATH)) {
+    return { ok: true, data: { tabId: tab.id } };
+  }
+  return { ok: true, data: { tabId: null } };
+}
+
 async function relayToKohaTab(tab, message) {
   try {
     const result = await chrome.tabs.sendMessage(tab.id, message);
@@ -421,8 +458,8 @@ async function relayToKohaTab(tab, message) {
   }
 }
 
-async function kohaActionDetectFields() {
-  const { tab, error } = await findActiveKohaTab();
+async function kohaActionDetectFields({ tabId } = {}) {
+  const { tab, error } = await findTargetKohaTab(tabId);
   if (error) return error;
 
   const relayed = await relayToKohaTab(tab, { type: 'AUTOCAT_DETECT_FIELDS' });
@@ -442,8 +479,8 @@ async function kohaActionDetectFields() {
   return { ok: true, data: { tags: result.tags } };
 }
 
-async function kohaActionFill({ plan, ddcApproved }) {
-  const { tab, error } = await findActiveKohaTab();
+async function kohaActionFill({ plan, ddcApproved, tabId }) {
+  const { tab, error } = await findTargetKohaTab(tabId);
   if (error) return error;
 
   const relayed = await relayToKohaTab(tab, { type: 'AUTOCAT_KOHA_FILL', plan, ddcApproved });
@@ -495,6 +532,7 @@ const KOHA_ACTIONS = {
   detectFields: kohaActionDetectFields,
   fillKoha: kohaActionFill,
   getStatus: actionGetStatus,
+  captureSourceTab: actionCaptureSourceTab,
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

@@ -37,13 +37,33 @@ async function call(action, payload) {
 
 export { KohaConnectionError };
 
-export async function detectFields() {
-  const data = await call('detectFields', {});
+export async function detectFields(tabId) {
+  const data = await call('detectFields', { tabId });
   return data.tags;
 }
 
-export async function fillKoha(plan, ddcApproved) {
-  return call('fillKoha', { plan, ddcApproved });
+// tabId, when supplied, is the ORIGINAL Koha cataloguing tab captured via
+// captureSourceTab() when the lookup started (see sidepanel.js's
+// state.sourceTabId) -- Fill MARC must always target that specific tab, not
+// whatever tab happens to be active by the time the librarian clicks Fill
+// MARC, which may have changed if they switched tabs while research/AI
+// reasoning was still running.
+export async function fillKoha(plan, ddcApproved, tabId) {
+  return call('fillKoha', { plan, ddcApproved, tabId });
+}
+
+// Captures the tab the librarian was on when a lookup started, so a later
+// Fill MARC can target it explicitly instead of "whatever is active now".
+// Returns null when the current tab isn't a Koha cataloguing page -- not an
+// error, just nothing to remember yet.
+export async function captureSourceTab() {
+  try {
+    const data = await call('captureSourceTab', {});
+    return data.tabId ?? null;
+  } catch (error) {
+    debugLog('captureSourceTab failed', error);
+    return null;
+  }
 }
 
 // { state: 'NOT_DETECTED' | 'DETECTING' | 'DETECTED_NO_EDITOR' | 'CONNECTED' }

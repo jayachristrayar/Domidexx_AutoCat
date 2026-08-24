@@ -110,8 +110,16 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       }
       const result = engine.runKohaFill(document, plan, { ddcApproved: Boolean(message.ddcApproved) });
       for (const f of result.filled) console.log(`[AutoCat] MARC field populated: ${f.tag}${f.subfield ? `$${f.subfield}` : ''}`);
-      for (const f of result.skipped) console.log(`[AutoCat] Field not found: ${f.tag}${f.subfield ? `$${f.subfield}` : ''} (${f.reason})`);
-      for (const f of result.failed) console.error(`[AutoCat] Field write failed: ${f.tag}${f.subfield ? `$${f.subfield}` : ''} (${f.reason})`);
+      for (const f of result.skipped) {
+        const label =
+          f.reason === 'control_field_not_automated'
+            ? 'SKIPPED — control field (handled by Koha)'
+            : f.reason === 'koha_local_field_excluded'
+              ? 'SKIPPED — Koha local field (excluded)'
+              : 'SKIPPED';
+        console.log(`[AutoCat] ${label}: ${f.tag}${f.subfield ? `$${f.subfield}` : ''} (${f.reason})`);
+      }
+      for (const f of result.failed) console.error(`[AutoCat] FAILED — Field write failed: ${f.tag}${f.subfield ? `$${f.subfield}` : ''} (${f.reason})`);
       sendResponse(result);
     } catch (error) {
       console.error('[AutoCat] Koha fill failed:', error);

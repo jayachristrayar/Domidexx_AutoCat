@@ -194,4 +194,25 @@ const marcRealDescription = generateMarcRecord({ metadata: metadataNoDdc, ddc_ap
 assert.ok(marcRealDescription.fields.some((f) => f.tag === '520'), 'a genuine description must still produce 520');
 console.log('  PASS: a genuine book description still produces 520$a normally');
 
+// -- 650 subjects: must never be unbounded. Excessive/duplicate candidate
+// subjects (e.g. an over-eager AI pass) must be capped and deduped, while a
+// reasonably-sized, real subject list (like the 7 above) must pass through
+// untouched, in the same relevance order the source supplied.
+console.log('\n== 650 subjects: capped and deduped, never unbounded ==');
+const manySubjects = [
+  'Practice research', 'Embodied inquiry', 'Creative research methods', 'Arts-based research',
+  'Phenomenology', 'New materialism', 'Posthumanism', 'Autoethnography', 'Dance research',
+  'Performance studies', 'Somatic practice', 'Qualitative research',
+];
+const marcManySubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: manySubjects }, ddc_approval: {} });
+const cappedSubjects650 = marcManySubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
+assert.ok(cappedSubjects650.length <= 8, `650 must be capped at a reasonable count, got ${cappedSubjects650.length}`);
+assert.deepStrictEqual(cappedSubjects650, manySubjects.slice(0, 8), 'cap must keep the source\'s own relevance order (first N), not reorder');
+console.log(`  PASS: ${manySubjects.length} candidate subjects capped down to ${cappedSubjects650.length}`);
+
+const marcDupeSubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: ['Dance', 'dance', 'Dance ', 'Theatre'] }, ddc_approval: {} });
+const dedupedSubjects650 = marcDupeSubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
+assert.deepStrictEqual(dedupedSubjects650, ['Dance', 'Theatre'], 'case/whitespace-insensitive duplicate subjects must be deduped');
+console.log('  PASS: duplicate subjects (case/whitespace variants) deduped to one 650 each');
+
 console.log('\nAll P11 MARC-completeness regression tests passed.');
