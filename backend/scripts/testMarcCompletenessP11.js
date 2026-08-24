@@ -194,25 +194,31 @@ const marcRealDescription = generateMarcRecord({ metadata: metadataNoDdc, ddc_ap
 assert.ok(marcRealDescription.fields.some((f) => f.tag === '520'), 'a genuine description must still produce 520');
 console.log('  PASS: a genuine book description still produces 520$a normally');
 
-// -- 650 subjects: must never be unbounded. Excessive/duplicate candidate
-// subjects (e.g. an over-eager AI pass) must be capped and deduped, while a
-// reasonably-sized, real subject list (like the 7 above) must pass through
-// untouched, in the same relevance order the source supplied.
-console.log('\n== 650 subjects: capped and deduped, never unbounded ==');
+// -- 650 subjects: NO arbitrary count cap. Every distinct, well-formed
+// subject the research pipeline supplies must become its own 650 -- a large
+// but genuinely distinct subject list (e.g. 12 real headings for a book that
+// spans many topics) must all survive, in the same relevance order the
+// source supplied. Only exact/near-duplicates (same heading restated) and
+// obvious noise collapse.
+console.log('\n== 650 subjects: no arbitrary cap, only dedup/noise removal ==');
 const manySubjects = [
   'Practice research', 'Embodied inquiry', 'Creative research methods', 'Arts-based research',
   'Phenomenology', 'New materialism', 'Posthumanism', 'Autoethnography', 'Dance research',
   'Performance studies', 'Somatic practice', 'Qualitative research',
 ];
 const marcManySubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: manySubjects }, ddc_approval: {} });
-const cappedSubjects650 = marcManySubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
-assert.ok(cappedSubjects650.length <= 8, `650 must be capped at a reasonable count, got ${cappedSubjects650.length}`);
-assert.deepStrictEqual(cappedSubjects650, manySubjects.slice(0, 8), 'cap must keep the source\'s own relevance order (first N), not reorder');
-console.log(`  PASS: ${manySubjects.length} candidate subjects capped down to ${cappedSubjects650.length}`);
+const manySubjects650 = marcManySubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
+assert.deepStrictEqual(manySubjects650, manySubjects, 'every distinct subject must survive as its own 650 -- no arbitrary truncation');
+console.log(`  PASS: all ${manySubjects650.length} distinct candidate subjects became separate 650 fields, none truncated`);
 
-const marcDupeSubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: ['Dance', 'dance', 'Dance ', 'Theatre'] }, ddc_approval: {} });
+// Near-duplicates that are the SAME heading (case/whitespace/trivial plural)
+// collapse to one; headings that merely share words but name a genuinely
+// different scope (broader/narrower) must NOT be merged away.
+const marcDupeSubjects = generateMarcRecord(
+  { metadata: { ...metadataNoDdc, subjects: ['Dance', 'dance', 'Dance ', 'Theatre', 'Autism', 'Autism in children', 'Autism spectrum disorders'] }, ddc_approval: {} },
+);
 const dedupedSubjects650 = marcDupeSubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
-assert.deepStrictEqual(dedupedSubjects650, ['Dance', 'Theatre'], 'case/whitespace-insensitive duplicate subjects must be deduped');
-console.log('  PASS: duplicate subjects (case/whitespace variants) deduped to one 650 each');
+assert.deepStrictEqual(dedupedSubjects650, ['Dance', 'Theatre', 'Autism', 'Autism in children', 'Autism spectrum disorders'], 'exact/case/whitespace duplicates collapse to one, but distinct related headings (Autism / Autism in children / Autism spectrum disorders) all survive');
+console.log('  PASS: exact duplicates deduped to one 650 each; distinct related subjects (Autism / Autism in children / Autism spectrum disorders) all preserved');
 
 console.log('\nAll P11 MARC-completeness regression tests passed.');

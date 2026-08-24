@@ -243,6 +243,36 @@ console.log('\n== extension engine: repeatable fields ==');
   console.log('  re-filling an already-present subject value across occurrences -> already_present, no duplicate row');
 }
 
+console.log('\n== extension engine: large 650 count -- N generated must mean N inserted, none dropped ==');
+{
+  // A book with many genuinely distinct subjects (no arbitrary cap -- see
+  // marcPipeline.js's filterSubjects) must end up with that SAME number of
+  // separate 650 rows actually present in the Koha DOM, not truncated to
+  // some smaller "reasonable" count and not collapsed into one row.
+  const manySubjects = Array.from({ length: 14 }, (_, i) => `Subject heading ${i + 1}`);
+  const marcResult = generateMarcRecord(
+    { metadata: { ...baseMetadata, subjects: manySubjects }, ddc_approval: approvedDdc() },
+    { now: new Date('2026-08-22T12:34:56Z') }
+  );
+  const generated650 = marcResult.fields.filter((f) => f.tag === '650');
+  assert.strictEqual(generated650.length, manySubjects.length, 'every distinct subject must produce its own 650 field, no cap');
+  const planned650 = marcResult.koha_fill.fields.filter((f) => f.tag === '650');
+  assert.strictEqual(planned650.length, manySubjects.length, 'the fill plan must carry every generated 650, none dropped en route to Koha');
+
+  const doc = buildKohaEditorFixture(); // starts with a single empty 650 row
+  const result = engine.runKohaFill(doc, marcResult.koha_fill, { ddcApproved: true });
+  const filledOrPresent650 = result.filled.filter((f) => f.tag === '650').length + result.already_present.filter((f) => f.tag === '650').length;
+  assert.strictEqual(filledOrPresent650, manySubjects.length, `AutoCat must report exactly ${manySubjects.length} 650 fields handled, got ${filledOrPresent650}: ${JSON.stringify(result.failed)}`);
+  assert.strictEqual(result.failed.filter((f) => f.tag === '650').length, 0, 'no 650 write should fail');
+
+  // The mandatory DOM re-verification step (spec: "the backend result is
+  // not enough" -- inspect the actual DOM, not just AutoCat's own report).
+  const actualDomValues = readAllSubfieldValues(doc, '650', 'a');
+  assert.deepStrictEqual(new Set(actualDomValues), new Set(manySubjects), 'every generated 650 value must actually be present in the Koha DOM, verified by reading it back');
+  assert.strictEqual(actualDomValues.length, manySubjects.length, `Koha DOM must contain exactly ${manySubjects.length} 650 rows, found ${actualDomValues.length}`);
+  console.log(`  PASS: ${manySubjects.length} generated 650 fields -> ${planned650.length} in the fill plan -> ${actualDomValues.length} actually verified present in the Koha DOM`);
+}
+
 console.log('\n== extension engine: verify-before-write refuses to guess ==');
 {
   const doc = buildKohaEditorFixture();

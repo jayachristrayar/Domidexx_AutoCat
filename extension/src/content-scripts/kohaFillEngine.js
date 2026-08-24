@@ -358,19 +358,46 @@ function fillRepeatableSubfield(doc, tag, sf) {
   }
 
   // Every existing occurrence is non-empty and different: try to add a new
-  // occurrence. If the DOM doesn't expose an explicit, verifiable control
-  // for that, skip rather than guess.
-  const lastContainer = containers[containers.length - 1];
-  const lastRow = findSubfieldRows(lastContainer, sf.code)[0];
-  const addControl = lastRow ? findAddSubfieldControl(lastRow) : findAddFieldControl(doc, tag);
-  if (!addControl || isSaveElement(addControl)) {
+  // occurrence. A repeated tag with many valid values (e.g. 10+ distinct 650
+  // subjects) needs this to succeed repeatedly, not just once -- real Koha
+  // exposes an add/clone control on EVERY occurrence of a repeatable field
+  // (not only the most recently added one), so search every existing row
+  // for a usable control rather than assuming only the last row has one.
+  // If the DOM genuinely exposes no such control anywhere, skip rather than
+  // guess -- never fabricate a write target.
+  let addControl = null;
+  let controlContainer = null;
+  for (const container of containers) {
+    const row = findSubfieldRows(container, sf.code)[0];
+    const candidate = row ? findAddSubfieldControl(row) : null;
+    if (candidate && !isSaveElement(candidate)) {
+      addControl = candidate;
+      controlContainer = container;
+      break;
+    }
+  }
+  if (!addControl) {
+    const fieldLevelControl = findAddFieldControl(doc, tag);
+    if (fieldLevelControl && !isSaveElement(fieldLevelControl)) {
+      addControl = fieldLevelControl;
+      controlContainer = containers[containers.length - 1];
+    }
+  }
+  if (!addControl) {
     return { tag, subfield: sf.code, status: 'skipped', reason: 'add_row_control_not_found' };
   }
+  const rowsBefore = new Set(findFieldContainers(doc, tag).flatMap((c) => findSubfieldRows(c, sf.code)));
   addControl.dispatchEvent(new Event('click', { bubbles: true }));
   const rowsAfter = findFieldContainers(doc, tag).flatMap((c) => findSubfieldRows(c, sf.code));
-  const newRow = rowsAfter.find((row) => classifyAgainstExisting(readSubfieldValue(row), sf.value) === 'empty');
+  // Prefer a genuinely NEW row (not present before the click) that's empty,
+  // so writing into it can never collide with a pre-existing empty
+  // occurrence elsewhere; fall back to any empty row if the DOM didn't
+  // expose a way to tell them apart.
+  const newRow =
+    rowsAfter.find((row) => !rowsBefore.has(row) && classifyAgainstExisting(readSubfieldValue(row), sf.value) === 'empty') ??
+    rowsAfter.find((row) => classifyAgainstExisting(readSubfieldValue(row), sf.value) === 'empty');
   if (!newRow) return { tag, subfield: sf.code, status: 'failed', reason: 'new_row_not_verified' };
-  const containerForNewRow = findFieldContainers(doc, tag).find((c) => c.contains?.(newRow)) ?? lastContainer;
+  const containerForNewRow = findFieldContainers(doc, tag).find((c) => c.contains?.(newRow)) ?? controlContainer;
   const proof = writeSubfield(containerForNewRow, newRow, tag, sf.code, sf.value);
   if (!proof.verified) return { tag, subfield: sf.code, status: 'failed', reason: proof.reason ?? 'verification_failed', proof };
   return { tag, subfield: sf.code, status: 'filled', proof };
