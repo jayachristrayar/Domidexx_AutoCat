@@ -246,7 +246,7 @@ export function generateMarcRecord(input = {}, options = {}) {
   const ruleProfile = options.ruleProfile ?? getRuleProfile();
   const metadata = normalizeMarcMetadata(input.metadata ?? input);
   const conflicts = detectMetadataConflicts(input.sources ?? metadata.sources);
-  const isUnverifiedWebMetadata = ['web_search', 'web_scrape', 'agent_research'].includes(metadata.sources?.method);
+  const isUnverifiedWebMetadata = ['web_search', 'web_scrape', 'agent_research', 'page'].includes(metadata.sources?.method);
   let skeleton = buildSkeleton(metadata, ruleProfile).skeleton.map((f) => withProvenance(f, isUnverifiedWebMetadata ? 'metadata_unverified' : 'metadata', f.tag === 'LDR' || f.tag === '008' || f.tag === '040' ? RULE_DERIVED : SOURCE_DERIVED));
   const lang = languageCode(metadata.language);
   if (lang) {
