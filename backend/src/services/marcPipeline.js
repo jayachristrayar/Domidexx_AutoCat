@@ -69,25 +69,39 @@ function sanitizeDescription(description, title) {
   return text;
 }
 
-// Defense in depth against an unbounded 650 list: this dedupes and caps
-// subjects regardless of which upstream source supplied them (AI web
-// research, Open Library categories, LOC MARC). The AI research prompt
-// (isbnLookup.js) already asks for at most 8 subjects ranked by relevance
-// and ordered most-to-least central, so this cap simply enforces that
-// contract rather than re-deriving relevance itself -- it never reorders,
-// it only drops exact/near-duplicate entries and truncates past the cap,
-// preserving whatever relevance order the source already produced.
-const MAX_SUBJECTS = 8;
+// Subject cleanup: exact- and near-duplicate removal only -- deliberately
+// NO count cap. Every distinct, well-formed subject the research pipeline
+// supplies becomes its own 650. "Autism", "Autism in children", and "Autism
+// spectrum disorders" are all distinct valid headings and must all survive;
+// only genuine duplicates (same heading restated with different casing,
+// whitespace, trailing punctuation, or a trivial plural) collapse to one.
+const NOISE_SUBJECT_RE = /^(?:https?:\/\/|www\.|search results?$|untitled$|n\/a$|\d+$)/i;
+
+// Comparison-only key for near-duplicate detection -- never used as the
+// stored/displayed value. Two subjects collapse to one entry only when they
+// normalize to the SAME key (same words, modulo case/punctuation/trivial
+// pluralization), never merely because one contains the other -- a broader
+// or narrower heading that shares words with an already-kept one (e.g.
+// "Autism" vs "Autism in children") has a different key and is kept.
+function subjectDedupeKey(subject) {
+  return subject
+    .toLowerCase()
+    .trim()
+    .replace(/[.,;:]+$/, '')
+    .replace(/\s+/g, ' ')
+    .replace(/s$/, '');
+}
 
 function filterSubjects(subjects) {
   const seen = new Set();
   const out = [];
   for (const subject of subjects) {
-    const key = subject.toLowerCase();
+    const trimmed = subject.trim();
+    if (trimmed.length < 2 || NOISE_SUBJECT_RE.test(trimmed)) continue;
+    const key = subjectDedupeKey(trimmed);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    out.push(subject);
-    if (out.length >= MAX_SUBJECTS) break;
+    out.push(trimmed);
   }
   return out;
 }
