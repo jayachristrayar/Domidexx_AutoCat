@@ -20,6 +20,67 @@ console.log('[AutoCat] Side panel initialized');
 
 const app = document.getElementById('app');
 
+// ---------------------------------------------------------------------
+// Lookup-state persistence (chrome.storage.session).
+//
+// A Chrome side panel is torn down and its JS state destroyed whenever the
+// librarian closes it -- unlike a tab switch, which leaves the panel (and
+// this module's in-memory `state`) running untouched. Without this, closing
+// and reopening the panel mid- or post-lookup would strand a completed
+// result the librarian never saw, or invite a second, duplicate lookup for
+// the same ISBN. chrome.storage.session survives that teardown for the
+// life of the browser session (cleared on browser restart), so a reopened
+// panel can restore the last lookup instead of starting blank.
+//
+// This is a best-effort snapshot, not a live-request handoff: if the panel
+// is closed WHILE a backend call is actually in flight, that call's result
+// has nowhere to be delivered (the side panel's message port is gone) and
+// is lost -- the librarian sees whatever was last persisted (or blank, if
+// nothing completed yet) and must look the ISBN up again. What this DOES
+// guarantee: a lookup that already finished before the panel closed is
+// never re-fetched or lost, and simply switching tabs (panel left open)
+// never touches any of this, since the panel/JS never unloads for that.
+// ---------------------------------------------------------------------
+const LOOKUP_STATE_STORAGE_KEY = 'autocat_lookup_state';
+
+async function persistLookupState(state) {
+  try {
+    await chrome.storage.session.set({
+      [LOOKUP_STATE_STORAGE_KEY]: {
+        isbn: state.isbn,
+        metadata: state.metadata,
+        sourceTabId: state.sourceTabId,
+        ddcId: state.ddcId,
+        ddcDecision: state.ddcDecision,
+        ddcSource: state.ddcSource,
+        marcResult: state.marcResult,
+        selectedModel: state.selectedModel,
+        savedAt: Date.now(),
+      },
+    });
+  } catch (error) {
+    debugLog('persistLookupState failed', error);
+  }
+}
+
+async function loadPersistedLookupState() {
+  try {
+    const result = await chrome.storage.session.get(LOOKUP_STATE_STORAGE_KEY);
+    return result?.[LOOKUP_STATE_STORAGE_KEY] ?? null;
+  } catch (error) {
+    debugLog('loadPersistedLookupState failed', error);
+    return null;
+  }
+}
+
+async function clearPersistedLookupState() {
+  try {
+    await chrome.storage.session.remove(LOOKUP_STATE_STORAGE_KEY);
+  } catch (error) {
+    debugLog('clearPersistedLookupState failed', error);
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -478,6 +539,12 @@ function renderWorkspace(me) {
     // "lookup A finishing after lookup B must never overwrite B's result").
     lookupId: 0,
     isbn: null,
+    // The Koha cataloguing tab active when this lookup started (see
+    // koha.captureSourceTab). Fill MARC always targets this specific tab,
+    // never whatever tab is merely active at click time -- a librarian may
+    // switch to Amazon/Google/another Koha tab while research/AI reasoning
+    // is still running, and that switch must never redirect the fill.
+    sourceTabId: null,
     metadata: null,
     ddcId: null,
     ddcDecision: null,
@@ -694,6 +761,33 @@ function renderWorkspace(me) {
     updateFillAvailability();
   }
 
+  // Restore whatever the last lookup left behind (see the
+  // persistLookupState/loadPersistedLookupState block near the top of this
+  // file) -- if the Side Panel was closed and reopened after a lookup
+  // finished, this shows that result immediately instead of a blank panel,
+  // and critically never re-runs the lookup (no duplicate API calls / no
+  // duplicate MARC generation). Fire-and-forget: intentionally doesn't
+  // block first paint of the rest of the panel.
+  (async () => {
+    const saved = await loadPersistedLookupState();
+    if (!saved || !saved.isbn) return;
+    // A newer lookup may already be running by the time this resolves
+    // (fast typist, or a scanner fired before the restore finished) --
+    // never clobber it with stale, older persisted state.
+    if (state.lookupId !== 0 || state.metadata) return;
+    state.isbn = saved.isbn;
+    state.metadata = saved.metadata;
+    state.sourceTabId = saved.sourceTabId ?? null;
+    state.ddcId = saved.ddcId ?? null;
+    state.ddcDecision = saved.ddcDecision ?? null;
+    state.ddcSource = saved.ddcSource ?? 'ai';
+    state.marcResult = saved.marcResult ?? null;
+    isbnInput.value = saved.isbn;
+    renderBook();
+    renderDdcSection();
+    renderMarcSection();
+  })();
+
   const RETRY_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-lookup">Retry lookup</button>';
   const RETRY_ANALYSIS_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-analysis">Retry analysis</button>';
 
@@ -789,6 +883,7 @@ function renderWorkspace(me) {
     state.ddcDecision = recommendation.decision;
     state.ddcSource = 'ai';
     renderDdcSection();
+    persistLookupState(state);
 
     // The whole-book DDC analysis is the one place in this workflow the
     // selected model reasons over the complete evidence -- when web/page
@@ -808,6 +903,7 @@ function renderWorkspace(me) {
       if (myLookupId !== state.lookupId) return;
       state.marcResult = marc;
       renderMarcSection();
+      persistLookupState(state);
     } catch (error) {
       if (myLookupId !== state.lookupId) return;
       handleWorkflowError(error, marcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
@@ -837,6 +933,17 @@ function renderWorkspace(me) {
     lookupInFlight = true;
     lookupSubmit.hidden = true;
     cancelLookupButton.hidden = false;
+    // Remember which Koha tab (if any) was active right now -- BEFORE any
+    // web research/AI reasoning starts and the librarian has a chance to
+    // switch tabs -- so Fill MARC later targets this exact tab regardless
+    // of whatever else the librarian visits in the meantime.
+    state.sourceTabId = null;
+    koha.captureSourceTab().then((tabId) => {
+      if (myLookupId === state.lookupId) {
+        state.sourceTabId = tabId;
+        persistLookupState(state);
+      }
+    });
     // Show the normalized value (trimmed, hyphens stripped) but NEVER clear
     // it -- the librarian needs it visible for retry, chat discussion, and
     // MARC generation even if this lookup fails. Select it instead, so a
@@ -861,6 +968,7 @@ function renderWorkspace(me) {
         ? stateHtml('info', 'Partial metadata found -- some fields could not be verified.')
         : '';
       renderBook();
+      persistLookupState(state);
       await runDdcAndMarc(myLookupId);
     } catch (error) {
       if (myLookupId !== state.lookupId) return; // superseded or cancelled
@@ -937,7 +1045,7 @@ function renderWorkspace(me) {
     fillStatus.innerHTML = stateHtml('loading', 'Filling MARC fields…');
     try {
       const ddcApproved = state.ddcDecision?.approval_status === 'APPROVED';
-      const result = await koha.fillKoha(state.marcResult.koha_fill, ddcApproved);
+      const result = await koha.fillKoha(state.marcResult.koha_fill, ddcApproved, state.sourceTabId);
       const filled = result.filled?.length ?? 0;
       const conflicts = result.conflicts?.length ?? 0;
       const failed = result.failed?.length ?? 0;
@@ -1077,6 +1185,7 @@ function renderWorkspace(me) {
       if (myLookupId !== state.lookupId) return;
       state.marcResult = marc;
       renderMarcSection();
+      persistLookupState(state);
     } catch (error) {
       if (myLookupId !== state.lookupId) return;
       handleWorkflowError(error, marcStatus, { retryFn: () => applyDdcOverride(override) });

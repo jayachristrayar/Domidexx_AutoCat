@@ -422,7 +422,9 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
     structuredResponse = await client.responses.create(
       {
         model,
-        input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences). Resolve any conflicts the research noted by choosing the most credible value; put a short note on what conflicted and why you chose as you did in "conflicts_found" (or null if there were none):
+        input: `Convert the following bibliographic research into strict JSON matching exactly this shape (use null for unknown scalar fields and [] for unknown list fields, no extra keys, no commentary, no markdown fences). Resolve any conflicts the research noted by choosing the most credible value; put a short note on what conflicted and why you chose as you did in "conflicts_found" (or null if there were none).
+
+For "subjects": list only the book's actual major subject headings -- the real topics a library catalogue would assign, drawn from the publisher description, table of contents, or an existing library/bookseller subject listing found in the research. Do not list every concept, keyword, or theoretical term merely mentioned in passing. Do not derive a subject from a word appearing only in the title/subtitle. Order the list from most to least central to the book, and include at most 8 -- prefer a shorter list of strong, well-evidenced headings over a long list of weak or tangential ones.
 ${STRUCTURED_JSON_SHAPE}
 
 ISBN: ${isbn}

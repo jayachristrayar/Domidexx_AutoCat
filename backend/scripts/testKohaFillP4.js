@@ -110,6 +110,31 @@ console.log('\n== backend fill-plan builder ==');
     '040 without a configured agency must be reported, not fabricated'
   );
   console.log('  APPROVED record: 020/082 distinct, core fields present, 040_not_configured surfaced');
+
+  // Control fields must never be handed to the generic DOM writer -- Koha
+  // renders 000/005/008 through fixed-field plugin widgets, not a plain
+  // value input, so attempting a generic write always fails with
+  // value_input_not_found. They must be cleanly skipped instead.
+  assert.ok(!tags.includes('000'), '000 must not be sent to the Koha DOM writer');
+  assert.ok(!tags.includes('005'), '005 must not be sent to the Koha DOM writer');
+  assert.ok(!tags.includes('008'), '008 must not be sent to the Koha DOM writer');
+  assert.ok(result.koha_fill.skipped.some((s) => s.tag === '000' && s.reason === 'control_field_not_automated'));
+  assert.ok(result.koha_fill.skipped.some((s) => s.tag === '005' && s.reason === 'control_field_not_automated'));
+  assert.ok(result.koha_fill.skipped.some((s) => s.tag === '008' && s.reason === 'control_field_not_automated'));
+  console.log('  000/005/008 cleanly skipped as control_field_not_automated, never sent to the generic writer');
+}
+{
+  // 942 is a Koha-local field and must never reach the fill plan even if a
+  // hand-built marcResult includes it.
+  const { buildKohaFillPlan } = await import('../src/services/kohaMapper.js');
+  const fakeResult = {
+    fields: [{ tag: '942', indicators: [' ', ' '], subfields: [{ code: 'c', value: 'BOOK' }] }],
+    validation: { fields: { '942': { valid: true } } },
+  };
+  const plan = buildKohaFillPlan(fakeResult, { ddcApproval: {} });
+  assert.strictEqual(plan.fields.find((f) => f.tag === '942'), undefined);
+  assert.ok(plan.skipped.some((s) => s.tag === '942' && s.reason === 'koha_local_field_excluded'));
+  console.log('  942 excluded from the fill plan as koha_local_field_excluded');
 }
 {
   // DDC not yet available (PENDING, no number reached) must NOT block

@@ -69,6 +69,29 @@ function sanitizeDescription(description, title) {
   return text;
 }
 
+// Defense in depth against an unbounded 650 list: this dedupes and caps
+// subjects regardless of which upstream source supplied them (AI web
+// research, Open Library categories, LOC MARC). The AI research prompt
+// (isbnLookup.js) already asks for at most 8 subjects ranked by relevance
+// and ordered most-to-least central, so this cap simply enforces that
+// contract rather than re-deriving relevance itself -- it never reorders,
+// it only drops exact/near-duplicate entries and truncates past the cap,
+// preserving whatever relevance order the source already produced.
+const MAX_SUBJECTS = 8;
+
+function filterSubjects(subjects) {
+  const seen = new Set();
+  const out = [];
+  for (const subject of subjects) {
+    const key = subject.toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(subject);
+    if (out.length >= MAX_SUBJECTS) break;
+  }
+  return out;
+}
+
 export function normalizeMarcMetadata(input = {}) {
   const metadata = input.metadata ?? input;
   const normalized = {
@@ -89,7 +112,7 @@ export function normalizeMarcMetadata(input = {}) {
     // does (sidepanel.js's bookDetailsHtml).
     series: cleanText(typeof metadata.series === 'object' ? metadata.series?.name : metadata.series),
     language: cleanText(metadata.language ?? metadata.language_code),
-    subjects: array(metadata.subjects ?? metadata.subject_headings).map(cleanText),
+    subjects: filterSubjects(array(metadata.subjects ?? metadata.subject_headings).map(cleanText).filter(Boolean)),
     description: sanitizeDescription(metadata.description ?? metadata.abstract, metadata.title),
     notes: array(metadata.notes).map(cleanText),
     bibliography_note: cleanText(metadata.bibliography_note),
