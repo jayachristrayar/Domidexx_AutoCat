@@ -673,11 +673,18 @@ function renderWorkspace(me) {
     ddcStatus.innerHTML = ddcHtml(state.ddcDecision, state.ddcSource);
   }
 
+  // Fill MARC is gated on MARC validation alone -- there is no separate
+  // cataloguer-approval step in this product. A DDC classification that
+  // genuinely isn't available yet (no number found) is not a validation
+  // error (see marcPipeline.js's ddcUnavailable/READY_FOR_KOHA) and must
+  // never block filling the rest of a good record. 082 itself is still
+  // never written to Koha without an approved DDC -- that's enforced
+  // per-field inside kohaFillEngine.js (the `ddcApproved` flag passed to
+  // koha.fillKoha below), independent of whether the button is enabled.
   function updateFillAvailability() {
-    const ddcApproved = state.ddcDecision?.approval_status === 'APPROVED';
     const marcValid = state.marcResult?.validation?.valid === true;
     const hasPlan = Array.isArray(state.marcResult?.koha_fill?.fields) && state.marcResult.koha_fill.fields.length > 0;
-    fillKohaButton.disabled = !(ddcApproved && marcValid && hasPlan);
+    fillKohaButton.disabled = !(marcValid && hasPlan);
   }
 
   function renderMarcSection() {

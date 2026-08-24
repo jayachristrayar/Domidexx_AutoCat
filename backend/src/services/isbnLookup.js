@@ -620,7 +620,7 @@ export function validatePageEvidence(data, variants, pageUrl) {
     physical_description: { pages: data.pages, dimensions: null },
     description: data.description,
     subjects: data.subjects ?? [],
-    series: null,
+    series: data.series,
     language: data.language,
     table_of_contents: null,
     existing_classifications: data.existing_classifications ?? [],
