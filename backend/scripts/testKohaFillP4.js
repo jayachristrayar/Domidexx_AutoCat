@@ -112,10 +112,16 @@ console.log('\n== backend fill-plan builder ==');
   console.log('  APPROVED record: 020/082 distinct, core fields present, 040_not_configured surfaced');
 }
 {
+  // DDC not yet available (PENDING, no number reached) must NOT block
+  // Fill MARC for the rest of an otherwise-good record -- there is no
+  // separate "cataloguer approval" gate in this product. 082 is simply
+  // absent from the fill plan; every other field still fills normally.
   const result = generateMarcRecord({ metadata: baseMetadata, ddc_approval: { ai_recommended_ddc: '020', approval_status: 'PENDING' } }, { now: new Date('2026-08-22T12:34:56Z') });
-  assert.strictEqual(result.validation.valid, false);
-  assert.strictEqual(result.koha_fill, null, 'an invalid (unapproved 082) record must not produce a fill plan');
-  console.log('  PENDING approval: no fill plan at all (validation fails)');
+  assert.strictEqual(result.validation.valid, true, JSON.stringify(result.validation.errors));
+  assert.ok(result.koha_fill, 'a record with every other field valid must still produce a fill plan without a DDC number yet');
+  assert.strictEqual(result.koha_fill.fields.find((f) => f.tag === '082'), undefined);
+  assert.ok(result.koha_fill.fields.find((f) => f.tag === '245'), '245 and other evidenced fields must still fill');
+  console.log('  PENDING approval: fill plan still produced, just without 082');
 }
 {
   // A hand-built marcResult with an 082 field present but an unapproved

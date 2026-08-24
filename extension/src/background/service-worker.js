@@ -273,11 +273,11 @@ async function actionApproveDdc({ id, ddcNumber }) {
   }
 }
 
-async function actionGenerateMarc({ metadata, ddcApproval }) {
+async function actionGenerateMarc({ metadata, ddcApproval, persist }) {
   try {
     const response = await apiFetch('/records/generate-marc', {
       method: 'POST',
-      body: JSON.stringify({ metadata, ddc_approval: ddcApproval }),
+      body: JSON.stringify({ metadata, ddc_approval: ddcApproval, persist: Boolean(persist) }),
     });
     const body = await readJson(response);
     // generate-marc responds 422 (a normal "not ready yet" outcome, e.g.

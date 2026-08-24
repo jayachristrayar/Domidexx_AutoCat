@@ -228,28 +228,42 @@ function build250(normalizedBiblioData) {
   return { tag: '250', indicators: [' ', ' '], subfields: [{ code: 'a', value }] };
 }
 
+// extractYear(dateStr) -- AACR2 1.4F/rules/marc_field_rules.json's 260 rule
+// calls for $c to be the publication YEAR, never a full date -- a source
+// commonly gives "2025-09-15" (ISO) or "September 15, 2025" (prose); either
+// way the first 4-digit token in the string IS the year. Shared with
+// build008Entry's own year extraction below so both fields agree.
+function extractYear(dateStr) {
+  const match = String(dateStr ?? '').match(/\b(1[0-9]{3}|20[0-9]{2})\b/);
+  return match ? match[1] : null;
+}
+
 // --- 260: Publication, Distribution, etc. ---
 // rules/marc_field_rules.json, tag "260": "$a ends ' :' before $b; $b ends
 // ',' before $c; $c ends '.' " + "if place/publisher is unknown, supply
 // '[S.l.]' / '[s.n.]' per AACR2 1.4C6/1.4D6." No defined indicators for a
 // simple monograph (blank/blank, matching the rule's own "260 ## " example).
 //
-// Data-model gap: nothing in normalizedBiblioData (from any of the four
-// ISBN sources) currently separates "place of publication" from
-// "publisher name" -- so $a is always the unknown-place placeholder here.
-// Falls back to the rule's own bracketed-placeholder convention rather
-// than inventing a place.
+// $a uses normalizedBiblioData.publication_place when the research pipeline
+// actually found one (isbnLookup.js: Open Library's publish_places, a real
+// LOC MARC 260/264 $a, or page/AI evidence -- see mergeSources/
+// fetchPageEvidence/ddcAiClassifier.js) -- never invented. Only falls back
+// to the AACR2 1.4C6 "place unknown" bracketed placeholder when the
+// research genuinely turned up nothing, exactly as the rule itself
+// prescribes for that case.
 function build260(normalizedBiblioData) {
   const publisher = normalizedBiblioData.publisher;
   const publishDate = normalizedBiblioData.publish_date;
+  const place = normalizedBiblioData.publication_place;
   if (!publisher && !publishDate) return null;
 
   const subfields = [
-    { code: 'a', value: '[S.l.] :' }, // AACR2 1.4C6 -- place unknown/unavailable in our data model
+    { code: 'a', value: place ? `${place.trim()} :` : '[S.l.] :' }, // AACR2 1.4C6 -- bracketed placeholder only when place is genuinely unavailable
   ];
   subfields.push({ code: 'b', value: publisher ? `${publisher.trim()},` : '[s.n.],' }); // AACR2 1.4D6
   if (publishDate) {
-    subfields.push({ code: 'c', value: `${publishDate.trim()}.` });
+    const year = extractYear(publishDate);
+    subfields.push({ code: 'c', value: `${year ?? publishDate.trim()}.` });
   }
 
   return { tag: '260', indicators: [' ', ' '], subfields };
@@ -330,9 +344,9 @@ function build008Entry(normalizedBiblioData) {
     String(now.getMonth() + 1).padStart(2, '0') +
     String(now.getDate()).padStart(2, '0'); // 00-05
 
-  const yearMatch = (normalizedBiblioData.publish_date || '').match(/\d{4}/);
-  const year = yearMatch ? yearMatch[0] : 'uuuu'; // 07-10
-  const dateType = yearMatch ? 's' : 'n'; // 06: single known date vs. unknown
+  const extractedYear = extractYear(normalizedBiblioData.publish_date);
+  const year = extractedYear ?? 'uuuu'; // 07-10
+  const dateType = extractedYear ? 's' : 'n'; // 06: single known date vs. unknown
 
   const value =
     dateEntered +

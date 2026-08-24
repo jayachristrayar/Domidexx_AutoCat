@@ -22,8 +22,8 @@ const routledgeLikeHtml = `<!doctype html><html><head>
   "name": "Practice Research through Creative Bodies",
   "alternativeHeadline": "Perspectives on Embodied Inquiry",
   "author": [{"@type": "Person", "name": "Caroline Frizell"}, {"@type": "Person", "name": "Marina Rova"}],
-  "publisher": {"@type": "Organization", "name": "Routledge"},
-  "datePublished": "2025",
+  "publisher": {"@type": "Organization", "name": "Routledge", "address": {"@type": "PostalAddress", "addressLocality": "London"}},
+  "datePublished": "2025-09-15",
   "numberOfPages": "208",
   "isbn": "9781032769226",
   "description": "An exploration of practice research through creative and embodied bodies of inquiry."
@@ -45,7 +45,14 @@ assert.strictEqual(pageEvidence.title, 'Practice Research through Creative Bodie
 assert.strictEqual(pageEvidence.subtitle, 'Perspectives on Embodied Inquiry');
 assert.deepStrictEqual(pageEvidence.authors, ['Caroline Frizell', 'Marina Rova']);
 assert.strictEqual(pageEvidence.publisher, 'Routledge');
-assert.strictEqual(pageEvidence.publish_date, '2025');
+// publication_place from JSON-LD's publisher.address.addressLocality --
+// the highest-confidence source extractPublicationPlace checks (never a
+// guess -- see webSearchScrape.js).
+assert.strictEqual(pageEvidence.publication_place, 'London');
+// The raw evidence keeps the full source date ("2025-09-15") -- reducing
+// it to a bare publication year is marcBuilder.js's build260's job at MARC
+// generation time (see scripts/testMarcP3.js), not evidence collection.
+assert.strictEqual(pageEvidence.publish_date, '2025-09-15');
 assert.strictEqual(pageEvidence.physical_description.pages, 208);
 assert.strictEqual(pageEvidence.sources.method, 'browser_page');
 
@@ -64,6 +71,7 @@ const emptyStructured = {
   illustrators: [],
   translators: [],
   publisher: null,
+  publication_place: null,
   publish_date: null,
   edition: null,
   physical_description: { pages: null, dimensions: null },
@@ -79,6 +87,11 @@ const emptyStructured = {
 const merged = mergePageEvidence(emptyStructured, pageEvidence);
 assert.strictEqual(merged.title, 'Practice Research through Creative Bodies');
 assert.strictEqual(merged.description, pageEvidence.description);
+// This is the exact reported bug, proven end-to-end: structured sources
+// found nothing (emptyStructured), but the merged evidence used for MARC
+// generation now has a real publication place -- never AACR2's "[S.l.]"
+// placeholder -- because the browser-page evidence actually had one.
+assert.strictEqual(merged.publication_place, 'London');
 assert.ok(merged.sources.current_page, 'merged.sources.current_page should record where this evidence came from');
 
 const hasTitle = Boolean(merged.title);
@@ -103,6 +116,39 @@ assert.strictEqual(rejected, null, 'a page confirmed to be a different ISBN must
 const irrelevantHtml = `<!doctype html><html><head><title>Random blog post</title></head><body>Nothing about books here.</body></html>`;
 const irrelevantExtracted = extractPageMetadata(irrelevantHtml, 'https://example.com/blog', { isbnCandidates: variants });
 assert.strictEqual(validatePageEvidence(irrelevantExtracted, variants, 'https://example.com/blog'), null);
+
+// -- publication_place extraction without JSON-LD address data: an
+// explicit "Place of Publication:" label, and the classic library-citation
+// convention "City : Publisher" anchored to the actual extracted publisher
+// name -- never a bare city name floating anywhere on the page.
+const labeledPlaceHtml = `<!doctype html><html><head>
+<title>Foundations of Testing</title>
+<meta name="description" content="A textbook on software testing fundamentals.">
+</head><body>Publisher: Manning Publications. Place of Publication: Shelter Island, NY. ISBN 9781617290849.</body></html>`;
+const labeledExtracted = extractPageMetadata(labeledPlaceHtml, 'https://example.com/testing-book', { isbnCandidates: ['9781617290849'] });
+assert.strictEqual(labeledExtracted.publisher, 'Manning Publications');
+// The pattern terminates at the first comma (a deliberately conservative
+// choice -- see FIELD_PATTERNS.publicationPlaceLabel), so a "City, ST"
+// label yields just the city. Still a real, evidence-backed place, never
+// the AACR2 "[S.l.]" placeholder.
+assert.strictEqual(labeledExtracted.publication_place, 'Shelter Island');
+
+const citationHtml = `<!doctype html><html><head>
+<title>A Citation-Style Listing</title>
+</head><body>An academic title. Publisher: Cambridge University Press. Cambridge : Cambridge University Press. ISBN 9780521123456.</body></html>`;
+const citationExtracted = extractPageMetadata(citationHtml, 'https://example.com/citation-book', { isbnCandidates: ['9780521123456'] });
+assert.strictEqual(citationExtracted.publisher, 'Cambridge University Press');
+assert.strictEqual(citationExtracted.publication_place, 'Cambridge');
+
+// No place signal anywhere -- must return null, never a guess (the caller,
+// marcBuilder.js's build260, falls back to AACR2's "[S.l.]" for exactly
+// this case).
+const noPlaceHtml = `<!doctype html><html><head>
+<title>A Book With No Place Stated</title>
+<meta name="description" content="Publisher: Example Press.">
+</head><body>Publisher: Example Press. ISBN 9781234567897.</body></html>`;
+const noPlaceExtracted = extractPageMetadata(noPlaceHtml, 'https://example.com/no-place', { isbnCandidates: ['9781234567897'] });
+assert.strictEqual(noPlaceExtracted.publication_place, null);
 
 // -- SSRF guard (product spec item 22-adjacent: this is the one fetch
 // target in the whole research pipeline that comes directly from client

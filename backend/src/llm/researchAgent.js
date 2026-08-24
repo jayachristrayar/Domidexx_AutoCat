@@ -78,7 +78,7 @@ const TOOLS = [
 ];
 
 const RESPONSE_SHAPE =
-  '{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}';
+  '{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publication_place": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}';
 
 function buildSystemPrompt(isbn, variants) {
   const otherForm = variants.find((v) => v !== isbn) ?? null;
@@ -88,7 +88,7 @@ function buildSystemPrompt(isbn, variants) {
     'Do NOT answer from your own memory of the book alone -- you must call at least one tool and use what it returns as your evidence. If your first attempt finds little, try different queries (exact ISBN, hyphenated ISBN, title + author, author + ISBN) and fetch more than one page before concluding nothing more is available.',
     'Compare what different sources say rather than trusting the first result blindly -- if sources disagree on a fact, prefer library/publisher sources over booksellers, and say so in conflicts_found.',
     `Once you have gathered enough evidence, respond with ONLY strict JSON matching exactly this shape (no markdown fences, no commentary, no further tool calls): ${RESPONSE_SHAPE}`,
-    'Use null for unknown scalar fields and [] for unknown list fields. existing_classifications is any DDC/Dewey (or similar) classification number you found already assigned to this book on a library catalogue page -- supporting evidence only, not something to invent.',
+    'Use null for unknown scalar fields and [] for unknown list fields. existing_classifications is any DDC/Dewey (or similar) classification number you found already assigned to this book on a library catalogue page -- supporting evidence only, not something to invent. publication_place is the city the publisher\'s imprint is based in (e.g. "London", "New York") -- return it ONLY if a source directly states it (a publisher/library page, a citation format like "City: Publisher"); if no source states it, return null rather than guessing where the publisher is likely based.',
   ].join('\n\n');
 }
 
@@ -268,6 +268,7 @@ export async function runAgenticResearch({ isbn, variants = [isbn], provider, ow
       illustrators: parsed.illustrators ?? [],
       translators: parsed.translators ?? [],
       publisher: parsed.publisher ?? null,
+      publication_place: parsed.publication_place ?? null,
       publish_date: parsed.publish_date ?? null,
       edition: parsed.edition ?? null,
       physical_description: {

@@ -198,6 +198,7 @@ export function extractZ3950Fields(marcRecord) {
   const edition = field250 ? cleanPunctuation(getSubfieldValue(field250, 'a')) : null;
 
   const publisherField = [...getFields(fields, '264'), ...getFields(fields, '260')][0];
+  const publicationPlace = publisherField ? cleanPunctuation(getSubfieldValue(publisherField, 'a')) : null;
   const publisher = publisherField ? cleanPunctuation(getSubfieldValue(publisherField, 'b')) : null;
   const publishDate = publisherField ? cleanPunctuation(getSubfieldValue(publisherField, 'c')) : null;
 
@@ -254,6 +255,7 @@ export function extractZ3950Fields(marcRecord) {
     illustrators,
     translators,
     publisher,
+    publication_place: publicationPlace,
     publish_date: publishDate,
     edition,
     pages,

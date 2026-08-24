@@ -12,7 +12,7 @@
 import { callOpenAi, callNvidia, extractJson } from '../llm/router.js';
 
 const RESPONSE_SHAPE =
-  '{"ddc": string, "class_name": string, "work_type": string, "confidence": "HIGH"|"MEDIUM"|"LOW", "why": string, "number_breakdown": [{"number": string, "meaning": string}], "evidence": string[], "sources": string[], "alternatives_considered": [{"number": string, "class_name": string, "why_not_selected": string}]}';
+  '{"ddc": string, "class_name": string, "work_type": string, "confidence": "HIGH"|"MEDIUM"|"LOW", "why": string, "number_breakdown": [{"number": string, "meaning": string}], "evidence": string[], "sources": string[], "alternatives_considered": [{"number": string, "class_name": string, "why_not_selected": string}], "publication_place": string|null}';
 
 function clean(value) {
   return String(value ?? '').trim();
@@ -23,9 +23,9 @@ function arr(value) {
 }
 
 function summarizeBibliographicData(metadata) {
-  const { isbn, title, subtitle, authors, editors, publisher, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description } = metadata;
+  const { isbn, title, subtitle, authors, editors, publisher, publication_place, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description } = metadata;
   return JSON.stringify(
-    { isbn, title, subtitle, authors, editors, publisher, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description },
+    { isbn, title, subtitle, authors, editors, publisher, publication_place, publish_date, edition, language, subjects, description, table_of_contents, series, physical_description },
     null,
     2
   );
@@ -72,6 +72,11 @@ export function buildDdcAnalysisPrompt(metadata, candidates = [], correction = n
   );
   parts.push(`Respond with strict JSON matching exactly this shape, no markdown fences, no commentary: ${RESPONSE_SHAPE}`);
   parts.push(`Book bibliographic data:\n${summarizeBibliographicData(metadata)}`);
+  parts.push(
+    'Also report publication_place: the city the publisher\'s imprint is based in (e.g. "London", "New York"). If "publication_place" is already given above (non-null), just repeat that exact value. ' +
+      'If it is null, only fill it in when the data above (description, table_of_contents, or the publisher name/edition text itself) directly states or clearly implies a specific place -- never guess a plausible city for a publisher you merely recognise. ' +
+      'When genuinely no evidence gives a place, return null -- an unknown place is handled correctly downstream (AACR2\'s standard "[S.l.]" placeholder), a fabricated one is not.'
+  );
 
   const externalClassifications = summarizeExternalClassifications(metadata);
   if (externalClassifications) {
@@ -125,6 +130,7 @@ export function parseAiDdcResponse(text) {
           .map((row) => ({ number: clean(row?.number), class_name: clean(row?.class_name) || null, why_not_selected: clean(row?.why_not_selected) || null }))
           .filter((row) => row.number)
       : [],
+    publication_place: clean(parsed.publication_place) || null,
   };
 }
 

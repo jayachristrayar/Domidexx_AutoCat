@@ -53,7 +53,12 @@ export const lookupIsbn = (isbn, model) => call('lookupIsbn', { isbn, model });
 export const researchIsbnWeb = (isbn, deep) => call('researchIsbnWeb', { isbn, deep });
 export const recommendDdc = (metadata, model) => call('recommendDdc', { metadata, model });
 export const approveDdc = (id, ddcNumber) => call('approveDdc', { id, ddcNumber });
-export const generateMarc = (metadata, ddcApproval) => call('generateMarc', { metadata, ddcApproval });
+// `persist` (default false) -- only a genuine cataloguing commit (Fill
+// MARC actually succeeding) should ever pass true; the automatic
+// generation that runs as part of every ordinary ISBN lookup must not, so
+// the admin Records page stays what it claims to be -- actual MARC
+// generations, not a permanent history of every ISBN search.
+export const generateMarc = (metadata, ddcApproval, { persist = false } = {}) => call('generateMarc', { metadata, ddcApproval, persist });
 export const chat = (message, context) => call('chat', { message, context });
 
 // "Your Own Model" -- additive third AI option, alongside (never replacing)

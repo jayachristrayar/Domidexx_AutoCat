@@ -222,7 +222,22 @@ router.post(
   requireSession,
   asyncHandler(async (req, res) => {
     const result = generateMarcRecord(req.body ?? {});
-    await saveMarcRecord({ userId: req.user.userId, result });
+    // Only persist a genuine cataloguing commit, never every ordinary ISBN
+    // lookup -- this endpoint is also called automatically as part of the
+    // normal lookup flow (product spec: MARC is generated automatically,
+    // immediately, for every lookup, so "Fill MARC" is ready right away).
+    // That automatic call never sets `persist`, so it stays exactly what
+    // the admin Records page already claims to be ("only an actual
+    // 'Generate MARC' action is [stored] here") -- true again now that a
+    // background auto-generation is no longer indistinguishable from a
+    // deliberate one. The extension sets `persist: true` only after the
+    // librarian actually clicks Fill MARC and it succeeds (see
+    // sidepanel.js) -- the one point that's a genuine "this book was
+    // catalogued" event, not a mid-lookup research step the librarian may
+    // never act on.
+    if (req.body?.persist) {
+      await saveMarcRecord({ userId: req.user.userId, result });
+    }
     res.status(result.validation.valid ? 201 : 422).json(result);
   })
 );
