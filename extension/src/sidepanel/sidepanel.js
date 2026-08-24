@@ -404,11 +404,12 @@ function renderWorkspace(me) {
 
     <div class="card">
       <label class="section-title" for="isbn-input">ISBN</label>
-      <form id="lookup-form" class="row">
-        <input id="isbn-input" name="isbn" required placeholder="9780140328721" autocomplete="off" />
-        <button type="submit" id="lookup-submit">Look up</button>
-        <button type="button" id="cancel-lookup" class="secondary" hidden>Cancel lookup</button>
-        <button type="button" id="new-lookup" class="secondary" hidden>New lookup</button>
+      <form id="lookup-form" class="stack">
+        <div class="row" id="isbn-row">
+          <input id="isbn-input" name="isbn" required placeholder="9780140328721" autocomplete="off" />
+          <button type="submit" id="lookup-submit">Look up</button>
+        </div>
+        <button type="button" id="cancel-lookup" class="secondary full" hidden>Cancel lookup</button>
       </form>
       <div id="lookup-status"></div>
     </div>
@@ -632,7 +633,6 @@ function renderWorkspace(me) {
   const lookupForm = app.querySelector('#lookup-form');
   const isbnInput = app.querySelector('#isbn-input');
   const cancelLookupButton = app.querySelector('#cancel-lookup');
-  const newLookupButton = app.querySelector('#new-lookup');
 
   // A physical USB/Bluetooth barcode scanner is, to the browser, an
   // ordinary (very fast) keyboard -- there is no special "scanner event" to
@@ -690,6 +690,17 @@ function renderWorkspace(me) {
   const RETRY_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-lookup">Retry lookup</button>';
   const RETRY_ANALYSIS_BUTTON_HTML = '<button type="button" class="secondary full" id="retry-analysis">Retry analysis</button>';
 
+  // Single source of truth for the ISBN box's idle state -- there is only
+  // ever one action button showing at a time: "Look up" before/after a
+  // lookup, "Cancel lookup" while one is running (see runLookup/
+  // runDdcAndMarc). Never both, and never a separate "New lookup" -- the
+  // librarian replaces the ISBN and clicks "Look up" again directly.
+  function resetLookupButtons() {
+    lookupSubmit.hidden = false;
+    lookupSubmit.disabled = false;
+    cancelLookupButton.hidden = true;
+  }
+
   // retryFn, when given, gets its own "Retry analysis" button wired up
   // instead of (or alongside) the plain "Retry lookup" one -- used for a
   // DDC/MARC failure, where the book evidence already collected must never
@@ -712,7 +723,7 @@ function renderWorkspace(me) {
         ${stateHtml('error', `${escapeHtml(modelName)} is not available for your account. Please contact the administrator to upgrade access.`)}
         <p class="hint">Contact: <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></p>
       `;
-      newLookupButton.hidden = false;
+      resetLookupButtons();
       return;
     }
     // Your Own Model was selected but never successfully connected --
@@ -720,7 +731,7 @@ function renderWorkspace(me) {
     // a generic failure (this is not a session or provider outage).
     if (error.code === 'OWN_API_NOT_CONFIGURED') {
       targetEl.innerHTML = stateHtml('error', error.message || 'Your Own Model is not connected yet. Add your API Base URL and API Key above.');
-      newLookupButton.hidden = false;
+      resetLookupButtons();
       return;
     }
     // A bare "temporarily unavailable" with no way forward is exactly the
@@ -734,7 +745,7 @@ function renderWorkspace(me) {
     const retryButtonsHtml = (retryFn ? RETRY_ANALYSIS_BUTTON_HTML : '') + (withRetry ? RETRY_BUTTON_HTML : '');
     targetEl.innerHTML = stateHtml('error', message) + retryButtonsHtml;
     if (retryFn) targetEl.querySelector('#retry-analysis')?.addEventListener('click', retryFn);
-    newLookupButton.hidden = false;
+    resetLookupButtons();
   }
 
   // -- The single automatic workflow: analyze -> classify -> generate MARC
@@ -753,7 +764,7 @@ function renderWorkspace(me) {
   // (product spec item 13).
   async function runDdcAndMarc(myLookupId) {
     cancelLookupButton.hidden = false;
-    newLookupButton.hidden = true;
+    lookupSubmit.hidden = true;
     ddcCard.hidden = false;
     ddcStatus.innerHTML = stateHtml('loading', 'Analyzing the book…');
     marcCard.hidden = true;
@@ -764,7 +775,6 @@ function renderWorkspace(me) {
     } catch (error) {
       if (myLookupId !== state.lookupId) return;
       handleWorkflowError(error, ddcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
-      cancelLookupButton.hidden = true;
       return;
     }
     if (myLookupId !== state.lookupId) return;
@@ -783,10 +793,9 @@ function renderWorkspace(me) {
     } catch (error) {
       if (myLookupId !== state.lookupId) return;
       handleWorkflowError(error, marcStatus, { retryFn: () => runDdcAndMarc(state.lookupId) });
-    } finally {
-      if (myLookupId === state.lookupId) cancelLookupButton.hidden = true;
+      return;
     }
-    if (myLookupId === state.lookupId) newLookupButton.hidden = false;
+    if (myLookupId === state.lookupId) resetLookupButtons();
   }
 
   // Single entry point for starting a lookup, whatever triggered it (Look
@@ -808,9 +817,8 @@ function renderWorkspace(me) {
 
     const myLookupId = ++state.lookupId;
     lookupInFlight = true;
-    lookupSubmit.disabled = true;
+    lookupSubmit.hidden = true;
     cancelLookupButton.hidden = false;
-    newLookupButton.hidden = true;
     // Show the normalized value (trimmed, hyphens stripped) but NEVER clear
     // it -- the librarian needs it visible for retry, chat discussion, and
     // MARC generation even if this lookup fails. Select it instead, so a
@@ -827,7 +835,6 @@ function renderWorkspace(me) {
       if (body.not_found) {
         lookupStatus.innerHTML = notFoundHtml();
         bindRetry(normalized);
-        newLookupButton.hidden = false;
         return;
       }
       state.isbn = normalized;
@@ -847,8 +854,7 @@ function renderWorkspace(me) {
       // clobber whatever a newer lookup (or Cancel) already set.
       if (myLookupId === state.lookupId) {
         lookupInFlight = false;
-        lookupSubmit.disabled = false;
-        cancelLookupButton.hidden = true;
+        resetLookupButtons();
         // Ready for the next scan (item 7) -- but never yank focus away from
         // the chat panel or any other field the librarian is actively using.
         focusIsbnInputIfIdle();
@@ -874,41 +880,18 @@ function renderWorkspace(me) {
   // runLookup/runDdcAndMarc checks it and silently discards a stale result,
   // which is the documented fallback for a request that can't technically
   // be aborted mid-flight. The extension itself becomes idle again
-  // immediately, without waiting for the superseded request to resolve.
+  // immediately, without waiting for the superseded request to resolve --
+  // back to the single "Look up" button, with the ISBN still sitting in the
+  // input exactly as the librarian left it, ready to search again (never
+  // cleared, and never a separate "New lookup" button to find first).
   cancelLookupButton.addEventListener('click', () => {
     state.lookupId += 1;
     lookupInFlight = false;
-    lookupSubmit.disabled = false;
-    cancelLookupButton.hidden = true;
-    newLookupButton.hidden = false;
+    resetLookupButtons();
     lookupStatus.innerHTML = stateHtml('info', 'Lookup cancelled.');
     ddcCard.hidden = true;
     marcCard.hidden = true;
     focusIsbnInputIfIdle();
-  });
-
-  // New lookup (product spec item 14): clears the book/DDC/MARC result and
-  // any error so the librarian can start clean -- but never the session,
-  // the selected AI model, or (per item 15) forces the librarian to retype
-  // an ISBN that's still sitting right there if they just want to correct it.
-  newLookupButton.addEventListener('click', () => {
-    state.lookupId += 1; // invalidate anything still in flight
-    lookupInFlight = false;
-    state.isbn = null;
-    state.metadata = null;
-    state.ddcId = null;
-    state.ddcDecision = null;
-    state.marcResult = null;
-    state.chatPendingField = null;
-    bookCard.hidden = true;
-    ddcCard.hidden = true;
-    marcCard.hidden = true;
-    lookupStatus.innerHTML = '';
-    cancelLookupButton.hidden = true;
-    newLookupButton.hidden = true;
-    lookupSubmit.disabled = false;
-    isbnInput.value = '';
-    isbnInput.focus();
   });
 
   lookupForm.addEventListener('submit', (event) => {
