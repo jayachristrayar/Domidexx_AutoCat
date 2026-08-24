@@ -131,4 +131,67 @@ assert.ok(
 );
 console.log('  PASS: 082 present, status=READY_FOR_KOHA, koha_fill includes 082 -- no manual approval step anywhere');
 
+// -- MARC field order: must always be numeric tag order, with 100 before
+// 245, regardless of the order the skeleton/AI/DDC steps happened to
+// assemble them in (the previous construction order was skeleton fields,
+// THEN 440/500/520/650/856/100/700, THEN 082 last -- 100 landing after
+// 650/700, exactly the "100 was appearing at the end and missed during
+// Koha filling" bug).
+console.log('\n== MARC field order: numeric tag order, 100 before 245, duplicates preserved ==');
+const metadataForOrder = {
+  ...metadataNoDdc,
+  authors: ['Ann Author'], // forces a 100 to actually be built, alongside 700s
+};
+const marcOrdered = generateMarcRecord({ metadata: metadataForOrder, ddc_approval: approvedDdc });
+// LDR is the raw tag for the leader; every other consumer (preview,
+// koha_fill) normalizes it to '000' -- normalize here too so this test
+// compares like with like, not a raw-vs-normalized string mismatch.
+const tags = marcOrdered.fields.map((f) => (f.tag === 'LDR' ? '000' : f.tag));
+const numericTags = tags.map(Number);
+const sortedCopy = [...numericTags].sort((a, b) => a - b);
+assert.deepStrictEqual(numericTags, sortedCopy, `fields must be in numeric tag order, got: ${tags.join(', ')}`);
+const idx100 = tags.indexOf('100');
+const idx245 = tags.indexOf('245');
+assert.ok(idx100 !== -1 && idx245 !== -1 && idx100 < idx245, '100 must come before 245');
+console.log(`  PASS: field order is ${tags.join(', ')}`);
+console.log('  PASS: 100 comes before 245');
+
+const orderedSubjects650 = marcOrdered.fields.filter((f) => f.tag === '650');
+assert.strictEqual(orderedSubjects650.length, 7, 'all 7 duplicate 650 entries must survive sorting, none dropped or merged');
+const orderedEditors700 = marcOrdered.fields.filter((f) => f.tag === '700');
+assert.strictEqual(orderedEditors700.length, 2, 'both duplicate 700 entries must survive sorting');
+console.log('  PASS: duplicate 650 (x7) and 700 (x2) entries all survive the sort, none dropped or overwritten');
+
+// Same preview/koha_fill/validation.fields must reflect the identical
+// sorted array -- one canonical representation, not a different order per
+// consumer.
+const previewTags = marcOrdered.preview.map((r) => r.tag);
+assert.deepStrictEqual(previewTags, tags, 'preview must reflect the same sorted order as fields');
+const fillTags = marcOrdered.koha_fill.fields.map((f) => f.tag);
+assert.deepStrictEqual(fillTags, tags.filter((t) => fillTags.includes(t)), 'koha_fill must preserve the sorted order (minus any skipped tags)');
+console.log('  PASS: preview and koha_fill both reflect the same canonical sorted order');
+
+// -- 520$a must never be a citation-style artifact echoing the title
+// ("Source title: ..."), and must never be a bare restatement of the
+// title/series with no real content -- 520 is simply omitted (never
+// fabricated) when that's all a source supplied.
+console.log('\n== 520$a must reject a "Source title:"-style artifact, never fabricate a summary ==');
+const junkDescriptionCases = [
+  'Source title: Practice Research through Creative Bodies (Perspectives on Embodied Inquiry)',
+  'Title: Practice Research through Creative Bodies',
+  'Practice Research through Creative Bodies', // bare title echo, no real content
+];
+for (const junk of junkDescriptionCases) {
+  const marcJunk = generateMarcRecord({ metadata: { ...metadataNoDdc, description: junk }, ddc_approval: {} });
+  assert.ok(!marcJunk.fields.some((f) => f.tag === '520'), `520 must be omitted for junk description: "${junk}"`);
+}
+console.log('  PASS: citation-artifact and bare-title-echo "descriptions" are all rejected, 520 omitted rather than fabricated');
+
+// A real description -- distinct content, not just the title restated --
+// must still generate 520$a normally (the sanitizer must not be so
+// aggressive it rejects genuine summaries).
+const marcRealDescription = generateMarcRecord({ metadata: metadataNoDdc, ddc_approval: {} });
+assert.ok(marcRealDescription.fields.some((f) => f.tag === '520'), 'a genuine description must still produce 520');
+console.log('  PASS: a genuine book description still produces 520$a normally');
+
 console.log('\nAll P11 MARC-completeness regression tests passed.');
