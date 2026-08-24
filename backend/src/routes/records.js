@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import pool from '../db/index.js';
 import { asyncHandler } from '../lib/asyncHandler.js';
 import { requireSession } from '../middleware/requireSession.js';
 import { lookupIsbn, researchIsbnOnWeb } from '../services/isbnLookup.js';
@@ -10,39 +9,6 @@ import { labelToProvider } from '../services/modelLabels.js';
 import { getOwnApiConfig } from '../services/ownApiService.js';
 
 const router = Router();
-
-// A librarian-readable plain-text rendering of the generated fields, stored
-// alongside marc_json purely for the admin Records detail page -- not a
-// formal ISO2709 export.
-function buildMarcText(preview) {
-  return (preview || [])
-    .map((row) => `${row.tag}  ${row.indicators || '  '}  ${(row.value || '').trim()}`.trimEnd())
-    .join('\n');
-}
-
-// Persists exactly one thing: an actual MARC record generation (product
-// spec section 7/8 -- an ISBN lookup on its own is an operational action,
-// never a stored record; the Records page must only ever show what this
-// saves). Never blocks/fails the actual generate-marc response over a save
-// error -- the librarian's workflow must not break because of an admin
-// reporting concern.
-async function saveMarcRecord({ userId, result }) {
-  try {
-    await pool.query(
-      `INSERT INTO marc_records (user_id, isbn, marc_json, marc_text, status)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [
-        userId,
-        result.metadata?.isbn || null,
-        JSON.stringify(result.fields),
-        buildMarcText(result.preview),
-        result.validation.valid ? 'COMPLETED' : 'NEEDS_REVIEW',
-      ]
-    );
-  } catch (error) {
-    console.error(`generate-marc: failed to save marc_records row: ${error.message}`);
-  }
-}
 
 const isbnParamSchema = z.object({
   isbn: z
@@ -221,23 +187,12 @@ router.post(
   '/generate-marc',
   requireSession,
   asyncHandler(async (req, res) => {
+    // Generation is entirely in-memory and deterministic from the
+    // evidence/DDC already gathered -- AutoCat never keeps a permanent
+    // cataloguing-record history (product spec: only the AI *usage* trail
+    // in api_usage is retained; the generated MARC itself is a temporary
+    // operation, returned to the librarian and forgotten server-side).
     const result = generateMarcRecord(req.body ?? {});
-    // Only persist a genuine cataloguing commit, never every ordinary ISBN
-    // lookup -- this endpoint is also called automatically as part of the
-    // normal lookup flow (product spec: MARC is generated automatically,
-    // immediately, for every lookup, so "Fill MARC" is ready right away).
-    // That automatic call never sets `persist`, so it stays exactly what
-    // the admin Records page already claims to be ("only an actual
-    // 'Generate MARC' action is [stored] here") -- true again now that a
-    // background auto-generation is no longer indistinguishable from a
-    // deliberate one. The extension sets `persist: true` only after the
-    // librarian actually clicks Fill MARC and it succeeds (see
-    // sidepanel.js) -- the one point that's a genuine "this book was
-    // catalogued" event, not a mid-lookup research step the librarian may
-    // never act on.
-    if (req.body?.persist) {
-      await saveMarcRecord({ userId: req.user.userId, result });
-    }
     res.status(result.validation.valid ? 201 : 422).json(result);
   })
 );

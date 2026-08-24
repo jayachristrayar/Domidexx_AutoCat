@@ -937,19 +937,6 @@ function renderWorkspace(me) {
       let summary = `${filled} field${filled === 1 ? '' : 's'} filled`;
       if (conflicts) summary += `, ${conflicts} conflict${conflicts === 1 ? '' : 's'} need${conflicts === 1 ? 's' : ''} review`;
       if (failed) summary += `, ${failed} failed`;
-      // The one point in the whole workflow that's a genuine, deliberate
-      // "this book is being catalogued" action, as opposed to the
-      // automatic MARC generation every ordinary lookup already produces
-      // (see runDdcAndMarc) -- only here does the admin Records page
-      // actually get a permanent row (records.js's generate-marc route
-      // only persists when persist:true, see its own comment). Best-effort
-      // and non-blocking: a failure here must never affect the fill the
-      // librarian just watched happen in Koha.
-      if (filled > 0) {
-        api.generateMarc(state.metadata, state.ddcDecision, { persist: true }).catch((error) => {
-          debugLog('generateMarc persist-on-fill failed (non-critical)', error);
-        });
-      }
       fillStatus.innerHTML = `
         ${stateHtml(failed || conflicts ? 'info' : 'success', filled ? `MARC fields filled — ${summary}` : 'No new fields were filled')}
         <p class="hint">Nothing was saved -- review the fields in Koha, then save manually.</p>
