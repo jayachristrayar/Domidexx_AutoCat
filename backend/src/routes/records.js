@@ -83,7 +83,8 @@ function toClientResponse(result) {
   if (result.not_found) {
     response.not_found = true;
   } else {
-    response.provenance = result.sources?.method === 'web_search' ? 'unverified' : 'catalog_match';
+    response.provenance =
+      result.sources?.method === 'web_search' || result.sources?.method === 'web_scrape' ? 'unverified' : 'catalog_match';
     response.partial = Boolean(result.partial);
   }
 

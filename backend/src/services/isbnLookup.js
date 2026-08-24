@@ -2,6 +2,7 @@ import pool from '../db/index.js';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
 import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
 import { recordUsage } from './usageService.js';
+import { webSearchAndScrape } from './webSearchScrape.js';
 
 const CACHE_TTL_INTERVAL = '90 days';
 const FETCH_TIMEOUT_MS = 8000;
@@ -521,6 +522,30 @@ ${searchText}`,
   };
 }
 
+// researchWebForIsbn -- the single entry point for "go find this on the
+// open web" (product spec items 4-8: "search the public web using the
+// ISBN", "if one source fails, continue researching"). Tries the
+// AI-assisted web_search stage first (lookupIsbnWebFallback -- higher
+// quality when OPENAI_API_KEY/web_search are available, since the model
+// itself reasons over and cross-checks what it finds), and only when that
+// stage is unavailable or genuinely finds nothing falls back to a direct,
+// key-less search-engine + page-scrape pass (webSearchAndScrape). Neither
+// stage failing is allowed to be the single point of failure the product
+// spec calls out -- a book with real web presence should surface from
+// whichever stage actually has working network/API access right now.
+async function researchWebForIsbn(isbn, variants, { userId, deep = false } = {}) {
+  const aiResult = await lookupIsbnWebFallback(isbn, { userId, deep });
+  if (aiResult) return aiResult;
+
+  console.info(`ISBN lookup: AI web research unavailable or empty for ${isbn}, falling back to direct web search/scrape`);
+  try {
+    return await webSearchAndScrape(isbn, variants);
+  } catch (error) {
+    console.error(`ISBN lookup: web search/scrape fallback failed for ${isbn}: ${error.message}`);
+    return null;
+  }
+}
+
 // mergeStructuredWithWeb(structured, web) -- supplements an already-vetted
 // structured result with whatever web research additionally found, without
 // ever overwriting a field the structured sources already populated
@@ -568,6 +593,7 @@ function isPartial(merged) {
 // decision needs it again, rather than changing the call signature twice.
 export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
   const isbn = normalizeIsbn(rawIsbn);
+  console.info(`ISBN lookup: received ${isbn}`);
 
   // A failed/not-found lookup must never become a permanent "successful"
   // cache entry -- excluding source = 'not_found' here means a stale
@@ -636,7 +662,7 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     console.info(
       `ISBN lookup: ${hasStructuredTitle ? 'structured sources lack content evidence for' : 'no structured title for'} ${isbn}, running web research`
     );
-    const webResult = await lookupIsbnWebFallback(isbn, { userId });
+    const webResult = await researchWebForIsbn(isbn, variants, { userId });
     if (webResult && hasStructuredTitle) {
       // Structured sources already vetted title/author/etc -- web research
       // only supplements whatever they didn't cover (description, subjects,
@@ -668,6 +694,9 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId } = {}) {
     return result;
   }
 
+  const evidenceFields = TOP_LEVEL_FIELDS.filter((field) => !isEmptyValue(result[field]));
+  console.info(`ISBN lookup: ${isbn} resolved via '${result.sources?.method}' with evidence fields [${evidenceFields.join(', ')}]`);
+
   await pool.query(
     `INSERT INTO isbn_cache (isbn, raw_json, source)
      VALUES ($1, $2, $3)
@@ -695,7 +724,7 @@ export async function researchIsbnOnWeb(rawIsbn, { userId, deep = false } = {}) 
   const isbn = normalizeIsbn(rawIsbn);
   console.info(`ISBN chat-triggered ${deep ? 'deep ' : ''}web research for ${isbn}`);
 
-  const webResult = await lookupIsbnWebFallback(isbn, { userId, deep });
+  const webResult = await researchWebForIsbn(isbn, isbnVariants(isbn), { userId, deep });
   if (!webResult) {
     console.warn(`ISBN chat-triggered web research found nothing for ${isbn}`);
     return { isbn, not_found: true };
