@@ -351,6 +351,161 @@ async function actionSaveOwnApi({ baseUrl, apiKey }) {
   }
 }
 
+// ---------------------------------------------------------------------
+// Research pipeline job runner (product spec section 22): the ISBN ->
+// web research -> DDC -> MARC chain must NOT be owned by the Side Panel's
+// JS context, because that context is destroyed the moment the panel is
+// closed (a Chrome side panel is a real document, unlike this service
+// worker, which keeps running independent of any particular tab or the
+// panel's open/closed state). Previously the entire chain was awaited
+// directly inside sidepanel.js -- closing the panel mid-lookup silently
+// abandoned the rest of the chain, even though the already-in-flight HTTP
+// call itself was already being made from this file, not from the panel.
+//
+// Fix: the Side Panel starts a job here (startPipeline) and gets a jobId
+// back immediately, without waiting for any of the actual work. This file
+// then runs the full lookupIsbn -> recommendDdc -> generateMarc chain to
+// completion on its own, writing progress to `pipelineJobs` (in-memory,
+// for the fast path) AND chrome.storage.session (so a job survives this
+// worker being suspended and woken again by any later event -- MV3
+// service workers can be torn down between events, but chrome.storage.session
+// itself persists for the life of the browser session). The Side Panel
+// polls getPipelineStatus for progress and simply re-attaches to the same
+// jobId after being reopened -- switching tabs never affects any of this,
+// since tab focus has nothing to do with this file's lifecycle either.
+// ---------------------------------------------------------------------
+
+const pipelineJobs = new Map();
+const PIPELINE_JOB_TTL_MS = 15 * 60 * 1000;
+
+function newJobId() {
+  return `job_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+async function persistJob(jobId, job) {
+  pipelineJobs.set(jobId, job);
+  try {
+    await chrome.storage.session.set({ [`autocat_pipeline_${jobId}`]: job });
+  } catch (error) {
+    debugLog('persistJob failed', error);
+  }
+}
+
+async function loadJob(jobId) {
+  if (pipelineJobs.has(jobId)) return pipelineJobs.get(jobId);
+  try {
+    const stored = await chrome.storage.session.get(`autocat_pipeline_${jobId}`);
+    const job = stored?.[`autocat_pipeline_${jobId}`] ?? null;
+    if (job) pipelineJobs.set(jobId, job);
+    return job;
+  } catch (error) {
+    debugLog('loadJob failed', error);
+    return null;
+  }
+}
+
+// Runs to completion regardless of whether anything is listening -- never
+// awaited by the caller (see actionStartPipeline). Reuses the exact same
+// action functions the direct message-based actions use, so a job behaves
+// identically to a foreground call, just decoupled from the Side Panel's
+// own lifecycle. `resumeMetadata`, when given, is already-fetched book
+// evidence (a "retry analysis" after a DDC/MARC failure) -- skips the ISBN
+// web-research step entirely and starts straight from DDC, exactly like
+// the old in-panel runDdcAndMarc(retry) never re-ran web research either.
+async function runPipeline(jobId, { isbn, model, resumeMetadata }) {
+  let lookupData = resumeMetadata;
+  if (!lookupData) {
+    const lookupResult = await actionLookupIsbn({ isbn, model });
+    let job = await loadJob(jobId);
+    if (!job || job.cancelled) return;
+    if (!lookupResult.ok) {
+      await persistJob(jobId, { ...job, status: 'error', stage: 'lookup', error: lookupResult });
+      return;
+    }
+    lookupData = lookupResult.data;
+  }
+  let job = await loadJob(jobId);
+  if (!job || job.cancelled) return;
+  job = { ...job, lookup: lookupData };
+  if (lookupData?.not_found) {
+    await persistJob(jobId, { ...job, status: 'done', stage: 'not_found' });
+    return;
+  }
+  await persistJob(jobId, { ...job, status: 'running', stage: 'ddc' });
+
+  const ddcResult = await actionRecommendDdc({ metadata: lookupData, model });
+  job = await loadJob(jobId);
+  if (!job || job.cancelled) return;
+  if (!ddcResult.ok) {
+    await persistJob(jobId, { ...job, status: 'error', stage: 'ddc', error: ddcResult });
+    return;
+  }
+  job = { ...job, ddc: ddcResult.data };
+  await persistJob(jobId, { ...job, status: 'running', stage: 'marc' });
+
+  // Same publication-place fold-in the panel used to do inline between the
+  // DDC and MARC steps (whole-book DDC analysis can surface a place of
+  // publication the earlier research evidence didn't) -- never overwrites
+  // an already-known value.
+  let metadata = lookupData;
+  if (!metadata.publication_place && ddcResult.data?.decision?.publication_place) {
+    metadata = { ...metadata, publication_place: ddcResult.data.decision.publication_place };
+  }
+
+  const marcResult = await actionGenerateMarc({ metadata, ddcApproval: ddcResult.data?.decision });
+  job = await loadJob(jobId);
+  if (!job || job.cancelled) return;
+  if (!marcResult.ok) {
+    await persistJob(jobId, { ...job, status: 'error', stage: 'marc', error: marcResult });
+    return;
+  }
+  await persistJob(jobId, { ...job, metadata, marc: marcResult.data, status: 'done', stage: 'done' });
+}
+
+async function actionStartPipeline({ isbn, model, resumeMetadata }) {
+  const jobId = newJobId();
+  const job = { jobId, isbn, model, status: 'running', stage: resumeMetadata ? 'ddc' : 'lookup', lookup: resumeMetadata ?? null, ddc: null, marc: null, metadata: null, error: null, cancelled: false, startedAt: Date.now() };
+  await persistJob(jobId, job);
+  runPipeline(jobId, { isbn, model, resumeMetadata }).catch((error) => {
+    console.error('[AutoCat] Research pipeline threw unexpectedly:', error);
+    persistJob(jobId, { ...job, status: 'error', stage: job.stage, error: networkErrorResult(error) });
+  });
+  return { ok: true, data: { jobId } };
+}
+
+async function actionGetPipelineStatus({ jobId }) {
+  if (!jobId) return { ok: false, code: 'JOB_NOT_FOUND', message: 'No research job is running.' };
+  const job = await loadJob(jobId);
+  if (!job) return { ok: false, code: 'JOB_NOT_FOUND', message: 'This research job is no longer available. Please look up the ISBN again.' };
+  return { ok: true, data: job };
+}
+
+async function actionCancelPipeline({ jobId }) {
+  if (!jobId) return { ok: true, data: null };
+  const job = await loadJob(jobId);
+  if (job) await persistJob(jobId, { ...job, cancelled: true, status: 'cancelled' });
+  return { ok: true, data: null };
+}
+
+// Best-effort cleanup so chrome.storage.session doesn't accumulate stale
+// job records over a long browser session -- never load-bearing (a job
+// simply not being found after this age is the normal "please look it up
+// again" path above).
+chrome.alarms?.create?.('autocat_pipeline_gc', { periodInMinutes: 10 });
+chrome.alarms?.onAlarm?.addListener?.((alarm) => {
+  if (alarm.name !== 'autocat_pipeline_gc') return;
+  const cutoff = Date.now() - PIPELINE_JOB_TTL_MS;
+  for (const [jobId, job] of pipelineJobs.entries()) {
+    if ((job.startedAt ?? 0) < cutoff) pipelineJobs.delete(jobId);
+  }
+  chrome.storage.session.get(null).then((all) => {
+    const stale = Object.entries(all)
+      .filter(([key, value]) => key.startsWith('autocat_pipeline_') && (value?.startedAt ?? 0) < cutoff)
+      .map(([key]) => key);
+    if (stale.length) chrome.storage.session.remove(stale);
+  }).catch((error) => debugLog('pipeline job gc failed', error));
+});
+
 const API_ACTIONS = {
   login: actionLogin,
   signup: actionSignup,
@@ -365,6 +520,9 @@ const API_ACTIONS = {
   getOwnApiStatus: actionGetOwnApiStatus,
   testOwnApi: actionTestOwnApi,
   saveOwnApi: actionSaveOwnApi,
+  startPipeline: actionStartPipeline,
+  getPipelineStatus: actionGetPipelineStatus,
+  cancelPipeline: actionCancelPipeline,
 };
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

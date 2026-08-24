@@ -8,7 +8,7 @@
     "48": "assets/logo/icon48.png",
     "128": "assets/logo/icon128.png"
   },
-  "permissions": ["storage", "activeTab", "sidePanel", "tabs"],
+  "permissions": ["storage", "activeTab", "sidePanel", "tabs", "alarms"],
   "host_permissions": [
     "http://localhost:10000/*",
     "https://domidexx-autocat.onrender.com/*"

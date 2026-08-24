@@ -56,6 +56,14 @@ export const approveDdc = (id, ddcNumber) => call('approveDdc', { id, ddcNumber 
 export const generateMarc = (metadata, ddcApproval) => call('generateMarc', { metadata, ddcApproval });
 export const chat = (message, context) => call('chat', { message, context });
 
+// Research pipeline (product spec section 22): the background worker owns
+// running lookupIsbn -> recommendDdc -> generateMarc to completion,
+// independent of whether the Side Panel stays open to watch it. startPipeline
+// returns a jobId immediately; getPipelineStatus polls for progress/result.
+export const startPipeline = (isbn, model, resumeMetadata) => call('startPipeline', { isbn, model, resumeMetadata });
+export const getPipelineStatus = (jobId) => call('getPipelineStatus', { jobId });
+export const cancelPipeline = (jobId) => call('cancelPipeline', { jobId });
+
 // "Your Own Model" -- additive third AI option, alongside (never replacing)
 // Model 1/Model 2 above.
 export const getOwnApiStatus = () => call('getOwnApiStatus', {});
