@@ -56,6 +56,7 @@ export function normalizeMarcMetadata(input = {}) {
     illustrators: array(metadata.illustrators).map(cleanText),
     translators: array(metadata.translators).map(cleanText),
     publisher: cleanText(metadata.publisher),
+    publication_place: cleanText(metadata.publication_place),
     publish_date: cleanText(metadata.publish_date ?? metadata.publication_date),
     edition: cleanText(metadata.edition),
     language: cleanText(metadata.language ?? metadata.language_code),
@@ -204,10 +205,31 @@ function buildAdditionalFields(metadata, now) {
   return fields;
 }
 
-function ddcFailure(code, message) { return { ok: false, errors: [{ level: 'DDC_APPROVAL', code, tag: '082', message }], field: null }; }
+// ddcUnavailable -- DDC classification simply hasn't produced a number yet
+// (the normal PENDING state before any recommendation exists, or after a
+// genuine INSUFFICIENT_EVIDENCE result). There is no separate "cataloguer
+// approval" gate in this product -- ddcApprovalService.saveDdcDecision
+// auto-accepts a recommendation the moment one exists, so "not APPROVED"
+// here never means "waiting for a human to click approve"; it means
+// classification hasn't reached a number. That must never block the rest
+// of an otherwise-good MARC record: 082 is simply omitted, reported as
+// info (not a validation error), and READY_FOR_KOHA/Fill MARC stay
+// available for every other field.
+function ddcUnavailable(message) {
+  return { ok: false, errors: [], info: [{ level: 'CATALOGUING_PROFILE', code: 'DDC_NOT_AVAILABLE', tag: '082', message }], field: null };
+}
+
+// ddcFailure -- a GENUINE data-integrity problem: a decision claims
+// APPROVED but the number itself doesn't check out (missing, unknown to
+// the DDC knowledge base, unassigned, or an unresolvable hierarchy). This
+// is the one case that should still block the record -- a bad 082 must
+// never silently reach Koha.
+function ddcFailure(code, message) { return { ok: false, errors: [{ level: 'DDC_APPROVAL', code, tag: '082', message }], info: [], field: null }; }
 
 export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(), cutterSourceName = null) {
-  if (!ddcApproval || ddcApproval.approval_status !== 'APPROVED') return ddcFailure('DDC_NOT_APPROVED', 'Final 082$a requires cataloguer-approved DDC.');
+  if (!ddcApproval || ddcApproval.approval_status !== 'APPROVED') {
+    return ddcUnavailable('DDC 23 classification is not available for this record yet -- 082 omitted.');
+  }
   const approved = cleanText(ddcApproval.approved_ddc);
   if (!approved) return ddcFailure('APPROVED_DDC_MISSING', 'Approved DDC number is missing.');
   const ddcClass = findBundledClass(approved);
@@ -220,7 +242,7 @@ export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(
   const cutter = cutterFromSurname(cutterSourceName);
   if (cutter) subfields.push({ code: 'b', value: cutter });
   subfields.push({ code: '2', value: String(edition).replace(/\D/g, '') || '23' });
-  return { ok: true, errors: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
+  return { ok: true, errors: [], info: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
 }
 
 function toStructuredRecord(fields) {
@@ -245,6 +267,14 @@ function marcPreview(fields, validation) {
 export function generateMarcRecord(input = {}, options = {}) {
   const ruleProfile = options.ruleProfile ?? getRuleProfile();
   const metadata = normalizeMarcMetadata(input.metadata ?? input);
+  // PUBLICATION_DEBUG (product spec item 7/21) -- confirms whether
+  // publication_place/publisher/publish_date actually reached the MARC
+  // builder, so a [S.l.] in 260$a can be traced to "the research pipeline
+  // found no place" (evidence=false below) rather than "the builder lost
+  // it" (which this line would otherwise leave silently unprovable).
+  console.info(
+    `PUBLICATION_DEBUG isbn=${metadata.isbn || 'null'} publication_place=${metadata.publication_place || 'null'} publisher=${metadata.publisher || 'null'} publish_date=${metadata.publish_date || 'null'} evidence=${Boolean(metadata.publication_place)}`
+  );
   const conflicts = detectMetadataConflicts(input.sources ?? metadata.sources);
   const isUnverifiedWebMetadata = ['web_search', 'web_scrape', 'agent_research', 'page'].includes(metadata.sources?.method);
   let skeleton = buildSkeleton(metadata, ruleProfile).skeleton.map((f) => withProvenance(f, isUnverifiedWebMetadata ? 'metadata_unverified' : 'metadata', f.tag === 'LDR' || f.tag === '008' || f.tag === '040' ? RULE_DERIVED : SOURCE_DERIVED));
@@ -260,9 +290,10 @@ export function generateMarcRecord(input = {}, options = {}) {
   const fields = [...skeleton, ...buildAdditionalFields(metadata, options.now ?? new Date())];
   const ddc = buildApproved082(input.ddc_approval ?? input.ddcDecision ?? {}, ruleProfile, first(metadata.authors));
   const ddcErrors = ddc.errors;
+  const ddcInfo = ddc.info ?? [];
   if (ddc.ok) fields.push(ddc.field);
   const ddcApproval = input.ddc_approval ?? input.ddcDecision ?? {};
-  const validation = validateProductionMarc(fields, { metadata, ddcApproval, ddcErrors });
+  const validation = validateProductionMarc(fields, { metadata, ddcApproval, ddcErrors, ddcInfo });
   const marcRecord = toStructuredRecord(fields);
   const result = { metadata, marc_record: marcRecord, fields, validation, preview: marcPreview(fields, validation), provenance: fields.map((f) => ({ tag: normalizeMarcTag(f.tag), source: f.source, provenance: f.provenance })), conflicts, status: validation.valid ? 'READY_FOR_KOHA' : 'REQUIRES_CATALOGUER_REVIEW' };
   // P4: only offer a Koha fill plan once the record validates. An invalid
@@ -271,11 +302,11 @@ export function generateMarcRecord(input = {}, options = {}) {
   return result;
 }
 
-export function validateProductionMarc(fields, { metadata = {}, ddcApproval = {}, ddcErrors = [] } = {}) {
+export function validateProductionMarc(fields, { metadata = {}, ddcApproval = {}, ddcErrors = [], ddcInfo = [] } = {}) {
   const base = validateRecord(fields);
   const errors = base.issues.map((issue) => ({ level: 'STRUCTURAL', ...issue }));
   const warnings = [];
-  const info = [];
+  const info = [...ddcInfo];
   const byTag = Object.groupBy(fields, (f) => normalizeMarcTag(f.tag));
   if (metadata.isbn && !isValidIsbn(metadata.isbn)) errors.push({ level: 'CATALOGUING_PROFILE', tag: '020', code: 'INVALID_ISBN', message: '020$a must contain a valid ISBN-10 or ISBN-13.' });
   const marc020 = byTag['020']?.flatMap((f) => f.subfields ?? []).find((sf) => sf.code === 'a')?.value;

@@ -86,6 +86,13 @@ function fromAi(ai, ruleBased) {
     classification_source: 'AI_ANALYZED',
     model: ai.model,
     alternatives_considered: ai.alternatives_considered ?? [],
+    // Evidence-grounded only (see buildDdcAnalysisPrompt's explicit
+    // "never guess" instruction) -- the client merges this into the
+    // book's working metadata (only filling a still-empty field, never
+    // overwriting a value structured/page evidence already supplied) so
+    // MARC's 260$a has a real place instead of the AACR2 [S.l.]
+    // placeholder whenever the evidence actually supports one.
+    publication_place: ai.publication_place ?? null,
   };
 }
 
@@ -102,6 +109,7 @@ function fromRuleBased(ruleBased) {
     classification_source: 'RULE_BASED',
     model: null,
     alternatives_considered: [],
+    publication_place: null,
   };
 }
 
@@ -153,12 +161,16 @@ export async function recommendDdc(metadata = {}, { classifyWithAiFn = classifyW
     // rule-based engine's own near-miss candidates, always present
     // regardless of whether AI classification ran.
     alternatives_considered: chosen.alternatives_considered ?? [],
+    publication_place: chosen.publication_place ?? null,
     classification_source: chosen.classification_source,
     ai_attempted: attempted,
     ai_model: chosen.model,
     ai_rejected: rejected ?? null,
     provenance: [chosen.classification_source === 'AI_ANALYZED' ? 'AI_ANALYZED' : 'RULE_DERIVED', 'SOURCE_DERIVED'],
-    requires_cataloguer_review: true,
+    // approval_status starts PENDING regardless of outcome -- saveDdcDecision
+    // (ddcApprovalService.js) is the one place that ever changes it, and it
+    // does so automatically the moment a recommended_ddc exists (no separate
+    // "cataloguer approval" step anywhere in this product).
     approval_status: 'PENDING',
   };
 
@@ -190,12 +202,16 @@ function buildInsufficientEvidenceDecision(ruleBased) {
     why: 'Insufficient bibliographic evidence for confident classification.',
     alternatives: [],
     alternatives_considered: [],
+    publication_place: null,
     classification_source: 'INSUFFICIENT_EVIDENCE',
     ai_attempted: false,
     ai_model: null,
     ai_rejected: null,
     provenance: ['SOURCE_DERIVED'],
-    requires_cataloguer_review: true,
+    // approval_status starts PENDING regardless of outcome -- saveDdcDecision
+    // (ddcApprovalService.js) is the one place that ever changes it, and it
+    // does so automatically the moment a recommended_ddc exists (no separate
+    // "cataloguer approval" step anywhere in this product).
     approval_status: 'PENDING',
   };
 }

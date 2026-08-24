@@ -113,6 +113,7 @@ function extractOpenLibraryFields(raw) {
     illustrators: byRole('Illustrator'),
     translators: byRole('Translator'),
     publisher: raw.publishers?.[0]?.name ?? null,
+    publication_place: raw.publish_places?.[0]?.name ?? null,
     publish_date: raw.publish_date ?? null,
     edition: raw.edition_name ?? null,
     pages: raw.number_of_pages ?? null,
@@ -207,6 +208,7 @@ const TOP_LEVEL_FIELDS = [
   'illustrators',
   'translators',
   'publisher',
+  'publication_place',
   'publish_date',
   'edition',
   'description',
@@ -273,6 +275,7 @@ function emptyNormalizedRecord(isbn) {
     illustrators: [],
     translators: [],
     publisher: null,
+    publication_place: null,
     publish_date: null,
     edition: null,
     physical_description: { pages: null, dimensions: null },
@@ -321,7 +324,7 @@ function extractJson(text) {
   return (fenced ? fenced[1] : text).trim();
 }
 
-const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}`;
+const STRUCTURED_JSON_SHAPE = `{"isbn": string, "title": string|null, "subtitle": string|null, "authors": string[], "editors": string[], "illustrators": string[], "translators": string[], "publisher": string|null, "publication_place": string|null, "publish_date": string|null, "edition": string|null, "physical_description": {"pages": number|null, "dimensions": string|null}, "description": string|null, "subjects": string[], "series": string|null, "language": string|null, "table_of_contents": string|null, "existing_classifications": [{"number": string, "source": string}], "conflicts_found": string|null}`;
 
 // A web_search call genuinely needs more time than a plain completion (the
 // model runs multiple real searches before answering), but it must still
@@ -370,7 +373,7 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
       {
         model,
         tools: [{ type: 'web_search' }],
-        input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
+        input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, place of publication (the city the publisher's imprint is based in, e.g. "London" or "New York" -- only if a source actually states it, never a guess), publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
       },
       { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
     );
@@ -462,6 +465,7 @@ ${searchText}`,
     illustrators: parsed.illustrators ?? [],
     translators: parsed.translators ?? [],
     publisher: parsed.publisher ?? null,
+    publication_place: parsed.publication_place ?? null,
     publish_date: parsed.publish_date ?? null,
     edition: parsed.edition ?? null,
     physical_description: {
@@ -610,6 +614,7 @@ export function validatePageEvidence(data, variants, pageUrl) {
     illustrators: [],
     translators: [],
     publisher: data.publisher,
+    publication_place: data.publication_place,
     publish_date: data.publish_date,
     edition: data.edition,
     physical_description: { pages: data.pages, dimensions: null },
@@ -825,6 +830,12 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
 
   const evidenceFields = TOP_LEVEL_FIELDS.filter((field) => !isEmptyValue(result[field]));
   console.info(`ISBN lookup: ${isbn} resolved via '${result.sources?.method}' with evidence fields [${evidenceFields.join(', ')}]`);
+  // PUBLICATION_DEBUG (product spec item 7/21): traces exactly where a
+  // 260/264 field's place/publisher/year did or didn't get populated --
+  // no API keys or other secrets ever appear in this line.
+  console.info(
+    `PUBLICATION_DEBUG isbn=${isbn} publication_place=${result.publication_place ?? 'null'} publisher=${result.publisher ?? 'null'} publish_date=${result.publish_date ?? 'null'} source=${result.sources?.method ?? 'unknown'}`
+  );
 
   await pool.query(
     `INSERT INTO isbn_cache (isbn, raw_json, source)

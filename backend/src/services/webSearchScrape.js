@@ -205,6 +205,14 @@ const FIELD_PATTERNS = {
   publish_date: /\b(19|20)\d{2}\b/,
   pages: /(\d{1,4})\s*pages?\b/i,
   language: /language[:\s]+([A-Za-z]{3,20})/i,
+  // Place of publication -- only matched against an EXPLICIT label (never
+  // guessed from a bare city name appearing anywhere on the page, which
+  // would risk picking up an unrelated address/office location). Covers
+  // both a dedicated label ("Place of Publication: London") and the
+  // classic library-citation convention "City : Publisher" / "City,
+  // Publisher" that most publisher/bookseller pages still print somewhere
+  // in their bibliographic details.
+  publicationPlaceLabel: /(?:place of publication|published in|city of publication)\s*:?\s*([A-Z][A-Za-z.\- ]{1,40}?)(?:\.\s|\.$|,|;|\s{2,}|$)/i,
 };
 
 function stripTags(html) {
@@ -228,6 +236,54 @@ function extractDdcMentions(text) {
   return [...new Set(matches)];
 }
 
+// Bibliographic-label words that could otherwise be mistaken for a place
+// name by the "City : Publisher" citation pattern below (e.g. "Publisher:
+// Cambridge University Press" alone, with no place, would otherwise let
+// "Publisher" itself get captured as if it were the city).
+const PLACE_LABEL_STOPWORDS = new Set([
+  'publisher', 'published', 'publication', 'author', 'authors', 'editor', 'editors',
+  'isbn', 'edition', 'copyright', 'price', 'format', 'language', 'pages', 'series',
+]);
+
+// extractPublicationPlace -- deliberately conservative: only two sources,
+// both requiring an explicit, unambiguous signal rather than guessing from
+// any city name that happens to appear on the page (a publisher's office
+// address, an author bio, a shipping notice, etc. would all produce false
+// positives otherwise):
+//   1. JSON-LD publisher.address.addressLocality -- schema.org's own
+//      structured field for exactly this, when a site bothers to fill it in.
+//   2. The classic library-citation convention "City : Publisher Name" (or
+//      "City, Publisher Name") -- but ONLY when anchored to the actual
+//      extracted publisher name, capped at 3 words with no embedded period
+//      (so it can't span across an unrelated preceding sentence), and never
+//      when the candidate is itself a bibliographic label like "Publisher"
+//      (see PLACE_LABEL_STOPWORDS -- guards against "Publisher: Acme Press"
+//      alone, with no real place stated, being misread as one).
+// Returns null (never a guess) when neither source has anything -- the
+// bracketed AACR2 "[S.l.]" placeholder is the correct, honest fallback
+// build260 in marcBuilder.js already uses for that case.
+function extractPublicationPlace(jsonLd, bodyText, publisher) {
+  const jsonLdLocality = jsonLd?.publisher?.address?.addressLocality;
+  if (jsonLdLocality) return String(jsonLdLocality).trim();
+
+  const labeled = bodyText.match(FIELD_PATTERNS.publicationPlaceLabel)?.[1];
+  if (labeled) return labeled.trim();
+
+  if (publisher) {
+    const escapedPublisher = publisher.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const citationRe = new RegExp(`\\b([A-Z][A-Za-z\\- ]{1,25}?)\\s*[:,]\\s*${escapedPublisher}\\b`, 'g');
+    let match;
+    while ((match = citationRe.exec(bodyText)) !== null) {
+      const candidate = match[1].trim();
+      if (!PLACE_LABEL_STOPWORDS.has(candidate.toLowerCase()) && candidate.split(/\s+/).length <= 3) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
+}
+
 // `isbnCandidates` (product spec item 5: "search result validation") --
 // digits-only ISBN-10/ISBN-13 forms to check for literally in the page's
 // text. A publisher/library/bookseller page for a specific book almost
@@ -249,6 +305,7 @@ export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
   const bodyText = stripTags(html).slice(0, 20_000);
 
   const publisher = jsonLd?.publisher?.name || jsonLd?.publisher || bodyText.match(FIELD_PATTERNS.publisher)?.[1] || null;
+  const publicationPlace = extractPublicationPlace(jsonLd, bodyText, publisher ? String(publisher).trim() : null);
   const edition = jsonLd?.bookEdition || bodyText.match(FIELD_PATTERNS.edition)?.[1] || null;
   const publishDate = jsonLd?.datePublished || bodyText.match(FIELD_PATTERNS.publish_date)?.[0] || null;
   const pages = jsonLd?.numberOfPages || bodyText.match(FIELD_PATTERNS.pages)?.[1] || null;
@@ -265,6 +322,7 @@ export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
     subtitle: jsonLd?.alternativeHeadline || null,
     authors: jsonLdAuthorNames(jsonLd),
     publisher: publisher ? String(publisher).trim() : null,
+    publication_place: publicationPlace,
     publish_date: publishDate ? String(publishDate).trim() : null,
     edition: edition ? String(edition).trim() : null,
     pages: pages ? Number(String(pages).replace(/\D/g, '')) || null : null,
@@ -375,6 +433,7 @@ function mergePageFields(pages) {
     subtitle: pick('subtitle'),
     authors: pickArray('authors'),
     publisher: pick('publisher'),
+    publication_place: pick('publication_place'),
     publish_date: pick('publish_date'),
     edition: pick('edition'),
     pages: pick('pages'),
@@ -470,6 +529,7 @@ export async function webSearchAndScrape(isbn, variants = [isbn]) {
       illustrators: [],
       translators: [],
       publisher: merged.publisher,
+      publication_place: merged.publication_place,
       publish_date: merged.publish_date,
       edition: merged.edition,
       physical_description: { pages: merged.pages, dimensions: null },
