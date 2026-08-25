@@ -55,7 +55,19 @@ result = generateMarcRecord({ metadata: base, ddc_approval: { ai_recommended_ddc
 assert.strictEqual(result.fields.find((f) => f.tag === '082').subfields.find((sf) => sf.code === 'a').value, '025');
 assert.strictEqual(result.validation.valid, true);
 
-assert.strictEqual(buildApproved082({ approval_status: 'APPROVED', approved_ddc: '999.999' }).ok, false);
+// Format-invalid (not three digits) is still rejected...
+assert.strictEqual(buildApproved082({ approval_status: 'APPROVED', approved_ddc: '99' }).ok, false);
+// ...but a well-formed, sufficiently specific number ABSENT from AutoCat's
+// bundled ~1000-entry sample (rules/ddc_classes.json) must NOT be rejected
+// merely for that absence -- that file is a curated sample, not a whitelist
+// (product spec: "Do NOT require the DDC to exist in the local knowledge
+// base. The AI may produce a valid DDC 23 number not present in the local
+// dataset."). "999" itself IS in the bundled sample (ASSIGNED); "999.999" is
+// not, and must still be accepted.
+assert.strictEqual(buildApproved082({ approval_status: 'APPROVED', approved_ddc: '999.999' }).ok, true);
+// "024" IS in the bundled sample and explicitly marked UNASSIGNED there --
+// that's real, specific evidence of invalidity (not mere absence), so it is
+// still correctly rejected.
 assert.strictEqual(buildApproved082({ approval_status: 'APPROVED', approved_ddc: '024' }).ok, false);
 result = generateMarcRecord({ metadata: { ...base, isbn: '123' }, ddc_approval: { approval_status: 'APPROVED', approved_ddc: '020' } });
 assert.strictEqual(result.validation.valid, false);
