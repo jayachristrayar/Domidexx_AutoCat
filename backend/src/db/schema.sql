@@ -72,6 +72,14 @@ ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'suc
 -- any request genuinely not tied to an active ISBN (e.g. Ask AutoCat with
 -- no book loaded) -- never backfilled/guessed for old rows.
 ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS isbn TEXT;
+-- How long the underlying AI call actually took, in milliseconds -- every
+-- call site already measures this (Date.now() around the request) for its
+-- own console.info line; this just persists the same number so the admin
+-- Usage page can show it too, instead of it only ever reaching a log file.
+-- NULL for any row from a call site that hasn't been updated to pass it, or
+-- when a request never actually reached a provider (e.g. rule-based DDC
+-- fallback with no AI call at all) -- never fabricated.
+ALTER TABLE api_usage ADD COLUMN IF NOT EXISTS duration_ms INTEGER;
 CREATE INDEX IF NOT EXISTS api_usage_created_at_idx ON api_usage (created_at DESC);
 CREATE INDEX IF NOT EXISTS api_usage_user_id_idx ON api_usage (user_id);
 CREATE INDEX IF NOT EXISTS api_usage_isbn_idx ON api_usage (isbn);

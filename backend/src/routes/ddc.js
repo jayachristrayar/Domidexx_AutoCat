@@ -39,7 +39,8 @@ async function handleOwnModelRecommend(req, res) {
     provider: 'own',
     classifyWithAiFn: (args) => classifyWithAi({ ...args, callModel: (prompt) => callOwnApi(prompt, ownConfig) }),
   });
-  console.info(`ddc/recommend: classification for user ${req.user.userId} via own model took ${Date.now() - startedAt}ms (source=${decision.classification_source})`);
+  const ownDurationMs = Date.now() - startedAt;
+  console.info(`ddc/recommend: classification for user ${req.user.userId} via own model took ${ownDurationMs}ms (source=${decision.classification_source})`);
 
   if (decision.ai_attempted) {
     recordUsage({
@@ -49,6 +50,7 @@ async function handleOwnModelRecommend(req, res) {
       model: decision.ai_model,
       requestType: 'DDC',
       status: decision.classification_source === 'AI_ANALYZED' ? 'success' : 'failure',
+      durationMs: ownDurationMs,
     });
   }
 
@@ -81,7 +83,8 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
   const provider = toProviderId(model);
   const ddcStartedAt = Date.now();
   const decision=await recommendDdc(metadata, { provider });
-  console.info(`ddc/recommend: classification for user ${req.user.userId} via ${provider} took ${Date.now() - ddcStartedAt}ms (source=${decision.classification_source})`);
+  const ddcDurationMs = Date.now() - ddcStartedAt;
+  console.info(`ddc/recommend: classification for user ${req.user.userId} via ${provider} took ${ddcDurationMs}ms (source=${decision.classification_source})`);
   // Only log a usage row when the provider was actually called (ai_attempted)
   // -- when no AI provider is configured at all, recommendDdc silently falls
   // back to the rule-based engine with no request ever sent anywhere, and
@@ -94,6 +97,7 @@ router.post('/recommend', asyncHandler(async(req,res)=>{
       model: decision.ai_model,
       requestType: 'DDC',
       status: decision.classification_source === 'AI_ANALYZED' ? 'success' : 'failure',
+      durationMs: ddcDurationMs,
     });
   }
   // saveDdcDecision auto-accepts the recommendation as the current working

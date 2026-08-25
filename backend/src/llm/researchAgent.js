@@ -89,6 +89,15 @@ function buildSystemPrompt(isbn, variants) {
     'Compare what different sources say rather than trusting the first result blindly -- if sources disagree on a fact, prefer library/publisher sources over booksellers, and say so in conflicts_found.',
     `Once you have gathered enough evidence, respond with ONLY strict JSON matching exactly this shape (no markdown fences, no commentary, no further tool calls): ${RESPONSE_SHAPE}`,
     'Use null for unknown scalar fields and [] for unknown list fields. existing_classifications is any DDC/Dewey (or similar) classification number you found already assigned to this book on a library catalogue page -- supporting evidence only, not something to invent. publication_place is the city the publisher\'s imprint is based in (e.g. "London", "New York") -- return it ONLY if a source directly states it (a publisher/library page, a citation format like "City: Publisher"); if no source states it, return null rather than guessing where the publisher is likely based.',
+    // Same subject-selection contract the OpenAI path's structuring prompt
+    // uses (isbnLookup.js) -- Model 1 (NVIDIA) and Model 3 (Your Own Model)
+    // must apply the identical bibliographic judgment, not a looser one,
+    // since only the AI provider is meant to differ, never the reasoning
+    // rules. Ordering most-to-least-central matters beyond presentation:
+    // marcPipeline.js's filterSubjects caps subjects at 7 by taking this
+    // list's first 7 entries, so an unordered or padded list here would
+    // silently keep the wrong subjects.
+    'For "subjects": list the book\'s actual subject headings -- the real topics a library catalogue would assign, drawn from the publisher description, table of contents, or an existing library/bookseller subject listing you found. Do not list every concept, keyword, or theoretical term merely mentioned in passing, and do not derive a subject from a word appearing only in the title/subtitle. Avoid vague, emotional, or marketing words (e.g. "fear", "adventure") unless a genuine controlled subject heading uses that exact term. There is no fixed count to hit either way -- list as many distinct, genuinely evidenced subjects as the research actually supports, and no more than that (never pad to reach any particular number). Order the list from most to least central to the book. Do not repeat the same heading with different wording.',
   ].join('\n\n');
 }
 
@@ -177,6 +186,7 @@ export async function runAgenticResearch({ isbn, variants = [isbn], provider, ow
     }
 
     let response;
+    const iterationStartedAt = Date.now();
     try {
       response = await client.chat.completions.create(
         { model, messages, tools: TOOLS, tool_choice: 'auto' },
@@ -198,6 +208,7 @@ export async function runAgenticResearch({ isbn, variants = [isbn], provider, ow
       requestType: 'ISBN',
       tokensUsed: response.usage?.total_tokens,
       status: 'success',
+      durationMs: Date.now() - iterationStartedAt,
     });
 
     const message = response.choices?.[0]?.message;

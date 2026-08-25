@@ -25,12 +25,12 @@ const KNOWN_STATUSES = new Set(['success', 'failure']);
 // AutoCat with an active book -- must carry the ISBN through to the usage
 // log). Optional/null: a request genuinely not tied to a book (e.g. Ask
 // AutoCat with nothing loaded yet) legitimately has none -- never fabricated.
-export async function recordUsage({ userId, isbn = null, provider, model, requestType, tokensUsed = null, status = 'success' }) {
+export async function recordUsage({ userId, isbn = null, provider, model, requestType, tokensUsed = null, status = 'success', durationMs = null }) {
   try {
     await pool.query(
-      `INSERT INTO api_usage (user_id, isbn, provider, model, request_type, tokens_used, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [userId ?? null, isbn ?? null, provider, model ?? null, requestType, tokensUsed, status]
+      `INSERT INTO api_usage (user_id, isbn, provider, model, request_type, tokens_used, status, duration_ms)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId ?? null, isbn ?? null, provider, model ?? null, requestType, tokensUsed, status, durationMs ?? null]
     );
   } catch (error) {
     console.error(`usageService.recordUsage failed (provider=${provider}, requestType=${requestType}): ${error.message}`);
@@ -86,7 +86,7 @@ export async function listUsage({ userId, isbn, provider, status, since, until, 
 
   const { rows } = await pool.query(
     `SELECT au.id, au.user_id, u.email, u.autocat_user_id, au.isbn, au.provider, au.model,
-            au.request_type, au.tokens_used, au.status, au.created_at
+            au.request_type, au.tokens_used, au.status, au.duration_ms, au.created_at
      FROM api_usage au
      LEFT JOIN users u ON u.id = au.user_id
      ${where}

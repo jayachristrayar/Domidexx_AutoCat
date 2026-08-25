@@ -289,8 +289,8 @@ function emptyNormalizedRecord(isbn) {
   };
 }
 
-function logApiUsage(userId, isbn, model, tokensUsed) {
-  return recordUsage({ userId, isbn, provider: 'openai', model, requestType: 'ISBN', tokensUsed, status: 'success' });
+function logApiUsage(userId, isbn, model, tokensUsed, durationMs = null) {
+  return recordUsage({ userId, isbn, provider: 'openai', model, requestType: 'ISBN', tokensUsed, status: 'success', durationMs });
 }
 
 function extractCitations(response) {
@@ -381,8 +381,9 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
     console.error(`ISBN web research: web_search call failed for ${isbn} after ${Date.now() - searchStartedAt}ms: ${error.message}`);
     return null;
   }
-  console.info(`ISBN web research: primary search pass for ${isbn} took ${Date.now() - searchStartedAt}ms`);
-  await logApiUsage(userId, isbn, model, searchResponse.usage?.total_tokens);
+  const searchDurationMs = Date.now() - searchStartedAt;
+  console.info(`ISBN web research: primary search pass for ${isbn} took ${searchDurationMs}ms`);
+  await logApiUsage(userId, isbn, model, searchResponse.usage?.total_tokens, searchDurationMs);
 
   let searchText = searchResponse.output_text ?? '';
   let citations = extractCitations(searchResponse);
@@ -405,10 +406,11 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
         },
         { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
       );
-      await logApiUsage(userId, isbn, model, crossCheckResponse.usage?.total_tokens);
+      const crossCheckDurationMs = Date.now() - crossCheckStartedAt;
+      await logApiUsage(userId, isbn, model, crossCheckResponse.usage?.total_tokens, crossCheckDurationMs);
       searchText = `${searchText}\n\nAdditional cross-check research:\n${crossCheckResponse.output_text ?? ''}`;
       citations = citations.concat(extractCitations(crossCheckResponse));
-      console.info(`ISBN web research: deep cross-check pass for ${isbn} took ${Date.now() - crossCheckStartedAt}ms`);
+      console.info(`ISBN web research: deep cross-check pass for ${isbn} took ${crossCheckDurationMs}ms`);
     } catch (error) {
       // Not fatal -- the primary research pass already succeeded; deep mode
       // just doesn't get its extra coverage this time.
@@ -438,8 +440,9 @@ ${searchText}`,
     console.error(`ISBN web research: JSON formatting call failed for ${isbn} after ${Date.now() - structuringStartedAt}ms: ${error.message}`);
     return null;
   }
-  console.info(`ISBN web research: JSON formatting pass for ${isbn} took ${Date.now() - structuringStartedAt}ms`);
-  await logApiUsage(userId, isbn, model, structuredResponse.usage?.total_tokens);
+  const structuringDurationMs = Date.now() - structuringStartedAt;
+  console.info(`ISBN web research: JSON formatting pass for ${isbn} took ${structuringDurationMs}ms`);
+  await logApiUsage(userId, isbn, model, structuredResponse.usage?.total_tokens, structuringDurationMs);
 
   let parsed;
   try {

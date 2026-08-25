@@ -857,7 +857,7 @@ function usageFiltersFromQuery(query) {
 }
 
 function usageRowsHtml(rows) {
-  if (rows.length === 0) return '<tr><td colspan="9" class="muted">No matching requests yet.</td></tr>';
+  if (rows.length === 0) return '<tr><td colspan="10" class="muted">No matching requests yet.</td></tr>';
   return rows
     .map(
       (row) => `<tr>
@@ -868,6 +868,7 @@ function usageRowsHtml(rows) {
         <td>${escapeHtml(row.model ?? '—')}</td>
         <td>${escapeHtml(row.request_type)}</td>
         <td>${row.tokens_used != null ? Number(row.tokens_used).toLocaleString() : '—'}</td>
+        <td>${row.duration_ms != null ? `${Number(row.duration_ms).toLocaleString()} ms` : '—'}</td>
         <td>${new Date(row.created_at).toLocaleString()}</td>
         <td><span class="badge ${row.status === 'success' ? 'badge-ok' : 'badge-off'}">${escapeHtml(row.status)}</span></td>
       </tr>`
@@ -948,7 +949,7 @@ router.get(
           <div class="panel table-wrap">
             <h3 class="panel-title">Live activity</h3>
             <table>
-              <thead><tr><th>User</th><th>ID</th><th>ISBN</th><th>Provider</th><th>Model</th><th>Request</th><th>Tokens</th><th>Time</th><th>Status</th></tr></thead>
+              <thead><tr><th>User</th><th>ID</th><th>ISBN</th><th>Provider</th><th>Model</th><th>Request</th><th>Tokens</th><th>Duration</th><th>Time</th><th>Status</th></tr></thead>
               <tbody id="usage-rows">${usageRowsHtml(rows)}</tbody>
             </table>
           </div>

@@ -185,10 +185,29 @@ console.log('\n== extension engine: fill ==');
   assert.ok(result.filled.some((f) => f.tag === '020' && f.subfield === 'a'));
   assert.ok(result.filled.some((f) => f.tag === '082' && f.subfield === 'a'));
   assert.ok(result.filled.some((f) => f.tag === '650' && f.subfield === 'a'));
+  // 100$a (main author, surname-first) and 100$e (relator term "author")
+  // must both be generated and both actually written to the Koha DOM --
+  // product spec: "Do not omit 100$e when the framework requires it."
+  assert.ok(result.filled.some((f) => f.tag === '100' && f.subfield === 'a'));
+  assert.ok(result.filled.some((f) => f.tag === '100' && f.subfield === 'e'));
+  assert.strictEqual(readSubfieldValue(doc, '100', 'a'), 'Cataloguer, Jane');
+  assert.strictEqual(readSubfieldValue(doc, '100', 'e'), 'author');
 
   assert.strictEqual(readSubfieldValue(doc, '245', 'a'), 'Introduction to Library and Information Science /');
+
+  // 260$a/$b/$c (publication place/publisher/year) and 300$c (dimensions)
+  // must actually land in the Koha DOM, not just the generated MARC record
+  // -- product spec item H/Q explicitly calls this out as something to
+  // verify end-to-end against the real DOM, not just assert in isolation.
+  assert.ok(result.filled.some((f) => f.tag === '260' && f.subfield === 'a'));
+  assert.ok(result.filled.some((f) => f.tag === '260' && f.subfield === 'b'));
+  assert.ok(result.filled.some((f) => f.tag === '260' && f.subfield === 'c'));
+  assert.strictEqual(readSubfieldValue(doc, '260', 'b'), 'Example Press,');
+  assert.strictEqual(readSubfieldValue(doc, '260', 'c'), '2024.');
+  assert.ok(result.filled.some((f) => f.tag === '300' && f.subfield === 'c'));
+  assert.strictEqual(readSubfieldValue(doc, '300', 'c'), '24 cm.');
   assert.strictEqual(saveClicked.value, false, 'fill must never trigger the Save button');
-  console.log('  first fill: all mappable fields filled, DOM read-back matches, Save never clicked');
+  console.log('  first fill: all mappable fields filled (including 260 place/publisher/year and 300 dimensions), DOM read-back matches, Save never clicked');
 
   // Idempotency: filling again against the now-populated DOM must report
   // already_present, not duplicate writes or conflicts.
