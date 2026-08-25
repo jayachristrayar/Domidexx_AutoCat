@@ -383,9 +383,14 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
 
   // Also search the other ISBN-10/ISBN-13 form (product spec item 1) -- a
   // publisher/library page commonly lists only one form of the number.
+  // Every query below is a targeted, bibliographically-specific variant --
+  // never just the bare ISBN alone -- so the hosted web_search tool has
+  // concrete leads toward the actual fields this pipeline needs (a plain
+  // ISBN search routinely surfaces only bookseller listing pages with no
+  // real description/place-of-publication text on them).
   const otherForm = isbnVariants(isbn).find((v) => v !== isbn) ?? null;
   const isbnFormVariation = otherForm ? `, "ISBN ${otherForm}", "${otherForm} book"` : '';
-  const deepVariations = deep ? `, "${isbn} author", "${isbn} publisher", "${isbn} catalog", "${isbn} library"` : '';
+  const deepVariations = deep ? `, "${isbn} author", "${isbn} catalog", "${isbn} library"` : '';
   let searchResponse;
   const searchStartedAt = Date.now();
   try {
@@ -393,7 +398,7 @@ export async function lookupIsbnWebFallback(isbn, { userId, deep = false } = {})
       {
         model,
         tools: [{ type: 'web_search' }],
-        input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Search the exact ISBN and variations such as "ISBN ${isbn}", "${isbn} book", "${isbn} title"${isbnFormVariation}${deepVariations} -- do not search by title/author alone. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, place of publication (the city the publisher's imprint is based in, e.g. "London" or "New York" -- only if a source actually states it, never a guess), publication year, edition, page count, a description or abstract, table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
+        input: `Find comprehensive bibliographic data for the book with ISBN ${isbn}. Actually search the web using targeted queries such as "${isbn}", "${isbn} book", "ISBN ${isbn}", "${isbn} publisher", "${isbn} description", "${isbn} publication place", "${isbn} subjects", "${isbn} table of contents"${isbnFormVariation}${deepVariations} -- do not search by title/author alone, and do not answer from your own memory of the book without actually searching. When you find a promising result, treat the search-result snippet as a lead only and open the actual source page for its real content rather than relying on the snippet text. Prefer sources in this order: (1) the official publisher's own page for this book, (2) an author/publisher page, (3) a library catalogue, (4) a national library record, (5) WorldCat or another major bibliographic catalogue, (6) Google Books, (7) Internet Archive/Open Library, (8) a major bookseller, (9) any other reliable bibliographic source -- a lower-priority source is still usable evidence, just weighed less when sources disagree. Return: title, subtitle, author(s), editor(s), translator(s), illustrator(s), publisher, place of publication (the city the publisher's imprint is based in, e.g. "London" or "New York" -- only if a source actually states it, never a guess), publication year, edition, page count, an ACTUAL description or abstract of the book's content (never a bibliographic/edition note like "Includes bibliographical references" or "Previous ed.: ..." -- that is not a description), table of contents if available, subjects/keywords, series, and any existing library classification (e.g. Dewey Decimal / DDC) found on catalog records -- treat any such number as evidence only, not a value to trust blindly. If different sources disagree on any fact, say so explicitly and state which source is most credible and why. Cite the source(s) for each key fact.`,
       },
       { timeout: WEB_SEARCH_TIMEOUT_MS, maxRetries: 0 }
     );
