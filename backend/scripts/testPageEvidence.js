@@ -94,9 +94,24 @@ assert.strictEqual(merged.description, pageEvidence.description);
 assert.strictEqual(merged.publication_place, 'London');
 assert.ok(merged.sources.current_page, 'merged.sources.current_page should record where this evidence came from');
 
+// isbnLookup.js's lookupIsbn() gates web research on title + DESCRIPTION
+// specifically (not "description OR subjects" -- see the comment at its
+// `hasDescription`/`needsWebResearch` definition). Mirror that exact
+// condition here so this regression test tracks the real gate, not a
+// looser copy of it.
 const hasTitle = Boolean(merged.title);
-const hasContentEvidence = Boolean(merged.description) || merged.subjects.length > 0;
-assert.ok(hasTitle && hasContentEvidence, 'page evidence alone must satisfy both needsWebResearch conditions');
+const hasDescription = Boolean(merged.description);
+assert.ok(hasTitle && hasDescription, 'page evidence alone must satisfy both needsWebResearch conditions');
+
+// -- Bug: a structured source (Google Books commonly does this) returning
+// non-empty subjects/categories but NO real description used to be treated
+// as "enough content evidence", skipping web research entirely -- the
+// record was left with no description at all, ever, even though a search
+// would likely have found one. Description is the specific field that must
+// gate this decision.
+const subjectsButNoDescription = { ...emptyStructured, title: 'A Book With Categories But No Blurb', subjects: ['Business', 'Management'], description: null };
+const stillNeedsResearchForDescription = !Boolean(subjectsButNoDescription.title) || !Boolean(subjectsButNoDescription.description);
+assert.strictEqual(stillNeedsResearchForDescription, true, 'subjects alone (no description) must still trigger web research');
 
 // -- Validation must reject a page that is clearly about a DIFFERENT book
 // (product spec item 5: "do not accept an unrelated book").

@@ -134,16 +134,24 @@ assert.notStrictEqual(decision.recommended_ddc.number, '600');
 assert.ok(!/^\d00$/.test(decision.recommended_ddc.number));
 
 // ---------------------------------------------------------------------
-// AI proposes a number that isn't even in AutoCat's DDC 23 reference --
-// rejected as unverifiable, not trusted on the model's word alone.
+// AI proposes a well-formed, work-type-consistent number that simply
+// isn't in AutoCat's bundled ~1000-entry DDC 23 reference sample -- product
+// spec: "the local DDC knowledge base must NOT be the only authority...
+// do NOT automatically reject the classification" merely because the exact
+// number is absent from that sample. Must be ACCEPTED, not rejected --
+// rejecting it here previously discarded a routinely more-specific, better
+// AI answer (e.g. "823.912" for a particular novel) in favor of the
+// generic rule-based fallback, silently, on every book whose correct
+// number wasn't one of the ~1000 the bundle happens to carry.
 // ---------------------------------------------------------------------
 decision = await recommendDdc(wutheringHeights, {
   classifyWithAiFn: async () => {
-    const parsed = parseAiDdcResponse(aiResponse({ ddc: '823.87654', class_name: 'Invented', work_type: 'Novel', confidence: 'HIGH', why: 'fabricated precision', number_breakdown: [], evidence: [], sources: [] }).text);
+    const parsed = parseAiDdcResponse(aiResponse({ ddc: '823.87654', class_name: 'Wuthering Heights, precise build number', work_type: 'Novel', confidence: 'HIGH', why: 'specific enough to not be in the bundled sample, but still a valid DDC 23 number under Literature', number_breakdown: [], evidence: [], sources: [] }).text);
     return { ...parsed, model: 'fake-test-model', provider: 'openai' };
   },
 });
-assert.notStrictEqual(decision.recommended_ddc.number, '823.87654');
+assert.strictEqual(decision.recommended_ddc.number, '823.87654', 'a well-formed AI number absent from the bundled sample must be accepted, not rejected');
+assert.strictEqual(decision.classification_source, 'AI_ANALYZED');
 
 // ---------------------------------------------------------------------
 // Malformed AI output (unparseable JSON) must not crash the request --
