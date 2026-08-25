@@ -3,6 +3,7 @@ import { validateRecord } from './marcValidator.js';
 import { getRuleProfile, hasMarcRule, normalizeMarcTag } from './marcRuleRegistry.js';
 import { findBundledClass, buildPath } from './ddcKnowledgeBase.js';
 import { buildKohaFillPlan } from './kohaMapper.js';
+import { looksLikeBibliographicNote } from './webSearchScrape.js';
 
 const SOURCE_DERIVED = 'SOURCE_DERIVED';
 const RULE_DERIVED = 'RULE_DERIVED';
@@ -75,6 +76,12 @@ function sanitizeDescription(description, title) {
   const text = cleanText(description);
   if (!text) return '';
   if (JUNK_DESCRIPTION_PREFIX_RE.test(text)) return '';
+  // Defense in depth: even if a bibliographic/edition note ("Previous ed.:
+  // 1992. Includes bibliographical references.") slipped past the source
+  // extractors (isbnLookup.js's extractOpenLibraryFields, page scraping) and
+  // into metadata.description, 520$a must never be built from it -- that is
+  // a catalogue note, not a summary of what the book is about.
+  if (looksLikeBibliographicNote(text)) return '';
   const bareTitle = cleanText(title).toLowerCase();
   // Strip a trailing "(Series Name)" parenthetical before comparing -- a
   // description that's just "<Title> (<Series>)" carries no more content

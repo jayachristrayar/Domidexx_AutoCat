@@ -25,7 +25,37 @@ export async function fetchOpenLibrary(isbn) {
     throw new Error(`Open Library responded with ${response.status}`);
   }
   const body = await response.json();
-  return body[`ISBN:${isbn}`] ?? null;
+  const edition = body[`ISBN:${isbn}`] ?? null;
+  if (!edition) return null;
+
+  // Open Library's edition-level jscmd=data response (above) never carries an
+  // actual book description/synopsis -- only bibliographic notes ("Previous
+  // ed.: 1992. Includes bibliographical references."), which is a completely
+  // different thing. The real description, when Open Library has one, lives
+  // on the WORK record, one level up from the edition. Fetched here as
+  // genuine supplementary evidence (real page fetches, not a guess) -- purely
+  // best-effort: any failure here must never break the edition lookup that
+  // already succeeded above.
+  const description = await fetchOpenLibraryWorkDescription(isbn).catch((error) => {
+    console.warn(`Open Library: work-level description lookup failed for ${isbn}: ${error.message}`);
+    return null;
+  });
+  return description ? { ...edition, description } : edition;
+}
+
+async function fetchOpenLibraryWorkDescription(isbn) {
+  const editionResponse = await fetchWithTimeout(`https://openlibrary.org/isbn/${isbn}.json`);
+  if (!editionResponse.ok) return null;
+  const editionData = await editionResponse.json();
+  const workKey = editionData?.works?.[0]?.key;
+  if (!workKey) return null;
+
+  const workResponse = await fetchWithTimeout(`https://openlibrary.org${workKey}.json`);
+  if (!workResponse.ok) return null;
+  const workData = await workResponse.json();
+  const raw = workData?.description;
+  const value = typeof raw === 'string' ? raw : (raw?.value ?? null);
+  return value ? String(value).trim() || null : null;
 }
 
 export async function fetchGoogleBooks(isbn) {

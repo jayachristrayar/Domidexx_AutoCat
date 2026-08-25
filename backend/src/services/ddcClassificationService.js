@@ -47,7 +47,28 @@ function isRecognizedDdcNumber(number) {
 // success" possible: a request never has to choose between "trust an
 // unvalidated AI answer" and "show nothing" -- there's always a real,
 // evidence-grounded answer to fall back to, honestly labeled as such.
+// DDC_INPUT_EVIDENCE -- logged just before the AI classifier ever runs, so
+// a weak/empty result can always be traced back to what evidence the model
+// actually received rather than guessed at. Mirrors isbnLookup.js's
+// EVIDENCE_QUALITY log at the research stage; this one is the last checkpoint
+// before that evidence is handed to the DDC prompt itself.
+function logDdcInputEvidence(metadata) {
+  const descriptionLength = String(metadata.description ?? '').trim().length;
+  const subjectsCount = Array.isArray(metadata.subjects) ? metadata.subjects.length : 0;
+  const tocPresent = Boolean(metadata.table_of_contents);
+  const existingDdc = Array.isArray(metadata.existing_classifications) && metadata.existing_classifications.length > 0
+    ? metadata.existing_classifications.map((c) => c.number).join(', ')
+    : null;
+  console.info(
+    `DDC_INPUT_EVIDENCE isbn=${metadata.isbn ?? 'null'} descriptionLength=${descriptionLength} subjectsCount=${subjectsCount} tocPresent=${tocPresent} existingDdc=${existingDdc ?? 'null'} publicationPlace=${metadata.publication_place ?? 'null'} publisher=${metadata.publisher ?? 'null'}`
+  );
+  if (descriptionLength === 0 && !tocPresent && subjectsCount === 0) {
+    console.warn(`DDC_INPUT_EVIDENCE isbn=${metadata.isbn ?? 'null'}: research stage supplied no description, TOC, or subjects -- classification will proceed on thin evidence.`);
+  }
+}
+
 async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn, provider) {
+  logDdcInputEvidence(metadata);
   let candidates = [];
   try {
     // Dynamic import: ddcLookup.js touches the Postgres pool at module

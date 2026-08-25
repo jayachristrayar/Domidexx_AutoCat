@@ -196,6 +196,29 @@ function jsonLdAuthorNames(jsonLd) {
   return authors.map((a) => (typeof a === 'string' ? a : a?.name)).filter(Boolean);
 }
 
+// looksLikeBibliographicNote(text) -- rejects catalogue/edition-note text
+// masquerading as an actual book description. Product bug this exists to
+// fix: Open Library's edition-level "notes" field ("Previous ed.: 1992.
+// Includes bibliographical references.") was being used as `description`
+// upstream (isbnLookup.js), which not only produced a bogus 520$a but made
+// the pipeline think a real description already existed and skip web
+// research entirely. Exported so every place a "description" is picked from
+// any source (structured API, page scrape, AI research) can apply the same
+// guard rather than trusting the field name alone.
+const BIBLIOGRAPHIC_NOTE_RE =
+  /^(?:(?:reprint|translation|originally published|previously published|first published|previous ed(?:ition)?s?|new ed(?:ition)?|rev(?:ised)? ed(?:ition)?)\b.{0,80}?[.:]?\s*)*(?:includes? (?:bibliographical references?|index(?:es)?|an index|glossary|appendix|appendices)|bibliography\s*:\s*p\.?\s*\d|^(?:previous\s+ed\.?|reprint of|translation of|originally published as)\b)/i;
+
+export function looksLikeBibliographicNote(text) {
+  const trimmed = String(text ?? '').trim();
+  if (!trimmed) return false;
+  // Short catalogue-note strings ("Includes bibliographical references and
+  // index.", "Previous ed.: 1992.") are what this guards against -- a long,
+  // genuine synopsis that happens to mention "includes an index" in passing
+  // is not rejected outright, only text that is essentially JUST the note.
+  if (trimmed.length > 220) return false;
+  return BIBLIOGRAPHIC_NOTE_RE.test(trimmed);
+}
+
 // A handful of loose "Label: value" heuristics for plain page text -- this
 // is a fallback scraper, not a full HTML parser, so these are deliberately
 // forgiving rather than exhaustive.
@@ -336,7 +359,7 @@ export function extractPageMetadata(html, url, { isbnCandidates = [] } = {}) {
     edition: edition ? String(edition).trim() : null,
     pages: pages ? Number(String(pages).replace(/\D/g, '')) || null : null,
     language: language ? String(language).trim() : null,
-    description: jsonLd?.description || metaDescription || null,
+    description: [jsonLd?.description, metaDescription].filter((candidate) => candidate && !looksLikeBibliographicNote(candidate))[0] ?? null,
     subjects: jsonLd?.genre ? (Array.isArray(jsonLd.genre) ? jsonLd.genre : [jsonLd.genre]) : [],
     series: series ? String(series).trim() : null,
     existing_classifications: extractDdcMentions(bodyText).map((number) => ({ number, source: 'web_scrape', edition: null })),
