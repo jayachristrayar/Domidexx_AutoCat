@@ -780,14 +780,22 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
   // for how this feeds the client-facing provenance signal.
   const structuredMethod = !usedPageEvidence ? 'structured' : hasStructuredApiTitle ? 'structured+page' : 'page';
   const hasStructuredTitle = Boolean(merged.title);
-  // DDC 23 classification needs actual subject/content evidence (product
-  // spec item 4), not just bare bibliographic identity -- a structured hit
-  // that found a title but no description/subjects is still too thin to
-  // classify confidently. Web research is a normal supplementary stage
-  // whenever that's the case, never only a last resort after every
-  // structured source has failed outright (item 1/2/15).
-  const hasContentEvidence = !isEmptyValue(merged.description) || !isEmptyValue(merged.subjects);
-  const needsWebResearch = !hasStructuredTitle || !hasContentEvidence;
+  // DDC 23 classification AND 520$a both depend on an actual description --
+  // it is the single most important piece of content evidence, more so
+  // than a bare subjects/categories list (product spec: "the most important
+  // missing field is: description"). Previously this checked description
+  // OR subjects, which meant a structured API (Google Books commonly does
+  // this) returning non-empty `categories` but NO real description was
+  // treated as "content evidence found" -- web research was skipped
+  // entirely, and the record was left with no description at all, ever.
+  // That is very likely why Model 2 (OpenAI) results looked weaker than
+  // asking ChatGPT the same question directly: ChatGPT always searches;
+  // AutoCat's own pipeline was silently deciding it didn't need to. Web
+  // research is a normal supplementary stage whenever the description is
+  // still missing, never only a last resort after every structured source
+  // has failed outright (item 1/2/15).
+  const hasDescription = !isEmptyValue(merged.description);
+  const needsWebResearch = !hasStructuredTitle || !hasDescription;
 
   let result;
   let cacheSource;
@@ -840,6 +848,31 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
   // no API keys or other secrets ever appear in this line.
   console.info(
     `PUBLICATION_DEBUG isbn=${isbn} publication_place=${result.publication_place ?? 'null'} publisher=${result.publisher ?? 'null'} publish_date=${result.publish_date ?? 'null'} source=${result.sources?.method ?? 'unknown'}`
+  );
+  // RESEARCH_TRACE -- internal diagnostics only (never persisted as a
+  // permanent record, never sent to the extension client -- records.js's
+  // toClientResponse strips everything below to a single "provenance"
+  // signal). Lets an admin/dev determine exactly what happened for a given
+  // lookup without guessing: which structured sources actually returned
+  // data, whether web research ran at all and why, and whether the most
+  // important evidence (description, publication place) was actually
+  // found -- the same question this pipeline previously had no direct
+  // answer to when a librarian reported "AutoCat found less than ChatGPT".
+  console.info(
+    `RESEARCH_TRACE ${JSON.stringify({
+      isbn,
+      provider: provider ?? 'default',
+      method: result.sources?.method ?? 'unknown',
+      webSearchUsed: needsWebResearch,
+      structuredSourcesTried: sourceCalls.map(([name]) => name),
+      structuredSourcesSucceeded: sourceCalls.filter(([name]) => Boolean(rawBySource[name])).map(([name]) => name),
+      currentPageEvidenceUsed: usedPageEvidence,
+      descriptionFound: !isEmptyValue(result.description),
+      publicationPlaceFound: !isEmptyValue(result.publication_place),
+      subjectsFound: !isEmptyValue(result.subjects),
+      existingClassificationsFound: (result.existing_classifications ?? []).length,
+      webSourcesCited: result.sources?.web_research?.citations?.length ?? result.sources?.citations?.length ?? 0,
+    })}`
   );
 
   await pool.query(

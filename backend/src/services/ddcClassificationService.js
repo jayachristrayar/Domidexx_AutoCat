@@ -1,11 +1,43 @@
 import { buildRecommendation, classPathLabels } from './ddcCandidateService.js';
 import { buildJustification, validateDecision } from './ddcJustificationService.js';
-import { MAIN_CLASSES, findBundledClass } from './ddcKnowledgeBase.js';
+import { MAIN_CLASSES, findBundledClass, getMainClass } from './ddcKnowledgeBase.js';
 import { classifyWithAi } from './ddcAiClassifier.js';
 import { validateClassificationAgainstWorkType } from './literaryDdc.js';
 import { deriveDdcKeywords } from '../llm/router.js';
 
 const MAX_AI_ATTEMPTS = 2;
+
+// A syntactically valid DDC 23 number: three digits, optionally followed by
+// a decimal point and further digits (e.g. "158", "823.912", "025.04").
+// This is a FORMAT check only -- it says nothing about whether the number
+// is a real, currently-assigned DDC 23 class, which is what
+// isRecognizedDdcNumber below is for.
+const DDC_NUMBER_RE = /^\d{3}(\.\d+)?$/;
+
+// AutoCat's bundled DDC reference (rules/ddc_classes.json) is a curated
+// ~1000-entry sample of DDC 23, not the full ~40,000-class schedule -- most
+// of the AI's correctly-reasoned, sufficiently specific answers (e.g.
+// "823.912" for a particular novel) will genuinely never appear in it. So
+// "not present in the bundled list" is NOT evidence the number is wrong; it
+// is only the absence of independent confirmation. What the bundled
+// reference CAN say authoritatively is when a number IS present but marked
+// something other than ASSIGNED (withdrawn/relocated/discontinued) -- that
+// is real, specific evidence the number is invalid, and is still rejected.
+// Numeric hierarchy validity (main class 000-900) is checked independently
+// of the bundled list via getMainClass/MAIN_CLASSES, which are pure
+// arithmetic over the number itself, not a lookup against the sample.
+function isRecognizedDdcNumber(number) {
+  if (!DDC_NUMBER_RE.test(number)) return { ok: false, reason: `"${number}" is not a valid DDC 23 number format (expected e.g. "158" or "823.912").` };
+  if (!MAIN_CLASSES[getMainClass(number)]) return { ok: false, reason: `"${number}" does not fall under a recognized DDC 23 main class (000-900).` };
+  const bundled = findBundledClass(number);
+  if (bundled && bundled.status !== 'ASSIGNED') {
+    return { ok: false, reason: `${number} is marked ${bundled.status} in AutoCat's DDC 23 reference (not currently assignable).` };
+  }
+  // Present and ASSIGNED, or simply absent from the bundled sample -- both
+  // are fine; the bundled entry (when present) is used elsewhere purely to
+  // enrich the caption/hierarchy, never to gate acceptance.
+  return { ok: true, bundled };
+}
 
 // Whole-book DDC 23 analysis: the deterministic rule-based engine
 // (ddcCandidateService.js/literaryDdc.js) always runs first -- it is both
@@ -43,18 +75,23 @@ async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn, pr
     }
     if (!ai) return { ai: null, attempted: false }; // no AI provider configured -- expected, not a failure
 
-    const bundled = findBundledClass(ai.ddc);
+    // Product spec: "the local DDC knowledge base must NOT be the only
+    // authority" -- isRecognizedDdcNumber only rejects a genuinely
+    // malformed number, one whose main class isn't one of DDC's ten (000-
+    // 900), or one the bundled reference explicitly marks as withdrawn/
+    // relocated. Simply being absent from that ~1000-entry sample is never
+    // a rejection reason on its own -- a correctly-reasoned, sufficiently
+    // specific AI answer routinely won't be in it.
+    const recognized = isRecognizedDdcNumber(ai.ddc);
     const workTypeCheck = validateClassificationAgainstWorkType(ai.ddc, ruleBased.analysis.literary ?? null);
-    if (workTypeCheck.valid && bundled && bundled.status === 'ASSIGNED') {
+    if (workTypeCheck.valid && recognized.ok) {
       return { ai, attempted: true };
     }
 
-    // Semantic contradiction / unrecognized number -- product spec section
+    // Semantic contradiction / malformed number -- product spec section
     // 8/9: never display this, run another attempt with the rejection
     // reason folded into the prompt as an explicit correction.
-    const reason = !workTypeCheck.valid
-      ? workTypeCheck.reason
-      : `${ai.ddc} is not a recognized, assignable DDC 23 number in AutoCat's reference.`;
+    const reason = !workTypeCheck.valid ? workTypeCheck.reason : recognized.reason;
     console.error(`DDC AI classification: rejected AI answer ${ai.ddc} on attempt ${attempt}: ${reason}`);
     lastRejection = { number: ai.ddc, reason };
     correction = lastRejection;
