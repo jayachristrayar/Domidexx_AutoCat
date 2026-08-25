@@ -154,19 +154,11 @@ export function validateRecord(fields, { checkRequired = true } = {}) {
     }
   }
 
-  if (checkRequired) {
-    // Required tags that are SUPPORTED or PARTIAL and generation expects presence
-    // when building a skeleton — currently 000, 008, 245 when claimed.
-    for (const ruleTag of ['000', '008']) {
-      if (!byTag.has(ruleTag) && getMarcRule(ruleTag)) {
-        issues.push({
-          tag: ruleTag,
-          code: 'REQUIRED_TAG_MISSING',
-          message: `Required control field ${ruleTag} is missing`,
-        });
-      }
-    }
-  }
+  // Note: 000 (leader) and 008 are Koha/system-managed control fields that
+  // AutoCat deliberately never generates (see marcBuilder.js/marcPipeline.js
+  // and marcRuleRegistry's EXCLUDED status) -- they must never be required
+  // here, or every valid AutoCat record would fail validation.
+  void checkRequired;
 
   return {
     ok: issues.length === 0,

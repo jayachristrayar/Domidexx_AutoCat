@@ -42,7 +42,13 @@ assert.strictEqual(f082.subfields.find((sf) => sf.code === 'a').value, '020');
 assert.notStrictEqual(f020.subfields.find((sf) => sf.code === 'a').value, f082.subfields.find((sf) => sf.code === 'a').value);
 assert.strictEqual(f082.provenance, 'CATALOGUER_APPROVED');
 assert.ok(result.preview.find((row) => row.tag === '082' && row.value.includes('$a 020')));
-assert.strictEqual(result.marc_record.controlFields.find((f) => f.tag === '005').value, '20260822123456.0');
+// 000/005/008/942 are Koha/system-managed control fields -- AutoCat must
+// never generate them, so they must never appear in fields/marc_record/preview.
+assert.strictEqual(result.marc_record.controlFields.length, 0, JSON.stringify(result.marc_record.controlFields));
+for (const tag of ['000', '005', '008', '942']) {
+  assert.ok(!result.fields.find((f) => f.tag === tag), `${tag} must not be generated`);
+  assert.ok(!result.preview.find((row) => row.tag === tag), `${tag} must not appear in the preview`);
+}
 for (const tag of ['100','245','250','260','300','041','500','504','520','586','650','856']) assert.ok(result.marc_record.dataFields.find((f) => f.tag === tag), tag);
 
 result = generateMarcRecord({ metadata: base, ddc_approval: { ai_recommended_ddc: '020', approved_ddc: '025', approval_status: 'APPROVED' } });

@@ -23,8 +23,10 @@ export function getBuilderMechanicalTags() {
 }
 
 export function getBuilderEmittedTags() {
-  // Actual generation surface for consistency checking.
-  return ['000', '008', '020', '040', '245', '250', '260', '300', '082', '100', '110', '111', '520', '600', '610', '650', '700', '710', '711'];
+  // Actual generation surface for consistency checking. 000/005/008/942 are
+  // deliberately excluded: AutoCat never generates them (Koha/system-managed
+  // fields -- see marcRuleRegistry's EXCLUDED status and kohaMapper.js).
+  return ['020', '040', '245', '250', '260', '300', '082', '100', '110', '111', '520', '600', '610', '650', '700', '710', '711'];
 }
 
 // Tags/tag-families that need cataloguing JUDGMENT (classification,
@@ -302,65 +304,15 @@ const MECHANICAL_BUILDERS = {
   '300': build300,
 };
 
-// --- Leader / 008: basic defaults for a printed monograph ---
-// TODO: this is a deliberately minimal placeholder, not a full MARC21
-// fixed-field implementation. Positions with no basis in normalizedBiblioData
-// (encoding level, contents/audience/form codes, government/conference/
-// festschrift/index/literary-form/biography codes in 008/18-34, and the
-// place-of-publication code in 008/15-17 -- same place-data gap as 260
-// above) are left blank ("not coded") rather than guessed. Revisit once
-// this backend actually has that data (or once Koha's own defaults can be
-// relied on to fill these in on import).
-function buildLeaderEntry(normalizedBiblioData, ruleProfile) {
-  // Prefer LOC's real leader when we have one -- it reflects the actual
-  // record, not a generic default.
-  if (normalizedBiblioData?.sources?.loc_marc && normalizedBiblioData.sources.z3950?.leader) {
-    return { tag: 'LDR', indicators: [null, null], subfields: [{ code: null, value: normalizedBiblioData.sources.z3950.leader }] };
-  }
-
-  const isAacr2 = /AACR2/i.test(ruleProfile?.cataloguing_standard ?? '');
-  const leader =
-    '00000' + // 00-04 record length -- computed at final encoding time, not here
-    'n' + // 05 record status: new
-    'a' + // 06 type of record: language material
-    'm' + // 07 bibliographic level: monograph/item
-    ' ' + // 08 type of control
-    'a' + // 09 character coding: UTF-8
-    '2' + // 10 indicator count (fixed)
-    '2' + // 11 subfield code count (fixed)
-    '00000' + // 12-16 base address of data -- computed at final encoding time
-    ' ' + // 17 encoding level
-    (isAacr2 ? 'a' : ' ') + // 18 descriptive cataloging form, from ruleProfile.cataloguing_standard
-    ' ' + // 19 multipart resource record level
-    '4500'; // 20-23 entry map (always 4500 in a valid MARC21 leader)
-
-  return { tag: 'LDR', indicators: [null, null], subfields: [{ code: null, value: leader }] };
-}
-
-function build008Entry(normalizedBiblioData) {
-  const now = new Date();
-  const dateEntered =
-    String(now.getFullYear()).slice(-2) +
-    String(now.getMonth() + 1).padStart(2, '0') +
-    String(now.getDate()).padStart(2, '0'); // 00-05
-
-  const extractedYear = extractYear(normalizedBiblioData.publish_date);
-  const year = extractedYear ?? 'uuuu'; // 07-10
-  const dateType = extractedYear ? 's' : 'n'; // 06: single known date vs. unknown
-
-  const value =
-    dateEntered +
-    dateType +
-    year +
-    '    ' + // 11-14 date2 (blank -- not a serial)
-    '   ' + // 15-17 place-of-publication code -- unknown, see comment above
-    '                 ' + // 18-34 (17 chars) material-specific codes -- not coded
-    'eng' + // 35-37 language -- default assumption, not derived from any source field
-    ' ' + // 38 modified record
-    'd'; // 39 cataloging source: other
-
-  return { tag: '008', indicators: [null, null], subfields: [{ code: null, value }] };
-}
+// --- Leader (000) / 008: NEVER GENERATED ---
+// Product requirement: 000 (leader), 005 (transaction timestamp) and 008
+// (fixed-length data elements) are Koha/system-managed control fields.
+// AutoCat must not generate, preview, validate, or fill them -- Koha
+// assigns/derives these itself on import. Previously this module built a
+// placeholder leader and 008 (and copied a real one from LOC when
+// available); both are intentionally removed so these tags never enter
+// buildSkeleton's output at all -- see marcRuleRegistry's EXCLUDED status
+// for 000/005/008/942 and kohaMapper.js's KOHA_FILL_UNSUPPORTED_CONTROL_FIELDS.
 
 // --- 040: Cataloguing Source (configuration-driven) ---
 // Only emit subfields that have non-empty configured values. Never hardcode
@@ -418,16 +370,9 @@ export function buildSkeleton(normalizedBiblioData, ruleProfile) {
     if (built) skeleton.push(built);
   }
 
-  // Leader is stored as tag LDR in skeleton; registry canonical tag is 000.
-  skeleton.push(buildLeaderEntry(normalizedBiblioData, ruleProfile));
-
-  const locEightFields = locFields.filter((field) => field.tag === '008');
-  if (locEightFields.length > 0) {
-    skeleton.push(toSkeletonEntry(locEightFields[0]));
-    fieldsFromLoc.push('008');
-  } else {
-    skeleton.push(build008Entry(normalizedBiblioData));
-  }
+  // 000 (leader) and 008 are never generated -- see comment above. Even
+  // when LOC's real MARC record supplies them, they are deliberately not
+  // copied into the skeleton: Koha manages these on import.
 
   const loc040 = locFields.filter((field) => field.tag === '040');
   if (loc040.length > 0) {

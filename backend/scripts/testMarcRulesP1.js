@@ -48,13 +48,16 @@ assert.strictEqual(getMarcRule('020').field_type, 'VARIABLE_FIELD');
 section('status model');
 assert.strictEqual(getRuleStatus('020'), 'SUPPORTED');
 assert.strictEqual(getRuleStatus('245'), 'SUPPORTED');
-assert.strictEqual(getRuleStatus('000'), 'PARTIAL');
-assert.strictEqual(getRuleStatus('008'), 'PARTIAL');
+// 000/005/008/942 are Koha/system-managed control fields -- AutoCat never
+// generates them, so the registry marks them EXCLUDED rather than claiming
+// any level of AutoCat support for them.
+assert.strictEqual(getRuleStatus('000'), 'EXCLUDED');
+assert.strictEqual(getRuleStatus('008'), 'EXCLUDED');
 assert.strictEqual(getRuleStatus('040'), 'PARTIAL');
 assert.strictEqual(getRuleStatus('246'), 'PLANNED');
 assert.strictEqual(getRuleStatus('440'), 'SUPPORTED');
 assert.strictEqual(getRuleStatus('082'), 'SUPPORTED');
-assert.strictEqual(getRuleStatus('942'), 'PROFILE_DEPENDENT');
+assert.strictEqual(getRuleStatus('942'), 'EXCLUDED');
 assert.ok(getMarcRule('082').ai_assisted);
 assert.ok(getMarcRule('082').evidence_required);
 // No manual cataloguer-approval step exists anywhere in the pipeline --
@@ -79,7 +82,8 @@ assert.ok(src);
 assert.strictEqual(src.original_agency, null);
 assert.ok(src.language);
 assert.ok(getValidationRule('040').subfields.a);
-assert.ok(getKohaMapping('000').kind === 'CONTROL_FIELD');
+// 000 is EXCLUDED -- no koha_mapping is configured for it anymore.
+assert.ok(getKohaMapping('000') == null);
 
 // --- Loader API ---
 section('loader API');
@@ -106,8 +110,10 @@ const sample = {
   sources: { loc_marc: false, z3950: null },
 };
 const built = buildSkeleton(sample, profile);
-assert.ok(built.skeleton.some((f) => f.tag === 'LDR' || f.tag === '000'));
-assert.ok(built.skeleton.some((f) => f.tag === '008'));
+// 000 (leader) and 008 must NEVER be generated -- Koha/system-managed
+// control fields, excluded from AutoCat's generation surface entirely.
+assert.ok(!built.skeleton.some((f) => f.tag === 'LDR' || f.tag === '000'), '000/LDR must not be generated');
+assert.ok(!built.skeleton.some((f) => f.tag === '008'), '008 must not be generated');
 assert.ok(built.skeleton.some((f) => f.tag === '020'));
 assert.ok(built.skeleton.some((f) => f.tag === '245'));
 // 040 emitted when language / description_conventions configured
@@ -124,25 +130,29 @@ assert.ok(!built.skeleton.some((f) => f.tag === '440'), '440 is generated in the
 
 // --- Validator ---
 section('validator architecture');
-const ldr = built.skeleton.find((f) => f.tag === 'LDR' || f.tag === '000');
-const ldrCheck = validateField({ ...ldr, tag: '000' });
+// validateField still understands the shape of a control field (used when
+// a framework/test hand-constructs one), but AutoCat's own generation path
+// never produces 000/008 for it to validate -- covered above.
+const manualLdr = { tag: '000', indicators: [null, null], subfields: [{ code: null, value: '00000nam a2200000 a 4500' }] };
+const ldrCheck = validateField(manualLdr);
 assert.ok(ldrCheck.ok, JSON.stringify(ldrCheck.issues));
-const eight = built.skeleton.find((f) => f.tag === '008');
-assert.ok(validateField(eight).ok);
 const isbnField = built.skeleton.find((f) => f.tag === '020');
 assert.ok(validateField(isbnField).ok);
 const bad = validateField({ tag: '020', indicators: [' ', ' '], subfields: [{ code: 'a', value: '1' }, { code: 'x', value: 'nope' }] });
 assert.ok(bad.issues.some((i) => i.code === 'UNKNOWN_SUBFIELD'));
-const record = validateRecord(
-  built.skeleton.map((f) => (f.tag === 'LDR' ? { ...f, tag: '000' } : f))
-);
+const record = validateRecord(built.skeleton);
 assert.ok(record.incomplete, 'P1 must mark validation incomplete');
+// 000/008 are no longer required for a record to validate as complete --
+// a generated record simply never has them.
+assert.ok(!record.issues.some((i) => i.code === 'REQUIRED_TAG_MISSING'), JSON.stringify(record.issues));
 assert.ok(getValidatorCoveredTags().includes('000'));
 
 // --- Koha mapper ---
 section('koha / rule consistency');
 assert.ok(canMapTag('020'));
-assert.ok(canMapTag('000'));
+// 000 is EXCLUDED -- never koha-mappable / never auto-filled.
+assert.strictEqual(canMapTag('000'), false);
+assert.strictEqual(canMapTag('942'), false);
 assert.strictEqual(canMapTag('246'), false);
 assert.strictEqual(canMapTag('440'), true);
 assert.ok(getMapperTags().includes('020'));
@@ -179,8 +189,10 @@ const adminRows = getAllMarcRules().map((rule) => ({
   koha: rule.koha_supported,
 }));
 assert.ok(adminRows.find((r) => r.tag === '082' && r.status === 'SUPPORTED' && r.ai === true));
-assert.ok(adminRows.find((r) => r.tag === '000' && r.label === 'Leader'));
-assert.ok(getBuilderEmittedTags().includes('000'));
+assert.ok(adminRows.find((r) => r.tag === '000' && r.label === 'Leader' && r.status === 'EXCLUDED'));
+// 000 must never be in the builder's generation surface.
+assert.ok(!getBuilderEmittedTags().includes('000'));
+assert.ok(!getBuilderEmittedTags().includes('008'));
 
 console.log('\nAll P1 MARC rule registry tests passed.');
 console.log('\n--- sample consistency excerpt ---\n');
