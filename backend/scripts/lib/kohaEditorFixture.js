@@ -103,10 +103,16 @@ export function buildKohaEditorFixture({ existing650 = [''], existing700 = [''],
     fieldRow({ tag: '020', subfields: [{ code: 'a', value: '' }] }, next()),
     fieldRow({ tag: '040', subfields: [{ code: 'b', value: '' }, { code: 'e', value: '' }] }, next()),
     fieldRow({ tag: '082', ind1: '0', ind2: '4', subfields: [{ code: 'a', value: '' }, { code: '2', value: '' }] }, next()),
-    fieldRow({ tag: '100', ind1: '1', subfields: [{ code: 'a', value: '' }] }, next()),
+    // Real Koha's BKS framework renders 100$e (relator term) as a defined
+    // subfield row alongside $a, even before anything is typed into it.
+    fieldRow({ tag: '100', ind1: '1', subfields: [{ code: 'a', value: '' }, { code: 'e', value: '' }] }, next()),
     fieldRow({ tag: '245', ind1: '0', ind2: '0', subfields: [{ code: 'a', value: '' }, { code: 'c', value: '' }] }, next()),
     fieldRow({ tag: '250', subfields: [{ code: 'a', value: '' }] }, next()),
-    fieldRow({ tag: '300', subfields: [{ code: 'a', value: '' }] }, next()),
+    // 260 (publication place/publisher/year) -- product spec item H: this
+    // must be verified end-to-end against the actual Koha DOM, not just
+    // asserted in the generated MARC record.
+    fieldRow({ tag: '260', subfields: [{ code: 'a', value: '' }, { code: 'b', value: '' }, { code: 'c', value: '' }] }, next()),
+    fieldRow({ tag: '300', subfields: [{ code: 'a', value: '' }, { code: 'c', value: '' }] }, next()),
     ...repeatableFieldRows('650', existing650, (value, rowIdx) => fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value }] }, rowIdx)),
     ...repeatableFieldRows('700', existing700, (value, rowIdx) => fieldRow({ tag: '700', ind1: '1', subfields: [{ code: 'a', value }] }, rowIdx)),
     saveButton,

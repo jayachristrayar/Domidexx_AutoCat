@@ -302,44 +302,53 @@ function buildAdditionalFields(metadata) {
   const mainAuthor = first(metadata.authors);
   if (mainAuthor && hasMarcRule('100')) {
     const formatted = toSurnameFirst(mainAuthor);
-    if (formatted) fields.push(dataField('100', [{ code: 'a', value: formatted }], ['1', ' ']));
+    // 100$e: the main-entry personal name is evidenced as the book's
+    // author (metadata.authors[0]) -- the relator term is not a guess, it's
+    // the same "author" role that put this name in `authors` rather than
+    // `editors`/`illustrators`/`translators` in the first place. Matches
+    // the standard MARC relator list (https://www.loc.gov/marc/relators/),
+    // same as build700Fields' relator terms below.
+    if (formatted) fields.push(dataField('100', [{ code: 'a', value: formatted }, { code: 'e', value: 'author' }], ['1', ' ']));
   }
   fields.push(...build700Fields(metadata));
   return fields;
 }
 
-// ddcUnavailable -- DDC classification simply hasn't produced a number yet
-// (the normal PENDING state before any recommendation exists, or after a
-// genuine INSUFFICIENT_EVIDENCE result). There is no separate "cataloguer
-// approval" gate in this product -- ddcApprovalService.saveDdcDecision
-// auto-accepts a recommendation the moment one exists, so "not APPROVED"
-// here never means "waiting for a human to click approve"; it means
-// classification hasn't reached a number. That must never block the rest
-// of an otherwise-good MARC record: 082 is simply omitted, reported as
-// info (not a validation error), and READY_FOR_KOHA/Fill MARC stay
-// available for every other field.
-function ddcUnavailable(message) {
-  return { ok: false, errors: [], info: [{ level: 'CATALOGUING_PROFILE', code: 'DDC_NOT_AVAILABLE', tag: '082', message }], field: null };
+// ddcUnavailable -- 082 cannot be produced right now, for ANY reason:
+// classification simply hasn't produced a number yet (the normal PENDING
+// state, or a genuine INSUFFICIENT_EVIDENCE result), OR a number WAS
+// recommended/auto-accepted but AutoCat's own bundled DDC knowledge base
+// (rules/ddc_classes.json -- a fixed ~1000-entry reference, not the full
+// DDC schedule) doesn't happen to contain that exact number, has it marked
+// unassigned, or can't resolve its hierarchy. None of these are a reason to
+// block the rest of the record (product spec: "Do NOT block MARC
+// generation simply because the exact DDC is not in the internal knowledge
+// base" -- the AI's recommendation is still real evidence, just not one
+// AutoCat can safely turn into a written 082$a on its own). There is no
+// separate "cataloguer approval" gate in this product either --
+// ddcApprovalService.saveDdcDecision auto-accepts a recommendation the
+// moment one exists, so "not APPROVED" never means "waiting for a human to
+// click approve". In every case: 082 is simply omitted, the AI's
+// recommendation (when there was one) is preserved in the info message as
+// evidence, this is reported as info (never a validation error), and
+// READY_FOR_KOHA/Fill MARC stay available for every other field.
+function ddcUnavailable(code, message) {
+  return { ok: false, errors: [], info: [{ level: 'CATALOGUING_PROFILE', code, tag: '082', message }], field: null };
 }
 
-// ddcFailure -- a GENUINE data-integrity problem: a decision claims
-// APPROVED but the number itself doesn't check out (missing, unknown to
-// the DDC knowledge base, unassigned, or an unresolvable hierarchy). This
-// is the one case that should still block the record -- a bad 082 must
-// never silently reach Koha.
-function ddcFailure(code, message) { return { ok: false, errors: [{ level: 'DDC_APPROVAL', code, tag: '082', message }], info: [], field: null }; }
-
 export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(), cutterSourceName = null) {
+  const recommended = cleanText(ddcApproval?.ai_recommended_ddc);
+  const evidenceNote = recommended ? ` (AI recommended ${recommended}; recorded as evidence, not written to 082.)` : '';
   if (!ddcApproval || ddcApproval.approval_status !== 'APPROVED') {
-    return ddcUnavailable('DDC 23 classification is not available for this record yet -- 082 omitted.');
+    return ddcUnavailable('DDC_NOT_AVAILABLE', `DDC 23 classification is not available for this record yet -- 082 omitted.${evidenceNote}`);
   }
   const approved = cleanText(ddcApproval.approved_ddc);
-  if (!approved) return ddcFailure('APPROVED_DDC_MISSING', 'Approved DDC number is missing.');
+  if (!approved) return ddcUnavailable('APPROVED_DDC_MISSING', `Approved DDC number is missing -- 082 omitted.${evidenceNote}`);
   const ddcClass = findBundledClass(approved);
-  if (!ddcClass) return ddcFailure('DDC_NOT_FOUND', `Approved DDC ${approved} is not in the DDC knowledge base.`);
-  if (ddcClass.status !== 'ASSIGNED') return ddcFailure('DDC_NOT_ASSIGNED', `Approved DDC ${approved} has status ${ddcClass.status}.`);
+  if (!ddcClass) return ddcUnavailable('DDC_NOT_FOUND', `${approved} is not in AutoCat's bundled DDC knowledge base -- 082 omitted, rest of the record unaffected.${evidenceNote}`);
+  if (ddcClass.status !== 'ASSIGNED') return ddcUnavailable('DDC_NOT_ASSIGNED', `${approved} has status ${ddcClass.status} in the knowledge base -- 082 omitted.${evidenceNote}`);
   const path = buildPath(approved);
-  if (path.length === 0 || path[0] !== ddcClass.main_class) return ddcFailure('DDC_HIERARCHY_UNRESOLVED', `Approved DDC ${approved} hierarchy could not be resolved.`);
+  if (path.length === 0 || path[0] !== ddcClass.main_class) return ddcUnavailable('DDC_HIERARCHY_UNRESOLVED', `${approved}'s hierarchy could not be resolved -- 082 omitted.${evidenceNote}`);
   const edition = ruleProfile?.ddc_edition_default || '23';
   const subfields = [{ code: 'a', value: approved }];
   const cutter = cutterFromSurname(cutterSourceName);
