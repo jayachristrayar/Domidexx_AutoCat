@@ -51,12 +51,58 @@ function buildCandidateInstruction(candidates) {
   );
 }
 
-// buildDdcAnalysisPrompt(metadata, candidates, correction) -- pure and
-// exported for testing. `correction` is set on a retry after the first
-// attempt's number failed AutoCat's own validation (product spec section
-// 8: "run another classification attempt"), and is folded into the prompt
-// as an explicit instruction not to repeat the rejected number.
-export function buildDdcAnalysisPrompt(metadata, candidates = [], correction = null) {
+// summarizeKnowledgeEvidence(knowledgeEvidence) -- pure and exported for
+// testing. `knowledgeEvidence` is { retrievalEvidence, fileSearchEvidence },
+// gathered by ddcClassificationService.js's gatherOpenAiKnowledgeEvidence
+// (Model 2/OpenAI only, and only when OPENAI_VECTOR_STORE_ID is configured
+// -- null/not-executed otherwise, in which case this returns null and the
+// prompt carries no such section at all, exactly matching every other
+// provider/configuration's existing prompt shape).
+//
+// retrievalEvidence (capability 3, application-controlled: client.
+// vectorStores.search) and fileSearchEvidence (capability 2, hosted
+// model-controlled file_search tool) are summarized separately and
+// labelled by their actual mechanism, never merged into one undifferentiated
+// blob -- a librarian/developer reading a stored decision's evidence should
+// be able to tell which retrieval mechanism supplied which fact.
+function summarizeKnowledgeEvidence(knowledgeEvidence) {
+  if (!knowledgeEvidence) return null;
+  const sections = [];
+
+  const retrieval = knowledgeEvidence.retrievalEvidence;
+  if (retrieval?.executed && retrieval.results?.length) {
+    const lines = retrieval.results
+      .slice(0, 10)
+      .map((r, i) => `${i + 1}. [score ${typeof r.score === 'number' ? r.score.toFixed(3) : r.score}] ${r.filename ?? r.fileId}: ${String(r.content ?? '').slice(0, 400)}`)
+      .join('\n');
+    sections.push(
+      `Semantic retrieval from AutoCat's cataloguing knowledge base (vector-store search on this book's actual title/description/subjects), ranked by relevance score:\n${lines}`
+    );
+  }
+
+  const fileSearch = knowledgeEvidence.fileSearchEvidence;
+  if (fileSearch?.executed && (fileSearch.results?.length || fileSearch.outputText)) {
+    const lines = (fileSearch.results ?? [])
+      .slice(0, 10)
+      .map((r, i) => `${i + 1}. [score ${r.score ?? 'n/a'}] ${r.filename ?? r.fileId}${r.text ? `: ${String(r.text).slice(0, 300)}` : ''}`)
+      .join('\n');
+    sections.push(
+      `Cataloguing knowledge base file search (hosted, model-directed lookup into the same knowledge base):${fileSearch.outputText ? `\n${fileSearch.outputText}` : ''}${lines ? `\n${lines}` : ''}`
+    );
+  }
+
+  return sections.length ? sections.join('\n\n') : null;
+}
+
+// buildDdcAnalysisPrompt(metadata, candidates, correction, knowledgeEvidence)
+// -- pure and exported for testing. `correction` is set on a retry after the
+// first attempt's number failed AutoCat's own validation (product spec
+// section 8: "run another classification attempt"), and is folded into the
+// prompt as an explicit instruction not to repeat the rejected number.
+// `knowledgeEvidence` (Model 2/OpenAI only) is the File Search + Retrieval
+// API evidence gathered by ddcClassificationService.js -- see
+// summarizeKnowledgeEvidence above.
+export function buildDdcAnalysisPrompt(metadata, candidates = [], correction = null, knowledgeEvidence = null) {
   const parts = [];
   parts.push(
     'You are a professional cataloguing librarian classifying a book under DEWEY DECIMAL CLASSIFICATION, 23rd EDITION (DDC 23) ONLY. ' +
@@ -87,6 +133,13 @@ export function buildDdcAnalysisPrompt(metadata, candidates = [], correction = n
   }
 
   parts.push(buildCandidateInstruction(candidates));
+
+  const knowledgeSummary = summarizeKnowledgeEvidence(knowledgeEvidence);
+  if (knowledgeSummary) {
+    parts.push(
+      `${knowledgeSummary}\n\nTreat the above as SUPPORTING cataloguing/classification knowledge only -- weigh it against the book's own actual content evidence given above, never let it override what the book itself is actually about, and never treat it as a whitelist: a valid, well-reasoned DDC 23 number is acceptable even if it doesn't appear verbatim anywhere in this retrieved knowledge.`
+    );
+  }
 
   if (correction) {
     parts.push(`IMPORTANT CORRECTION: your previous answer (${correction.number}) was rejected: ${correction.reason} Re-analyse and provide a different, valid answer.`);
@@ -142,9 +195,14 @@ export function parseAiDdcResponse(text) {
 // available, use the rule-based result silently" from "AI was attempted
 // and failed, note that honestly" per the product spec's "no fake
 // success" requirement.
-export async function classifyWithAi({ metadata, candidates = [], correction = null, provider, callModel } = {}) {
+// `knowledgeEvidence` (Model 2/OpenAI only -- see
+// ddcClassificationService.js's gatherOpenAiKnowledgeEvidence) is folded
+// into the prompt via buildDdcAnalysisPrompt and echoed back on the
+// returned object so the caller can attach it to the decision's evidence/
+// sources without re-deriving it.
+export async function classifyWithAi({ metadata, candidates = [], correction = null, provider, callModel, knowledgeEvidence = null } = {}) {
   const call = callModel ?? (provider === 'nvidia' ? callNvidia : callOpenAi);
-  const prompt = buildDdcAnalysisPrompt(metadata, candidates, correction);
+  const prompt = buildDdcAnalysisPrompt(metadata, candidates, correction, knowledgeEvidence);
 
   let model;
   let text;
@@ -156,5 +214,5 @@ export async function classifyWithAi({ metadata, candidates = [], correction = n
   }
 
   const parsed = parseAiDdcResponse(text);
-  return { ...parsed, model, provider: provider ?? 'openai' };
+  return { ...parsed, model, provider: provider ?? 'openai', knowledgeEvidence };
 }

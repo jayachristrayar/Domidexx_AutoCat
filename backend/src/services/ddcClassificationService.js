@@ -4,8 +4,68 @@ import { MAIN_CLASSES, findBundledClass, getMainClass } from './ddcKnowledgeBase
 import { classifyWithAi } from './ddcAiClassifier.js';
 import { validateClassificationAgainstWorkType } from './literaryDdc.js';
 import { deriveDdcKeywords } from '../llm/router.js';
+import { runFileSearch, searchVectorStore, isKnowledgeBaseConfigured } from './openaiKnowledgeBase.js';
 
 const MAX_AI_ATTEMPTS = 2;
+const RETRIEVAL_MAX_RESULTS = 8; // product spec: "approximately 5-10 results initially"
+
+// buildRetrievalQuery(metadata) -- pure, exported for testing. Capability 3
+// (OPENAI RETRIEVAL API): the query must be built from the book's actual
+// intellectual content, never the bare ISBN -- this is what makes the
+// vector-store search semantically meaningful rather than a coincidence
+// match. Mirrors the exact shape the product spec's example gives.
+export function buildRetrievalQuery(metadata) {
+  const parts = ['Classify this book according to DDC 23.'];
+  if (metadata.title) parts.push(`Title:\n${metadata.title}`);
+  if (metadata.subtitle) parts.push(`Subtitle:\n${metadata.subtitle}`);
+  if (metadata.description) parts.push(`Description:\n${metadata.description}`);
+  if (metadata.subjects?.length) parts.push(`Subjects:\n${metadata.subjects.join(', ')}`);
+  if (metadata.table_of_contents) parts.push(`Table of contents:\n${metadata.table_of_contents}`);
+  const authorLine = [...(metadata.authors ?? []), ...(metadata.editors ?? [])].filter(Boolean).join(', ');
+  if (authorLine) parts.push(`Author:\n${authorLine}`);
+  return parts.join('\n\n');
+}
+
+// buildFileSearchQuery(metadata) -- pure, exported for testing. Capability 2
+// (OPENAI FILE SEARCH): a natural-language CATALOGUING question ("what
+// guidance applies to...") -- this queries AutoCat's own knowledge base
+// about DDC/MARC/policy, never "what is this book" (that's web_search's
+// job in isbnLookup.js, a completely separate stage).
+export function buildFileSearchQuery(metadata) {
+  const topic = [metadata.title, ...(metadata.subjects ?? []).slice(0, 3)].filter(Boolean).join(', ') || 'this book';
+  return `What DDC 23 classification guidance, MARC21 cataloguing rules, or local cataloguing policy applies when classifying and cataloguing a work about: ${topic}?`;
+}
+
+// gatherOpenAiKnowledgeEvidence(metadata, provider) -- Model 2 (OpenAI)
+// only, and only when a cataloguing-knowledge vector store is actually
+// configured (OPENAI_VECTOR_STORE_ID) -- returns { fileSearchEvidence: null,
+// retrievalEvidence: null } immediately otherwise (never attempted, never a
+// failure -- NVIDIA/Own Model classification is completely unaffected).
+// Runs both capabilities concurrently (product spec: "bounded parallel
+// research", "do not run every possible search unnecessarily") and never
+// throws -- either capability's own internal try/catch already reduces a
+// failure to { executed: false, reason }, but Promise.allSettled is a
+// second layer of protection in case a future change to either function
+// ever throws instead.
+export async function gatherOpenAiKnowledgeEvidence(metadata, provider) {
+  if (provider !== 'openai' || !isKnowledgeBaseConfigured()) {
+    return { fileSearchEvidence: null, retrievalEvidence: null };
+  }
+  const retrievalQuery = buildRetrievalQuery(metadata);
+  const fileSearchQuery = buildFileSearchQuery(metadata);
+  const [retrievalSettled, fileSearchSettled] = await Promise.allSettled([
+    searchVectorStore(retrievalQuery, { maxResults: RETRIEVAL_MAX_RESULTS, rewriteQuery: true }),
+    runFileSearch(fileSearchQuery),
+  ]);
+  const retrievalEvidence =
+    retrievalSettled.status === 'fulfilled' ? retrievalSettled.value : { executed: false, reason: retrievalSettled.reason?.message, results: [] };
+  const fileSearchEvidence =
+    fileSearchSettled.status === 'fulfilled' ? fileSearchSettled.value : { executed: false, reason: fileSearchSettled.reason?.message, results: [] };
+  console.info(
+    `DDC_KNOWLEDGE_EVIDENCE isbn=${metadata.isbn ?? 'null'} retrievalExecuted=${retrievalEvidence.executed} retrievalResults=${retrievalEvidence.results?.length ?? 0} fileSearchExecuted=${fileSearchEvidence.executed} fileSearchResults=${fileSearchEvidence.results?.length ?? 0}`
+  );
+  return { fileSearchEvidence, retrievalEvidence };
+}
 
 // A syntactically valid DDC 23 number: three digits, optionally followed by
 // a decimal point and further digits (e.g. "158", "823.912", "025.04").
@@ -84,12 +144,20 @@ async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn, pr
     console.error('DDC AI classification: candidate lookup failed, proceeding without grounding:', error.message);
   }
 
+  // Model 2 (OpenAI) knowledge-base evidence (File Search + Retrieval API,
+  // see openaiKnowledgeBase.js) -- gathered ONCE, before the retry loop, and
+  // reused across every attempt (product spec: "do not run every possible
+  // search unnecessarily"). A no-op ({ fileSearchEvidence: null,
+  // retrievalEvidence: null }) for NVIDIA/Own Model or when no vector store
+  // is configured -- see gatherOpenAiKnowledgeEvidence.
+  const knowledgeEvidence = await gatherOpenAiKnowledgeEvidence(metadata, provider);
+
   let correction = null;
   let lastRejection = null;
   for (let attempt = 1; attempt <= MAX_AI_ATTEMPTS; attempt += 1) {
     let ai;
     try {
-      ai = await classifyWithAiFn({ metadata, candidates, correction, provider });
+      ai = await classifyWithAiFn({ metadata, candidates, correction, provider, knowledgeEvidence });
     } catch (error) {
       console.error(`DDC AI classification attempt ${attempt} failed:`, error.message);
       return { ai: null, attempted: true };
@@ -120,6 +188,49 @@ async function attemptAiClassification(metadata, ruleBased, classifyWithAiFn, pr
   return { ai: null, attempted: true, rejected: lastRejection };
 }
 
+// knowledgeEvidenceEntries/knowledgeSourceLabels -- fold the Model 2
+// knowledge-base evidence (File Search + Retrieval API) into the same
+// `evidence`/`sources` arrays the client already renders, tagged with a
+// distinct `sourceType` per product spec's "DDC EVIDENCE" shape (never
+// merged into the AI's own free-text evidence array, so a librarian/dev can
+// always tell which retrieval mechanism supplied which fact). A no-op
+// (empty arrays) whenever knowledgeEvidence is null/not executed -- e.g.
+// NVIDIA/Own Model, or Model 2 with no vector store configured.
+function knowledgeEvidenceEntries(knowledgeEvidence) {
+  if (!knowledgeEvidence) return [];
+  const entries = [];
+  for (const r of knowledgeEvidence.retrievalEvidence?.executed ? knowledgeEvidence.retrievalEvidence.results ?? [] : []) {
+    entries.push({
+      type: 'retrieval',
+      sourceType: 'retrieval',
+      value: `${r.filename ?? r.fileId}${typeof r.score === 'number' ? ` (score ${r.score.toFixed(3)})` : ''}`,
+      score: r.score ?? null,
+      fileId: r.fileId ?? null,
+      filename: r.filename ?? null,
+    });
+  }
+  for (const r of knowledgeEvidence.fileSearchEvidence?.executed ? knowledgeEvidence.fileSearchEvidence.results ?? [] : []) {
+    entries.push({
+      type: 'file_search',
+      sourceType: 'file_search',
+      value: `${r.filename ?? r.fileId}${typeof r.score === 'number' ? ` (score ${r.score.toFixed(3)})` : ''}`,
+      score: r.score ?? null,
+      fileId: r.fileId ?? null,
+      filename: r.filename ?? null,
+    });
+  }
+  return entries;
+}
+
+function knowledgeSourceLabels(knowledgeEvidence) {
+  const labels = [];
+  const retrievalCount = knowledgeEvidence?.retrievalEvidence?.executed ? knowledgeEvidence.retrievalEvidence.results?.length ?? 0 : 0;
+  if (retrievalCount > 0) labels.push(`OpenAI vector store retrieval (${retrievalCount} results)`);
+  const fileSearchCount = knowledgeEvidence?.fileSearchEvidence?.executed ? knowledgeEvidence.fileSearchEvidence.results?.length ?? 0 : 0;
+  if (fileSearchCount > 0) labels.push(`OpenAI file search (${fileSearchCount} results)`);
+  return labels;
+}
+
 function fromAi(ai, ruleBased) {
   const breakdown = ai.number_breakdown?.length
     ? ai.number_breakdown.map((row) => ({ number: row.number, label: row.meaning }))
@@ -132,6 +243,7 @@ function fromAi(ai, ruleBased) {
   // answer is always backed by more than just the model's own say-so.
   const evidence = [
     ...(ai.evidence ?? []).map((value) => ({ type: 'ai_analysis', value })),
+    ...knowledgeEvidenceEntries(ai.knowledgeEvidence),
     ...ruleBased.analysis.evidence_summary,
   ];
   return {
@@ -139,7 +251,7 @@ function fromAi(ai, ruleBased) {
     breakdown,
     justification: ai.why || `Classified as ${ai.ddc} (${ai.class_name || bundled?.label || ''}) under DDC 23.`,
     evidence,
-    sources: ai.sources?.length ? ai.sources : ['AI whole-book analysis'],
+    sources: [...(ai.sources?.length ? ai.sources : ['AI whole-book analysis']), ...knowledgeSourceLabels(ai.knowledgeEvidence)],
     work_type: ai.work_type || (ruleBased.analysis.literary ? ruleBased.analysis.literary.work_type : 'NONFICTION_OR_UNKNOWN'),
     classification_source: 'AI_ANALYZED',
     model: ai.model,
