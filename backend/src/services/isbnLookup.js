@@ -2,7 +2,7 @@ import pool from '../db/index.js';
 import { getAvailableOpenAiModel, getOpenAiClientForFallback } from './openaiModelSelector.js';
 import { lookupZ3950, extractZ3950Fields } from './z3950Lookup.js';
 import { recordUsage } from './usageService.js';
-import { webSearchAndScrape, fetchPageMetadata } from './webSearchScrape.js';
+import { webSearchAndScrape, fetchPageMetadata, looksLikeBibliographicNote } from './webSearchScrape.js';
 import { fetchOpenLibrary, fetchGoogleBooks } from './structuredSources.js';
 import { runAgenticResearch } from '../llm/researchAgent.js';
 import { assertFetchableUrl } from './urlSafety.js';
@@ -118,14 +118,34 @@ function extractOpenLibraryFields(raw) {
     edition: raw.edition_name ?? null,
     pages: raw.number_of_pages ?? null,
     dimensions: raw.physical_dimensions ?? null,
-    description: typeof raw.notes === 'string' ? raw.notes : (raw.notes?.value ?? null),
+    // raw.description is the WORK-level synopsis structuredSources.js's
+    // fetchOpenLibrary fetches as a supplementary lookup -- NEVER raw.notes,
+    // which is edition-level bibliographic notes ("Previous ed.: 1992.
+    // Includes bibliographical references.") that used to be mapped here by
+    // mistake. That bug made every downstream consumer (520$a, DDC AI input,
+    // and even the "do we need web research" decision below) believe a real
+    // description already existed when it was actually just a catalogue
+    // note -- looksLikeBibliographicNote is a second, defense-in-depth guard
+    // in case Open Library (or any future source) ever puts note-like text
+    // in the description field itself.
+    description: (() => {
+      const value = typeof raw.description === 'string' ? raw.description : (raw.description?.value ?? null);
+      return value && !looksLikeBibliographicNote(value) ? value : null;
+    })(),
     subjects: (raw.subjects ?? []).map((subject) => subject.name),
     series: raw.series?.[0] ?? null,
     // Open Library's "languages" entries are refs like "/languages/eng" --
     // the trailing segment is already a MARC-shaped 3-letter code, same
     // format languageCode() in marcPipeline.js expects.
     language: raw.languages?.[0]?.key?.split('/').pop() ?? null,
-    table_of_contents: null,
+    // Real content evidence Open Library's jscmd=data response already
+    // carries (an array of {label, title, pagenum}) but was previously
+    // discarded outright -- exactly the kind of TOC evidence the DDC
+    // classifier needs and the product spec calls out as "TOC absent" being
+    // one of the signals that research is still incomplete.
+    table_of_contents: Array.isArray(raw.table_of_contents) && raw.table_of_contents.length > 0
+      ? raw.table_of_contents.map((entry) => (typeof entry === 'string' ? entry : entry?.title)).filter(Boolean).join('; ') || null
+      : null,
   };
 }
 
@@ -795,7 +815,18 @@ export async function lookupIsbn(rawIsbn, _subscriptionTier, { userId, provider,
   // still missing, never only a last resort after every structured source
   // has failed outright (item 1/2/15).
   const hasDescription = !isEmptyValue(merged.description);
+  const hasSubjects = !isEmptyValue(merged.subjects);
+  const hasToc = !isEmptyValue(merged.table_of_contents);
   const needsWebResearch = !hasStructuredTitle || !hasDescription;
+  // EVIDENCE_QUALITY -- the evidence-sufficiency check the DDC classifier's
+  // input ultimately depends on. When description/TOC/subjects are ALL
+  // still empty at this point, structured sources gave the classifier
+  // nothing to work with; needsWebResearch (above) is what drives the
+  // additional targeted web search/fetch pass that should fill this gap
+  // before classification ever runs.
+  console.info(
+    `EVIDENCE_QUALITY isbn=${isbn} descriptionPresent=${hasDescription} subjectsCount=${(merged.subjects ?? []).length} tocPresent=${hasToc} existingDdcCount=${(merged.existing_classifications ?? []).length} insufficient=${!hasDescription && !hasSubjects && !hasToc} needsWebResearch=${needsWebResearch}`
+  );
 
   let result;
   let cacheSource;
