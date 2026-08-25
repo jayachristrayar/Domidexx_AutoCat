@@ -18,6 +18,11 @@ export const RULE_STATUSES = Object.freeze([
   'LEGACY',
   'PLANNED',
   'NOT_SUPPORTED',
+  // Koha/system-managed field that AutoCat deliberately never generates,
+  // previews, validates as an AutoCat-emitted field, or writes to Koha
+  // (000 / 005 / 008 / 942 -- see marcBuilder.js, marcPipeline.js,
+  // kohaMapper.js).
+  'EXCLUDED',
 ]);
 
 export const FIELD_TYPES = Object.freeze(['CONTROL_FIELD', 'VARIABLE_FIELD']);

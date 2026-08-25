@@ -24,92 +24,82 @@
       "aliases": ["LDR"],
       "label": "Leader",
       "description": "MARC21 record leader (24 characters). Control field — no indicators or subfields.",
-      "status": "PARTIAL",
+      "status": "EXCLUDED",
       "field_type": "CONTROL_FIELD",
       "repeatable": false,
-      "required": true,
-      "generation_method": "mechanical",
+      "required": false,
+      "generation_method": "koha_managed",
       "validation": {
         "length": 24,
         "positions": {
           "05": { "name": "record_status", "allowed": ["n", "c", "d", "a", "p"] },
-          "06": { "name": "type_of_record", "notes": "Builder default: a (language material)" },
-          "07": { "name": "bibliographic_level", "notes": "Builder default: m (monograph)" },
-          "09": { "name": "character_coding", "notes": "Builder default: a (UCS/Unicode)" },
+          "06": { "name": "type_of_record", "notes": "Not builder-generated -- Koha assigns this on import" },
+          "07": { "name": "bibliographic_level", "notes": "Not builder-generated -- Koha assigns this on import" },
+          "09": { "name": "character_coding", "notes": "Not builder-generated -- Koha assigns this on import" },
           "10": { "name": "indicator_count", "fixed": "2" },
           "11": { "name": "subfield_code_count", "fixed": "2" },
           "17": { "name": "encoding_level", "notes": "Often blank when not coded" },
           "18": { "name": "descriptive_cataloging_form", "notes": "a when profile is AACR2" },
           "20-23": { "name": "entry_map", "fixed": "4500" }
         },
-        "incomplete": "Full position-by-position cataloguing validation is not claimed; P1 validates length and basic structural defaults the builder emits."
+        "incomplete": "Full position-by-position cataloguing validation is not claimed; retained only for reference/tooling that hand-constructs a leader for testing."
       },
       "ai_assisted": false,
       "evidence_required": false,
       "cataloguer_review_required": false,
-      "koha_supported": true,
-      "koha_mapping": {
-        "kind": "CONTROL_FIELD",
-        "notes": "Mapped as record leader / control field 000, not as variable-field indicators/subfields."
-      },
+      "koha_supported": false,
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Builder already generates LDR; registry tag is 000 with alias LDR."
+      "notes": "Koha/system-managed field. AutoCat never generates, previews, validates as generated, or writes this field to Koha -- Koha assigns/derives the leader itself on import."
     },
     {
       "tag": "005",
       "label": "Date and Time of Latest Transaction",
       "description": "Deterministic MARC21 transaction timestamp.",
-      "status": "SUPPORTED",
+      "status": "EXCLUDED",
       "field_type": "CONTROL_FIELD",
       "repeatable": false,
       "required": false,
-      "generation_method": "mechanical",
+      "generation_method": "koha_managed",
       "validation": {
         "length": 16
       },
       "ai_assisted": false,
       "evidence_required": false,
       "cataloguer_review_required": false,
-      "koha_supported": true,
-      "koha_mapping": {
-        "kind": "CONTROL_FIELD"
-      },
+      "koha_supported": false,
       "profile": "MARC21",
-      "notes": "P3 generates 005 from system UTC time; no LLM involvement."
+      "notes": "Koha/system-managed field. AutoCat never generates, previews, validates as generated, or writes this field to Koha -- Koha stamps the transaction timestamp itself on save."
     },
     {
       "tag": "008",
       "label": "Fixed-Length Data Elements",
       "description": "40-character fixed-length control field for books/monographs under the current AACR2 + ISBD + MARC21 profile.",
-      "status": "PARTIAL",
+      "status": "EXCLUDED",
       "field_type": "CONTROL_FIELD",
       "repeatable": false,
-      "required": true,
-      "generation_method": "mechanical",
+      "required": false,
+      "generation_method": "koha_managed",
       "validation": {
         "length": 40,
         "positions_supported": {
-          "00-05": { "name": "date_entered", "notes": "YYMMDD; builder-generated" },
-          "06": { "name": "type_of_date", "notes": "Builder: s when year known, n when unknown" },
-          "07-10": { "name": "date1", "notes": "Publication year or uuuu" },
+          "00-05": { "name": "date_entered", "notes": "YYMMDD; not builder-generated -- Koha assigns this on import" },
+          "06": { "name": "type_of_date", "notes": "Not builder-generated -- Koha assigns this on import" },
+          "07-10": { "name": "date1", "notes": "Not builder-generated -- Koha assigns this on import" },
           "11-14": { "name": "date2", "notes": "Blank for simple monograph" },
           "15-17": { "name": "place_of_publication", "notes": "Not coded when place unknown in data model" },
           "18-34": { "name": "material_specific", "notes": "Not coded by current builder" },
-          "35-37": { "name": "language", "notes": "Builder default eng — not source-derived" },
+          "35-37": { "name": "language", "notes": "Not source-derived" },
           "38": { "name": "modified_record", "notes": "Blank default" },
-          "39": { "name": "cataloging_source", "notes": "Builder default d (other)" }
+          "39": { "name": "cataloging_source", "notes": "Not builder-generated" }
         },
-        "incomplete": "Do not invent validation for positions the application cannot generate or verify."
+        "incomplete": "Do not invent validation for positions the application cannot generate or verify; retained only for reference/tooling that hand-constructs an 008 for testing."
       },
       "ai_assisted": false,
       "evidence_required": false,
       "cataloguer_review_required": false,
-      "koha_supported": true,
-      "koha_mapping": {
-        "kind": "CONTROL_FIELD"
-      },
+      "koha_supported": false,
       "profile": "AACR2 + ISBD + MARC21 + Koha",
-      "notes": "Builder already generates a minimal 008 for printed monographs."
+      "notes": "Koha/system-managed field. AutoCat never generates, previews, validates as generated, or writes this field to Koha -- the fixed-field editor in Koha manages 008 itself."
     },
     {
       "tag": "020",
@@ -824,11 +814,11 @@
       "tag": "942",
       "label": "Added Elements (Koha local field)",
       "description": "Koha-specific item-type / record-level defaults. Institution-configuration dependent.",
-      "status": "PROFILE_DEPENDENT",
+      "status": "EXCLUDED",
       "field_type": "VARIABLE_FIELD",
       "repeatable": false,
       "required": false,
-      "generation_method": "config_driven",
+      "generation_method": "koha_managed",
       "validation": {
         "subfields": {
           "c": { "repeatable": false, "required_when_present": false, "notes": "Item type — from institution Koha config, not hardcoded" }
@@ -836,15 +826,10 @@
       },
       "ai_assisted": false,
       "evidence_required": false,
-      "cataloguer_review_required": true,
-      "koha_supported": true,
-      "koha_mapping": {
-        "kind": "VARIABLE_FIELD",
-        "primary_subfield": "c",
-        "notes": "No hardcoded item-type values in P1."
-      },
+      "cataloguer_review_required": false,
+      "koha_supported": false,
       "profile": "Koha local",
-      "notes": "Do not invent institution item types during P1. Values come from later institution configuration."
+      "notes": "Koha/system-managed, per-institution field. AutoCat never generates, previews, validates as generated, or writes 942 to Koha -- it is completely outside AutoCat's generated MARC payload."
     }
   ]
 }

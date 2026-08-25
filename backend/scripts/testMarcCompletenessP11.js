@@ -194,13 +194,14 @@ const marcRealDescription = generateMarcRecord({ metadata: metadataNoDdc, ddc_ap
 assert.ok(marcRealDescription.fields.some((f) => f.tag === '520'), 'a genuine description must still produce 520');
 console.log('  PASS: a genuine book description still produces 520$a normally');
 
-// -- 650 subjects: NO arbitrary count cap. Every distinct, well-formed
-// subject the research pipeline supplies must become its own 650 -- a large
-// but genuinely distinct subject list (e.g. 12 real headings for a book that
-// spans many topics) must all survive, in the same relevance order the
-// source supplied. Only exact/near-duplicates (same heading restated) and
-// obvious noise collapse.
-console.log('\n== 650 subjects: no arbitrary cap, only dedup/noise removal ==');
+// -- 650 subjects: hard cap of 7 (product spec: "Generate MAXIMUM 7 subject
+// headings. Never more than 7."). A large but genuinely distinct subject
+// list (e.g. 12 real headings for a book that spans many topics) must be
+// truncated to the best 7, in the relevance order the source supplied --
+// never padded, never silently dropped without a cap. Only exact/near-
+// duplicates (same heading restated) and obvious noise collapse before the
+// cap is applied.
+console.log('\n== 650 subjects: maximum 7, dedup/noise removal, relevance order preserved ==');
 const manySubjects = [
   'Practice research', 'Embodied inquiry', 'Creative research methods', 'Arts-based research',
   'Phenomenology', 'New materialism', 'Posthumanism', 'Autoethnography', 'Dance research',
@@ -208,8 +209,16 @@ const manySubjects = [
 ];
 const marcManySubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: manySubjects }, ddc_approval: {} });
 const manySubjects650 = marcManySubjects.fields.filter((f) => f.tag === '650').map((f) => f.subfields[0].value);
-assert.deepStrictEqual(manySubjects650, manySubjects, 'every distinct subject must survive as its own 650 -- no arbitrary truncation');
-console.log(`  PASS: all ${manySubjects650.length} distinct candidate subjects became separate 650 fields, none truncated`);
+assert.strictEqual(manySubjects650.length, 7, 'no more than 7 subject headings may be generated');
+assert.deepStrictEqual(manySubjects650, manySubjects.slice(0, 7), 'the best 7 (in supplied relevance order) survive; the rest are dropped, never fabricated to fill gaps');
+console.log(`  PASS: ${manySubjects.length} candidate subjects truncated to the top ${manySubjects650.length}, in relevance order`);
+
+// Fewer than 7 reliable subjects exist -- generate exactly that many, never
+// pad to reach 7.
+const marcFewSubjects = generateMarcRecord({ metadata: { ...metadataNoDdc, subjects: ['Dance', 'Theatre', 'Autism'] }, ddc_approval: {} });
+const fewSubjects650 = marcFewSubjects.fields.filter((f) => f.tag === '650');
+assert.strictEqual(fewSubjects650.length, 3, 'must generate exactly the number of genuinely distinct subjects, never pad to 7');
+console.log('  PASS: only 3 reliable subjects supplied -> exactly 3 generated, never padded to 7');
 
 // Near-duplicates that are the SAME heading (case/whitespace/trivial plural)
 // collapse to one; headings that merely share words but name a genuinely

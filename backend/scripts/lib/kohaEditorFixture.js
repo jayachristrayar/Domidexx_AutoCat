@@ -63,7 +63,7 @@ function fieldRow({ tag, ind1 = ' ', ind2 = ' ', subfields = [] }, idx = 0) {
  * specific existing values (e.g. an existing 650 the cataloguer already
  * typed) to exercise already_present/conflict handling.
  */
-export function buildKohaEditorFixture({ existing650 = [''], saveClicked = { value: false } } = {}) {
+export function buildKohaEditorFixture({ existing650 = [''], existing700 = [''], saveClicked = { value: false } } = {}) {
   const doc = new MiniDocument();
 
   const saveButton = el('button', { class: 'btn btn-primary', id: 'saverecord', text: 'Save' });
@@ -73,6 +73,28 @@ export function buildKohaEditorFixture({ existing650 = [''], saveClicked = { val
 
   let idx = 0;
   const next = () => idx++;
+
+  // A repeatable field (650, 700, ...) is seeded with however many
+  // occurrences the test wants, each with its own clone ("+") control on
+  // the last one -- same real-Koha behavior for every repeatable tag, not
+  // just 650.
+  function repeatableFieldRows(tag, values, buildField) {
+    return values.map((value, i, arr) => {
+      const rowIdx = next();
+      const row = buildField(value, rowIdx);
+      if (i === arr.length - 1) {
+        const subfieldRow = row.querySelector('.subfield_line');
+        const plus = el('a', { class: 'buttonPlus', text: '+' });
+        plus.addEventListener('click', () => {
+          const container = row.parentElement; // form
+          const newRow = buildField('', next());
+          container.append(newRow);
+        });
+        subfieldRow.append(plus);
+      }
+      return row;
+    });
+  }
 
   const form = el('form', { id: 'f', name: 'f' }, [
     controlFieldRow('000', '', next()),
@@ -85,23 +107,8 @@ export function buildKohaEditorFixture({ existing650 = [''], saveClicked = { val
     fieldRow({ tag: '245', ind1: '0', ind2: '0', subfields: [{ code: 'a', value: '' }, { code: 'c', value: '' }] }, next()),
     fieldRow({ tag: '250', subfields: [{ code: 'a', value: '' }] }, next()),
     fieldRow({ tag: '300', subfields: [{ code: 'a', value: '' }] }, next()),
-    // 650 is repeatable; seed however many occurrences the test wants, each
-    // with its own clone ("+") control on the last one.
-    ...existing650.map((value, i, arr) => {
-      const rowIdx = next();
-      const row = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value }] }, rowIdx);
-      if (i === arr.length - 1) {
-        const subfieldRow = row.querySelector('.subfield_line');
-        const plus = el('a', { class: 'buttonPlus', text: '+' });
-        plus.addEventListener('click', () => {
-          const container = row.parentElement; // form
-          const newRow = fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value: '' }] }, next());
-          container.append(newRow);
-        });
-        subfieldRow.append(plus);
-      }
-      return row;
-    }),
+    ...repeatableFieldRows('650', existing650, (value, rowIdx) => fieldRow({ tag: '650', ind2: '0', subfields: [{ code: 'a', value }] }, rowIdx)),
+    ...repeatableFieldRows('700', existing700, (value, rowIdx) => fieldRow({ tag: '700', ind1: '1', subfields: [{ code: 'a', value }] }, rowIdx)),
     saveButton,
   ]);
 
