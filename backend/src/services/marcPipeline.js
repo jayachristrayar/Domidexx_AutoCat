@@ -1,7 +1,7 @@
 import { buildSkeleton } from './marcBuilder.js';
 import { validateRecord } from './marcValidator.js';
 import { getRuleProfile, hasMarcRule, normalizeMarcTag } from './marcRuleRegistry.js';
-import { findBundledClass, buildPath } from './ddcKnowledgeBase.js';
+import { findBundledClass, MAIN_CLASSES } from './ddcKnowledgeBase.js';
 import { buildKohaFillPlan } from './kohaMapper.js';
 import { looksLikeBibliographicNote } from './webSearchScrape.js';
 
@@ -346,22 +346,53 @@ function ddcUnavailable(code, message) {
 export function buildApproved082(ddcApproval = {}, ruleProfile = getRuleProfile(), cutterSourceName = null) {
   const recommended = cleanText(ddcApproval?.ai_recommended_ddc);
   const evidenceNote = recommended ? ` (AI recommended ${recommended}; recorded as evidence, not written to 082.)` : '';
+  // approval_status is set to APPROVED automatically the instant a DDC is
+  // recommended (ddcApprovalService.saveDdcDecision's auto-accept) -- there
+  // is no cataloguer-facing "approve" button anywhere in this product, so
+  // this check is never a manual-review gate, only "has a classification
+  // actually been produced yet" (still PENDING/nothing recommended at all).
   if (!ddcApproval || ddcApproval.approval_status !== 'APPROVED') {
     return ddcUnavailable('DDC_NOT_AVAILABLE', `DDC 23 classification is not available for this record yet -- 082 omitted.${evidenceNote}`);
   }
   const approved = cleanText(ddcApproval.approved_ddc);
   if (!approved) return ddcUnavailable('APPROVED_DDC_MISSING', `Approved DDC number is missing -- 082 omitted.${evidenceNote}`);
+
+  // Format/hierarchy validity is checked ARITHMETICALLY here (three digits,
+  // optional decimal fraction, and a main class among DDC's real ten,
+  // 000-900) -- never by requiring the exact number to be an entry in
+  // rules/ddc_classes.json. That file is a curated ~1000-class sample of
+  // the full ~40,000-class DDC 23 schedule, not a whitelist: this is the
+  // same isRecognizedDdcNumber policy ddcClassificationService.js already
+  // applies when deciding whether to ACCEPT the AI's recommendation in the
+  // first place (see that file's own comment) -- this function is the
+  // second half of that same fix, applied where the 082 MARC FIELD itself
+  // gets built. Previously this required findBundledClass(approved) to
+  // return a non-null, ASSIGNED entry with a resolvable bundled hierarchy,
+  // which meant a validly-recommended, auto-approved, sufficiently specific
+  // number (e.g. "158.1") could still vanish here even though nothing else
+  // in the pipeline rejected it -- exactly the "DDC generated but 082 never
+  // reaches the record" bug. The bundled entry, when one exists, is used
+  // only to enrich the returned ddc_class (caption/hierarchy) and to catch
+  // a number the reference explicitly marks invalid (withdrawn/relocated/
+  // discontinued) -- never to gate acceptance by mere absence from the
+  // sample.
+  if (!/^\d{3}(\.\d+)?$/.test(approved)) {
+    return ddcUnavailable('DDC_INVALID_FORMAT', `"${approved}" is not a valid DDC 23 number format -- 082 omitted.${evidenceNote}`);
+  }
+  const mainClass = `${Math.floor(Number(approved.slice(0, 3)) / 100) * 100}`.padStart(3, '0');
+  if (!MAIN_CLASSES[mainClass]) {
+    return ddcUnavailable('DDC_MAIN_CLASS_INVALID', `"${approved}" does not fall under a recognized DDC 23 main class -- 082 omitted.${evidenceNote}`);
+  }
   const ddcClass = findBundledClass(approved);
-  if (!ddcClass) return ddcUnavailable('DDC_NOT_FOUND', `${approved} is not in AutoCat's bundled DDC knowledge base -- 082 omitted, rest of the record unaffected.${evidenceNote}`);
-  if (ddcClass.status !== 'ASSIGNED') return ddcUnavailable('DDC_NOT_ASSIGNED', `${approved} has status ${ddcClass.status} in the knowledge base -- 082 omitted.${evidenceNote}`);
-  const path = buildPath(approved);
-  if (path.length === 0 || path[0] !== ddcClass.main_class) return ddcUnavailable('DDC_HIERARCHY_UNRESOLVED', `${approved}'s hierarchy could not be resolved -- 082 omitted.${evidenceNote}`);
+  if (ddcClass && ddcClass.status !== 'ASSIGNED') {
+    return ddcUnavailable('DDC_NOT_ASSIGNED', `${approved} is marked ${ddcClass.status} in AutoCat's DDC 23 reference (not currently assignable) -- 082 omitted.${evidenceNote}`);
+  }
   const edition = ruleProfile?.ddc_edition_default || '23';
   const subfields = [{ code: 'a', value: approved }];
   const cutter = cutterFromSurname(cutterSourceName);
   if (cutter) subfields.push({ code: 'b', value: cutter });
   subfields.push({ code: '2', value: String(edition).replace(/\D/g, '') || '23' });
-  return { ok: true, errors: [], info: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass };
+  return { ok: true, errors: [], info: [], field: dataField('082', subfields, ['0', '4'], 'ddc_decision', CATALOGUER_APPROVED), ddc_class: ddcClass ?? null };
 }
 
 // The final MARC field array must always be in numeric tag order (000,

@@ -131,19 +131,24 @@ assert.ok(
 );
 console.log('  PASS: 082 present, status=READY_FOR_KOHA, koha_fill includes 082 -- no manual approval step anywhere');
 
-// -- Bug: an AI-recommended DDC number that ISN'T in AutoCat's own bundled
-// knowledge base (rules/ddc_classes.json -- a fixed ~1000-entry reference,
-// not the full DDC schedule) used to be treated as a genuine data-integrity
-// FAILURE (ddcFailure -> a validation ERROR), which made the ENTIRE record
-// invalid and koha_fill null -- Fill MARC silently disabled for a real,
-// good record just because 082 couldn't be produced. saveDdcDecision
-// auto-accepts any AI recommendation the moment one exists, so this hit
-// every book whose AI-recommended number (routinely more precise, e.g.
-// "823.912") isn't one of the ~1000 numbers AutoCat happens to carry.
-// Product spec: "Do NOT block MARC generation simply because the exact DDC
-// is not in the internal knowledge base." -- 082 must be omitted (never a
-// bad number written to Koha) while everything else stays fillable.
-console.log('\n== DDC recommended but NOT in AutoCat\'s bundled knowledge base must not block the record ==');
+// -- Bug (this fix): an AI-recommended, auto-approved DDC number that ISN'T
+// an exact entry in AutoCat's own bundled knowledge base (rules/ddc_classes.json
+// -- a fixed ~1000-entry reference, not the full ~40,000-class DDC 23
+// schedule) used to make buildApproved082 omit 082 entirely (DDC_NOT_FOUND),
+// even though nothing else in the pipeline had rejected the number --
+// ddcClassificationService.js's isRecognizedDdcNumber already accepts a
+// number like this as the record's recommended_ddc (format valid, main
+// class real, not explicitly marked invalid), so the DDC AI's genuinely
+// good, sufficiently specific answer (e.g. "823.912" for a particular
+// novel) was silently downgraded to "no 082 at all" one layer downstream,
+// in the exact field-construction step. That bundled file was never meant
+// to be a whitelist (product spec: "Do NOT require the DDC to exist in the
+// local knowledge base. The AI may produce a valid DDC 23 number not
+// present in the local dataset.") -- fixed so buildApproved082 uses the
+// same "format + real main class + not explicitly marked invalid" policy
+// isRecognizedDdcNumber already applies, rather than requiring bundled
+// presence.
+console.log('\n== DDC recommended but NOT in AutoCat\'s bundled knowledge base must still produce 082 ==');
 const unknownDdc = {
   approval_status: 'APPROVED',
   ai_recommended_ddc: '823.912',
@@ -154,15 +159,20 @@ const marcUnknownDdc = generateMarcRecord({ metadata: metadataNoDdc, ddc_approva
 assert.strictEqual(marcUnknownDdc.validation.valid, true, JSON.stringify(marcUnknownDdc.validation.errors));
 assert.strictEqual(marcUnknownDdc.status, 'READY_FOR_KOHA');
 assert.ok(!marcUnknownDdc.validation.errors.length, 'a DDC number missing from the bundled KB must never be a validation error');
-assert.ok(!fieldValue(marcUnknownDdc, '082'), '082 must be omitted rather than writing an unverified number');
-assert.ok(
-  marcUnknownDdc.validation.info.some((i) => i.tag === '082' && i.code === 'DDC_NOT_FOUND' && i.message.includes('823.912')),
-  'the AI\'s recommendation must still be preserved as evidence in the info message'
-);
+assert.strictEqual(fieldValue(marcUnknownDdc, '082'), '823.912', '082 must be written from the AI\'s valid, auto-approved number even when absent from the bundled KB');
 assert.ok(marcUnknownDdc.koha_fill, 'koha_fill plan must still exist -- Fill MARC must remain enabled');
-assert.ok(marcUnknownDdc.koha_fill.fields.length > 0);
-assert.ok(!marcUnknownDdc.koha_fill.fields.some((f) => f.tag === '082'));
-console.log('  PASS: unknown-to-KB DDC -> 082 omitted, recommendation preserved as evidence, record stays READY_FOR_KOHA, Fill MARC stays enabled');
+assert.ok(marcUnknownDdc.koha_fill.fields.some((f) => f.tag === '082'), '082 must reach the Koha fill plan');
+console.log('  PASS: unknown-to-KB DDC -> 082 still generated and reaches the fill plan, record stays READY_FOR_KOHA, Fill MARC stays enabled');
+
+// -- A number the bundled reference DOES contain, but explicitly marks
+// invalid (e.g. UNASSIGNED), is still correctly rejected -- absence from
+// the sample is never a rejection reason, but explicit invalidity is.
+console.log('\n== DDC explicitly marked invalid in the bundled reference is still rejected ==');
+const unassignedDdc = { approval_status: 'APPROVED', approved_ddc: '024', approved_by: 'system:auto_accepted' };
+const marcUnassignedDdc = generateMarcRecord({ metadata: metadataNoDdc, ddc_approval: unassignedDdc });
+assert.ok(!fieldValue(marcUnassignedDdc, '082'), '024 is marked UNASSIGNED in the bundled reference -- 082 must be omitted');
+assert.ok(marcUnassignedDdc.validation.info.some((i) => i.tag === '082' && i.code === 'DDC_NOT_ASSIGNED'));
+console.log('  PASS: a DDC explicitly marked UNASSIGNED in the bundled reference is still omitted from 082');
 
 // -- MARC field order: must always be numeric tag order, with 100 before
 // 245, regardless of the order the skeleton/AI/DDC steps happened to
